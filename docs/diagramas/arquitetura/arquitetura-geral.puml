@@ -1,0 +1,54 @@
+@startuml
+left to right direction
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+actor "Usuário Administrativo" as Admin
+actor "Cidadão" as Cidadao
+
+rectangle "Sistema G-MUS" as GMUS
+artifact "Relatórios CSV" as CSV
+
+package "StockFlow" {
+
+    component "Front-end\nReact + JavaScript" as Frontend
+
+    package "Back-end Django" {
+
+        component "API REST" as API
+
+        component "Autenticação e\nControle de Acesso" as Auth
+
+        component "Serviço de\nMedicamentos" as Medicamentos
+
+        component "Serviço de\nEstoque" as Estoque
+
+        component "Serviço de\nImportação" as Importacao
+    }
+
+    database "MySQL" as Banco
+}
+
+Admin --> Frontend : módulo administrativo
+Cidadao --> Frontend : módulo público
+
+Frontend --> API : requisições HTTP
+
+API --> Auth
+API --> Medicamentos
+API --> Estoque
+API --> Importacao
+
+Auth --> Banco : consulta usuários
+Medicamentos --> Banco : consulta medicamentos
+Estoque --> Banco : consulta estoques
+Importacao --> Banco : grava / atualiza dados
+
+GMUS --> CSV : exporta relatórios
+
+note bottom of CSV
+Os relatórios são exportados
+manualmente do G-MUS e utilizados
+como fonte de dados do StockFlow.
+end note
+@enduml
