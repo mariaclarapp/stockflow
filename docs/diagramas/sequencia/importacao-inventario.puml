@@ -1,0 +1,49 @@
+@startuml
+
+actor "Usuário Administrativo" as Admin
+boundary "Interface Web" as Interface
+control "ImportacaoService" as Importacao
+control "Parser CSV" as Parser
+database "Banco de Dados" as Banco
+control "EstoqueService" as Estoque
+
+Admin -> Interface : selecionar arquivo CSV
+Interface -> Importacao : enviarArquivo(arquivo)
+
+Importacao -> Importacao : validarArquivo()
+
+alt Arquivo inválido
+    Importacao --> Interface : retornar erro
+    Interface --> Admin : exibir mensagem de erro
+
+else Arquivo válido
+
+    Importacao -> Parser : processarInventario(arquivo)
+
+    Parser -> Parser : identificar UPS
+    Parser -> Parser : identificar competência
+
+    loop Para cada registro do inventário
+        Parser -> Parser : identificar medicamento
+        Parser -> Parser : identificar localização
+        Parser -> Parser : identificar lote e validade
+        Parser -> Parser : obter quantidade
+
+        Parser -> Banco : salvar ou atualizar dados
+        Banco --> Parser : confirmação
+    end
+
+    Parser --> Importacao : processamento concluído
+
+    Importacao -> Estoque : consolidarEstoque()
+    Estoque -> Banco : consultar estoques das UPS
+    Banco --> Estoque : retornar registros
+    Estoque -> Estoque : calcular estoque consolidado
+    Estoque --> Importacao : retornar consolidação
+
+    Importacao --> Interface : retornar resultado da importação
+    Interface --> Admin : exibir resultado
+end
+
+@enduml
+

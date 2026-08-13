@@ -1,0 +1,47 @@
+@startuml
+
+left to right direction
+
+actor "Usuário Administrativo" as Admin
+actor "Cidadão" as Cidadao
+
+rectangle "StockFlow" {
+
+    usecase "Fazer login" as UC01
+
+    usecase "Importar arquivo CSV" as UC02
+    usecase "Reimportar arquivo CSV" as UC03
+    usecase "Consolidar estoques\ndas três UPS" as UC04
+
+    usecase "Consultar medicamentos" as UC05
+    usecase "Consultar histórico\nde estoque" as UC06
+    usecase "Visualizar lotes,\nvalidades e localizações" as UC07
+    usecase "Selecionar múltiplos\nmedicamentos" as UC08
+
+    usecase "Gerenciar classificações" as UC09
+    usecase "Visualizar dashboard" as UC10
+
+    usecase "Consultar medicamento" as UC11
+    usecase "Consultar disponibilidade" as UC12
+}
+
+Admin --> UC01
+Admin --> UC02
+Admin --> UC03
+Admin --> UC05
+Admin --> UC09
+Admin --> UC10
+
+Cidadao --> UC11
+
+UC02 .> UC04 : <<include>>
+UC03 .> UC04 : <<include>>
+
+UC06 .> UC05 : <<extend>>
+UC07 .> UC05 : <<extend>>
+UC08 .> UC05 : <<extend>>
+
+UC11 .> UC12 : <<include>>
+
+@enduml
+

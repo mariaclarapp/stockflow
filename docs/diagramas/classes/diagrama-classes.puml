@@ -1,0 +1,133 @@
+@startuml
+class Medicamento {
+  - id : int
+  - codigoGmus : String
+  - descricao : String
+  - unidade : String
+}
+
+class SubgrupoGmus {
+  - id : int
+  - codigoGmus : String
+  - nome : String
+}
+
+class PrincipioAtivo {
+  - id : int
+  - nome : String
+}
+
+class Classificacao {
+  - id : int
+  - nome : String
+  - cor : String
+  - descricao : String
+  - ativo : boolean
+}
+
+class Ups {
+  - id : int
+  - codigoGmus : String
+  - nome : String
+}
+
+class Competencia {
+  - id : int
+  - mes : int
+  - ano : int
+}
+
+class Lote {
+  - id : int
+  - codigoLote : String
+  - dataValidade : Date
+}
+
+class LocalizacaoEstoque {
+  - id : int
+  - nome : String
+}
+
+class Estoque {
+  - id : int
+  - quantidade : Decimal
+}
+
+class Importacao {
+  - id : int
+  - nomeArquivo : String
+  - tipoRelatorio : String
+  - dataImportacao : DateTime
+  - status : String
+}
+
+class Usuario {
+  - id : int
+  - nome : String
+  - email : String
+  - senhaHash : String
+  - ativo : boolean
+}
+
+class Sessao {
+  - id : int
+  - token : String
+  - dataCriacao : DateTime
+  - dataExpiracao : DateTime
+  - ultimoAcesso : DateTime
+}
+
+class ImportacaoService {
+  + validarArquivo()
+  + identificarRelatorio()
+  + processarInventario()
+  + reprocessarImportacao()
+}
+
+class EstoqueService {
+  + consolidarEstoque()
+  + consultarHistorico()
+  + calcularEstoqueTotal()
+  + consultarDisponibilidade()
+}
+
+class MedicamentoService {
+  + filtrarMedicamentos()
+  + gerenciarClassificacoes()
+}
+
+SubgrupoGmus "0..1" -- "0..*" Medicamento
+
+Medicamento "0..*" -- "0..*" PrincipioAtivo
+Medicamento "0..*" -- "0..*" Classificacao
+
+Medicamento "1" -- "0..*" Lote
+Medicamento "1" -- "0..*" Estoque
+
+Ups "1" -- "0..*" Estoque
+Competencia "1" -- "0..*" Estoque
+Lote "0..1" -- "0..*" Estoque
+LocalizacaoEstoque "1" -- "0..*" Estoque
+Importacao "1" -- "0..*" Estoque
+
+Usuario "1" -- "0..*" Importacao
+Usuario "1" -- "0..*" Sessao
+
+Ups "1" -- "0..*" Importacao
+Competencia "1" -- "0..*" Importacao
+
+ImportacaoService ..> Importacao
+ImportacaoService ..> Estoque
+ImportacaoService ..> Medicamento
+ImportacaoService ..> Lote
+
+EstoqueService ..> Estoque
+EstoqueService ..> Medicamento
+EstoqueService ..> Competencia
+EstoqueService ..> Ups
+
+MedicamentoService ..> Medicamento
+MedicamentoService ..> Classificacao
+MedicamentoService ..> Estoque
+@enduml
+
