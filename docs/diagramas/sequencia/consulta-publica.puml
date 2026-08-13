@@ -1,0 +1,33 @@
+@startuml
+hide footbox
+
+actor "Cidadão" as Cidadao
+boundary "Interface Pública" as Interface
+control "MedicamentoService" as MedicamentoService
+control "EstoqueService" as EstoqueService
+database "Banco de Dados" as Banco
+
+Cidadao -> Interface : informar medicamento
+Interface -> MedicamentoService : consultarMedicamento(termo)
+
+MedicamentoService -> Banco : buscar medicamento
+Banco --> MedicamentoService : retornar medicamento
+
+alt Medicamento não encontrado
+    MedicamentoService --> Interface : retornar não encontrado
+    Interface --> Cidadao : exibir mensagem
+
+else Medicamento encontrado
+    MedicamentoService -> EstoqueService : consultarDisponibilidade(medicamento)
+
+    EstoqueService -> Banco : consultar estoque atual
+    Banco --> EstoqueService : retornar registros das UPS
+
+    EstoqueService -> EstoqueService : calcular disponibilidade
+
+    EstoqueService --> MedicamentoService : retornar disponibilidade
+
+    MedicamentoService --> Interface : retornar dados públicos
+    Interface --> Cidadao : exibir princípio ativo,\napresentação e disponibilidade
+end
+@enduml
