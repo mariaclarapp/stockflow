@@ -1,8 +1,21 @@
+from pathlib import Path
+
 from rest_framework import serializers
 
 from core.serializers import CompetenciaSerializer, UpsSerializer
 
 from .models import Importacao
+
+
+class InventoryUploadSerializer(serializers.Serializer):
+    arquivo = serializers.FileField(allow_empty_file=False, write_only=True)
+
+    def validate_arquivo(self, arquivo):
+        if Path(arquivo.name).suffix.lower() != ".csv":
+            raise serializers.ValidationError(
+                "Envie um arquivo com extensao .csv."
+            )
+        return arquivo
 
 
 class ImportacaoSerializer(serializers.ModelSerializer):
