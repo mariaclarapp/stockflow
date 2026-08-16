@@ -1,19 +1,25 @@
 @startuml
 
+top to bottom direction
+
 skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 30
+skinparam ranksep 40
 
 package "Medicamentos" {
+  class SubgrupoGmus {
+    - id : int
+    - codigoGmus : int [0..1]
+    - nome : String
+  }
+
   class Medicamento {
     - id : int
     - codigoGmus : String
     - descricao : String
     - unidade : String
-  }
-
-  class SubgrupoGmus {
-    - id : int
-    - codigoGmus : int [0..1]
-    - nome : String
   }
 
   class PrincipioAtivo {
@@ -27,6 +33,19 @@ package "Medicamentos" {
     - cor : String
     - descricao : String
     - ativo : boolean
+  }
+}
+
+package "Estoques" {
+  class Lote {
+    - id : int
+    - codigoLote : String
+    - dataValidade : Date [0..1]
+  }
+
+  class Estoque {
+    - id : int
+    - quantidade : Decimal
   }
 }
 
@@ -46,19 +65,6 @@ package "Core" {
   }
 }
 
-package "Estoques" {
-  class Lote {
-    - id : int
-    - codigoLote : String
-    - dataValidade : Date [0..1]
-  }
-
-  class Estoque {
-    - id : int
-    - quantidade : Decimal
-  }
-}
-
 package "Importacoes" {
   enum StatusImportacao {
     concluida
@@ -74,71 +80,28 @@ package "Importacoes" {
     - dataImportacao : DateTime
     - status : StatusImportacao
   }
-
-  class ImportacaoService <<domain service>> {
-    + persistirInventario()
-  }
 }
 
 package "Django (framework)" {
   class "User (AUTH_USER_MODEL)" as DjangoUser <<framework>> {
     - id : int
   }
-
-  class "Session" as DjangoSession <<framework>> {
-    - sessionKey : String
-    - sessionData : String
-    - expireDate : DateTime
-  }
 }
 
-package "Disponibilidade publica futura" {
-  class DisponibilidadePublicaService <<domain service>> {
-    + consultarSituacao(medicamento : Medicamento) : String
-    - identificarCompetenciaCompleta() : Competencia
-    - consolidarEstoqueConvencional(medicamento : Medicamento, competencia : Competencia) : Decimal
-  }
-}
+SubgrupoGmus "0..1" -right- "0..*" Medicamento
+Medicamento "0..*" -right- "0..*" PrincipioAtivo
+Medicamento "0..*" -down- "0..*" Classificacao
 
-SubgrupoGmus "0..1" -- "0..*" Medicamento
-Medicamento "0..*" -- "0..*" PrincipioAtivo
-Medicamento "0..*" -- "0..*" Classificacao
+Medicamento "1" -down- "0..*" Lote
+Medicamento "1" -down- "0..*" Estoque
+Ups "1" -left- "0..*" Estoque
+Competencia "1" -left- "0..*" Estoque
+Lote "0..1" -right- "0..*" Estoque
+Importacao "1" -up- "0..*" Estoque
 
-Medicamento "1" -- "0..*" Lote
-Medicamento "1" -- "0..*" Estoque
-Ups "1" -- "0..*" Estoque
-Competencia "1" -- "0..*" Estoque
-Lote "0..1" -- "0..*" Estoque
-Importacao "1" -- "0..*" Estoque
-
-DjangoUser "1" -- "0..*" Importacao : usuario
-Ups "1" -- "0..*" Importacao
-Competencia "1" -- "0..*" Importacao
+DjangoUser "1" -left- "0..*" Importacao : usuario
+Ups "1" -down- "0..*" Importacao
+Competencia "1" -down- "0..*" Importacao
 Importacao ..> StatusImportacao
-
-ImportacaoService ..> Importacao
-ImportacaoService ..> Estoque
-ImportacaoService ..> Medicamento
-ImportacaoService ..> Lote
-ImportacaoService ..> Ups
-ImportacaoService ..> Competencia
-
-DisponibilidadePublicaService ..> Medicamento
-DisponibilidadePublicaService ..> Classificacao
-DisponibilidadePublicaService ..> Ups
-DisponibilidadePublicaService ..> Competencia
-DisponibilidadePublicaService ..> Importacao
-DisponibilidadePublicaService ..> Estoque
-
-note right of DjangoSession
-  Infraestrutura nativa do Django.
-  Nao existe model Sessao no dominio.
-end note
-
-note right of DisponibilidadePublicaService
-  Servico conceitual, ainda nao implementado.
-  Disponibilidade nao e persistida.
-  A resposta publica nao expoe UPS ou quantidades.
-end note
 
 @enduml

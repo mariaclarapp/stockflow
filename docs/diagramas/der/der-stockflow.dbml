@@ -74,12 +74,6 @@ Table AUTH_USER [note: 'Tabela nativa auth_user, referenciada por settings.AUTH_
   id int [pk, increment]
 }
 
-Table DJANGO_SESSION [note: 'Sessao fornecida pelo sistema nativo de sessoes do Django; nao e model de dominio do StockFlow'] {
-  session_key varchar(40) [pk]
-  session_data text [not null]
-  expire_date datetime [not null]
-}
-
 Table IMPORTACAO {
   id bigint [pk, increment]
   nome_arquivo varchar(255) [not null]
