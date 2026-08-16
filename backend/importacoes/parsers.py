@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
@@ -45,7 +46,6 @@ def parse_inventory_csv(source):
         "totais": {},
         "headers": [],
         "campo_quantidade_estoque": "Qtde Virt.",
-        "campo_quantidade_real": "Qtde R.",
     }
     inconsistencies = []
     records = []
@@ -66,9 +66,7 @@ def parse_inventory_csv(source):
 
         material_raw = values[1] if len(values) > 1 else ""
         lote_index, lote_raw = _find_lote_validade(values)
-        quantity_raw, real_quantity_raw = _find_quantities_after_lote(
-            values, lote_index
-        )
+        quantity_raw = _find_virtual_quantity_after_lote(values, lote_index)
         unit = _find_unit(values)
         subgrupo = _find_subgrupo(values)
 
@@ -115,6 +113,7 @@ def parse_inventory_csv(source):
                 {
                     "line": line_number,
                     "type": "orphan_lot",
+                    "severity": "error",
                     "message": "Linha de lote sem medicamento associado.",
                     "raw": _raw_row(row),
                 }
@@ -123,15 +122,13 @@ def parse_inventory_csv(source):
 
         lot = _parse_lote_validade(lote_raw)
         quantity = _parse_quantity(quantity_raw)
-        real_quantity = (
-            _parse_quantity(real_quantity_raw) if real_quantity_raw else None
-        )
 
         if not lot:
             inconsistencies.append(
                 {
                     "line": line_number,
                     "type": "invalid_lot_validity",
+                    "severity": "error",
                     "message": "Lote/validade em formato inesperado.",
                     "raw": {"lote_validade": lote_raw, "row": _raw_row(row)},
                 }
@@ -143,6 +140,7 @@ def parse_inventory_csv(source):
                 {
                     "line": line_number,
                     "type": "invalid_quantity",
+                    "severity": "error",
                     "message": "Qtde Virt. em formato inesperado.",
                     "raw": {
                         "quantidade_virtual": quantity_raw,
@@ -152,27 +150,12 @@ def parse_inventory_csv(source):
             )
             continue
 
-        if real_quantity_raw and real_quantity is None:
-            inconsistencies.append(
-                {
-                    "line": line_number,
-                    "type": "invalid_real_quantity",
-                    "message": "Qtde R. em formato inesperado.",
-                    "raw": {
-                        "quantidade_real": real_quantity_raw,
-                        "row": _raw_row(row),
-                    },
-                }
-            )
-
         if pending_material:
             pending_material["pending_lot"] = {
                 "line": line_number,
                 "lote": lot,
                 "quantity": quantity,
                 "quantity_raw": quantity_raw,
-                "real_quantity": real_quantity,
-                "real_quantity_raw": real_quantity_raw,
                 "lote_raw": lote_raw,
                 "row": _raw_row(row),
             }
@@ -185,8 +168,6 @@ def parse_inventory_csv(source):
                 lot=lot,
                 quantity=quantity,
                 quantity_raw=quantity_raw,
-                real_quantity=real_quantity,
-                real_quantity_raw=real_quantity_raw,
                 lote_raw=lote_raw,
                 row=row,
             )
@@ -218,6 +199,8 @@ def parse_inventory_csv(source):
     metadata["total_registros_extraidos"] = len(records)
 
     return {
+        "tipo_relatorio": "inventario",
+        "hash_arquivo": hashlib.sha256(raw_bytes).hexdigest(),
         "metadata": metadata,
         "records": records,
         "inconsistencies": inconsistencies,
@@ -362,16 +345,11 @@ def _find_lote_validade(values):
     return None, ""
 
 
-def _find_quantities_after_lote(values, lote_index):
+def _find_virtual_quantity_after_lote(values, lote_index):
     if lote_index is None:
-        return "", ""
+        return ""
     virtual_index = lote_index + 1
-    virtual_quantity = values[virtual_index] if virtual_index < len(values) else ""
-    real_quantity = next(
-        (value for value in values[virtual_index + 1 :] if value),
-        "",
-    )
-    return virtual_quantity, real_quantity
+    return values[virtual_index] if virtual_index < len(values) else ""
 
 
 def _find_unit(values):
@@ -426,8 +404,6 @@ def _build_record(
     lot,
     quantity,
     quantity_raw,
-    real_quantity,
-    real_quantity_raw,
     lote_raw,
     row,
 ):
@@ -442,12 +418,10 @@ def _build_record(
         },
         "lote": lot,
         "quantidade": quantity,
-        "quantidade_real": real_quantity,
         "raw": {
             "row": _raw_row(row),
             "lote_validade": lote_raw,
             "quantidade_virtual": quantity_raw,
-            "quantidade_real": real_quantity_raw,
             "material": medicine.get("raw"),
         },
     }
@@ -484,9 +458,7 @@ def _resolve_split_records(rows, existing_records):
 
         material = values[1] if len(values) > 1 else ""
         lote_index, lote_raw = _find_lote_validade(values)
-        quantity_raw, real_quantity_raw = _find_quantities_after_lote(
-            values, lote_index
-        )
+        quantity_raw = _find_virtual_quantity_after_lote(values, lote_index)
         parsed_material = _parse_material(material)
 
         if parsed_material:
@@ -506,7 +478,6 @@ def _resolve_split_records(rows, existing_records):
                 "subgrupo": _find_subgrupo(values),
                 "lote_raw": lote_raw,
                 "quantity_raw": quantity_raw,
-                "real_quantity_raw": real_quantity_raw,
                 "row": row,
             }
             continue
@@ -515,11 +486,6 @@ def _resolve_split_records(rows, existing_records):
         if code_only and pending:
             lot = _parse_lote_validade(pending["lote_raw"])
             quantity = _parse_quantity(pending["quantity_raw"])
-            real_quantity = (
-                _parse_quantity(pending["real_quantity_raw"])
-                if pending["real_quantity_raw"]
-                else None
-            )
             medicine = {
                 "codigo_gmus": code_only.group("codigo"),
                 "descricao": pending["descricao"],
@@ -538,8 +504,6 @@ def _resolve_split_records(rows, existing_records):
                     lot,
                     quantity,
                     pending["quantity_raw"],
-                    real_quantity,
-                    pending["real_quantity_raw"],
                     pending["lote_raw"],
                     pending["row"],
                 )
@@ -551,9 +515,6 @@ def _resolve_split_records(rows, existing_records):
         if lote_raw and quantity_raw and current_medicine:
             lot = _parse_lote_validade(lote_raw)
             quantity = _parse_quantity(quantity_raw)
-            real_quantity = (
-                _parse_quantity(real_quantity_raw) if real_quantity_raw else None
-            )
             records.append(
                 _build_record(
                     line_number,
@@ -561,8 +522,6 @@ def _resolve_split_records(rows, existing_records):
                     lot,
                     quantity,
                     quantity_raw,
-                    real_quantity,
-                    real_quantity_raw,
                     lote_raw,
                     row,
                 )
@@ -573,6 +532,7 @@ def _resolve_split_records(rows, existing_records):
             {
                 "line": pending["line"],
                 "type": "pending_material_without_code",
+                "severity": "error",
                 "message": "Material com lote e quantidade, mas sem codigo G-MUS encontrado.",
                 "raw": pending["row"],
             }

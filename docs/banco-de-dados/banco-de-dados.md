@@ -62,6 +62,7 @@ App `estoques`:
 - `Medicamento` possui relacao muitos-para-muitos com `Classificacao`.
 - `Lote` pertence a um `Medicamento`.
 - `Importacao` referencia usuario autenticado, `Competencia` e `Ups`.
+- `Importacao.hash_arquivo` preserva o SHA-256 do CSV, sem armazenar seu conteudo completo.
 - `Estoque` referencia `Medicamento`, `Ups`, `Competencia`, `Lote` e `Importacao`.
 - `Estoque.lote` e opcional.
 - `Ups` representa a localizacao e a origem do estoque no relatorio de inventario.
@@ -88,6 +89,12 @@ As migrations abaixo foram aplicadas para usar a UPS como unica localizacao/orig
 - `core.0002_delete_localizacaoestoque`
 
 A primeira removeu a FK de `Estoque`; a segunda depende dela e removeu a tabela antiga.
+
+A migration abaixo foi gerada nesta etapa e ainda nao foi aplicada ao banco local:
+
+- `importacoes.0002_importacao_hash_arquivo_alter_importacao_status_and_more`
+
+Ela adiciona o SHA-256 do arquivo, os status iniciais e a restricao de unicidade por competencia, UPS e tipo de relatorio.
 
 ## Tabelas de dominio
 
@@ -125,11 +132,13 @@ Nao existem models proprios `Usuario` ou `Sessao`.
 - `Competencia` possui unicidade para a combinacao `(ano, mes)`.
 - `Competencia.mes` possui validacao e restricao de banco para ficar entre 1 e 12.
 - `Estoque.quantidade` usa `DecimalField(max_digits=14, decimal_places=3)`.
+- `Importacao` impede duplicidade da combinacao `(competencia, ups, tipo_relatorio)`.
+- `Importacao.status` utiliza inicialmente `concluida` e `concluida_com_alertas`.
 
 ## Quantidades do inventario
 
 - `Qtde Virt.` e a fonte da quantidade de estoque utilizada pelo StockFlow.
-- `Qtde R.`, quando preenchida no CSV, e preservada separadamente pelo parser para rastreabilidade e nao substitui automaticamente `Qtde Virt.`.
+- `Qtde R.` nao e utilizada pelo StockFlow, nao integra o registro normalizado e nao e persistida.
 
 ## Decisoes ainda pendentes
 
@@ -138,7 +147,5 @@ Ainda nao foram fechadas:
 - unicidade definitiva de `Lote`;
 - restricao composta definitiva de `Estoque`;
 - estrategia definitiva de reimportacao;
-- valores definitivos de `Importacao.status`;
-- valores definitivos de `Importacao.tipo_relatorio`;
 - regras finais de disponibilidade publica;
 - fonte definitiva para consumo mensal.

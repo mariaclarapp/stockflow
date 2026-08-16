@@ -15,6 +15,7 @@ class ImportacaoSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "nome_arquivo",
+            "hash_arquivo",
             "tipo_relatorio",
             "data_importacao",
             "status",

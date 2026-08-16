@@ -44,6 +44,8 @@ Quando uma nova importação corresponder a dados já existentes para a mesma co
 
 A estratégia técnica definitiva de identificação de uma importação repetida será definida durante a implementação do módulo de importação.
 
+Enquanto essa estratégia não estiver implementada, uma segunda importação para a mesma combinação de competência, UPS e tipo de relatório deverá ser bloqueada, sem substituir ou duplicar estoques silenciosamente.
+
 ## RN05 — Preservação da origem
 
 Todo registro de estoque deverá manter sua origem.
@@ -158,7 +160,7 @@ Não existe uma entidade de localização separada nesse contexto. O sistema dev
 
 O campo `Qtde Virt.` do relatório de inventário representa a quantidade de estoque utilizada pelo StockFlow.
 
-Quando `Qtde R.` estiver preenchida, seu valor deverá ser preservado separadamente para rastreabilidade, sem substituir automaticamente `Qtde Virt.` e sem ser utilizado como quantidade de estoque sem nova decisão de negócio.
+O campo `Qtde R.` não é utilizado pelo StockFlow. Ele poderá ser reconhecido pelo parser apenas para interpretar a estrutura do CSV, mas seu valor não deverá integrar os dados normalizados do domínio, gerar inconsistências ou ser persistido.
 
 ## RN17 — Competência
 
@@ -190,6 +192,8 @@ Caso o arquivo contenha linhas incompletas ou inconsistentes, o sistema não dev
 Esses casos deverão ser identificados durante o processamento e tratados de forma controlada, permitindo registro do problema para análise administrativa.
 
 Uma inconsistência em um registro não deverá necessariamente impedir o processamento de todo o arquivo, desde que seja possível realizar a importação dos demais registros com segurança.
+
+As inconsistências relevantes deverão ser classificadas como `error` ou `warning`. Somente um `error` associado a uma linha deverá impedir a persistência daquela linha. Um `warning` deverá permitir o processamento e resultar em importação concluída com alertas.
 
 ## RN21 — Módulo administrativo
 
@@ -324,11 +328,14 @@ O cidadão não deverá visualizar o valor numérico utilizado para esse cálcul
 Cada importação deverá registrar informações que permitam sua rastreabilidade, incluindo:
 
 - arquivo importado;
+- hash SHA-256 do arquivo;
 - data da importação;
 - usuário responsável;
 - competência;
 - UPS;
 - status do processamento.
+
+Inicialmente, os status persistidos para importações bem-sucedidas serão `concluida` e `concluida_com_alertas`. Falhas inesperadas deverão provocar rollback integral e não deixar dados parcialmente persistidos.
 
 ## RN38 — Integridade dos dados
 

@@ -51,6 +51,7 @@ class Estoque {
 class Importacao {
   - id : int
   - nomeArquivo : String
+  - hashArquivo : String
   - tipoRelatorio : String
   - dataImportacao : DateTime
   - status : String

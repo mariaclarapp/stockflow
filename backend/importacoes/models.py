@@ -3,10 +3,15 @@ from django.db import models
 
 
 class Importacao(models.Model):
+    class Status(models.TextChoices):
+        CONCLUIDA = "concluida", "Concluida"
+        CONCLUIDA_COM_ALERTAS = "concluida_com_alertas", "Concluida com alertas"
+
     nome_arquivo = models.CharField(max_length=255)
+    hash_arquivo = models.CharField(max_length=64, blank=True)
     tipo_relatorio = models.CharField(max_length=80, blank=True)
     data_importacao = models.DateTimeField()
-    status = models.CharField(max_length=50)
+    status = models.CharField(max_length=50, choices=Status.choices)
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -25,6 +30,12 @@ class Importacao(models.Model):
 
     class Meta:
         ordering = ["-data_importacao", "nome_arquivo"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["competencia", "ups", "tipo_relatorio"],
+                name="unique_importacao_competencia_ups_tipo",
+            )
+        ]
         verbose_name = "importacao"
         verbose_name_plural = "importacoes"
 

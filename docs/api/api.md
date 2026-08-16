@@ -104,6 +104,7 @@ A UPS representa a localizacao e a origem do estoque no relatorio de inventario.
 A importacao aninhada inclui:
 
 - arquivo importado;
+- hash SHA-256 do arquivo;
 - tipo de relatorio;
 - data da importacao;
 - status;
@@ -118,7 +119,7 @@ Nao foram implementados nesta etapa:
 - endpoints publicos anonimos;
 - filtros;
 - paginacao customizada;
-- importacao de CSV;
+- endpoint/upload de importacao de CSV;
 - reimportacao;
 - calculos de estoque;
 - dashboard;

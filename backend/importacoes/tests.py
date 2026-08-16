@@ -1,3 +1,4 @@
+import hashlib
 from datetime import date
 from decimal import Decimal
 
@@ -34,10 +35,14 @@ class InventoryCsvParserTests(SimpleTestCase):
 
         result = self.parse(csv_text)
 
+        self.assertEqual(result["tipo_relatorio"], "inventario")
+        self.assertEqual(
+            result["hash_arquivo"],
+            hashlib.sha256(csv_text.encode("utf-8")).hexdigest(),
+        )
         self.assertEqual(result["metadata"]["encoding"], "utf-8")
         self.assertEqual(result["metadata"]["delimiter"], ",")
         self.assertEqual(result["metadata"]["campo_quantidade_estoque"], "Qtde Virt.")
-        self.assertEqual(result["metadata"]["campo_quantidade_real"], "Qtde R.")
         self.assertEqual(result["metadata"]["competencia"], {"raw": "202608", "ano": 2026, "mes": 8})
         self.assertEqual(
             result["metadata"]["ups"],
@@ -64,7 +69,7 @@ class InventoryCsvParserTests(SimpleTestCase):
         self.assertEqual(first["lote"]["codigo_lote"], "L001")
         self.assertEqual(first["lote"]["validade"], date(2028, 2, 28))
         self.assertEqual(first["quantidade"], Decimal("1234"))
-        self.assertIsNone(first["quantidade_real"])
+        self.assertNotIn("quantidade_real", first)
         self.assertNotIn("localizacao", first)
 
         second = result["records"][1]
@@ -74,13 +79,13 @@ class InventoryCsvParserTests(SimpleTestCase):
 
         self.assertEqual(result["inconsistencies"], [])
 
-    def test_real_quantity_is_preserved_without_replacing_virtual_stock(self):
+    def test_real_quantity_is_ignored_even_when_invalid(self):
         stock_row = [""] * 21
         stock_row[1] = "MEDICAMENTO A / 500MG (100.1)"
         stock_row[6] = "COMPR"
         stock_row[14] = "L001 / 28/02/2028"
         stock_row[15] = "1.234"
-        stock_row[18] = "1.200"
+        stock_row[18] = "VALOR INVALIDO"
         csv_text = "\n".join(
             [
                 "Filtros: Competência: 202608. UPS: FARMACIA TESTE - PR / 1234567 (9). Imp. Zero? Não. Imp. Inativo? Não. Ordenado por: Código.,,,,,,,,,,,,,,,,,,,,",
@@ -93,9 +98,10 @@ class InventoryCsvParserTests(SimpleTestCase):
 
         record = result["records"][0]
         self.assertEqual(record["quantidade"], Decimal("1234"))
-        self.assertEqual(record["quantidade_real"], Decimal("1200"))
+        self.assertNotIn("quantidade_real", record)
         self.assertEqual(record["raw"]["quantidade_virtual"], "1.234")
-        self.assertEqual(record["raw"]["quantidade_real"], "1.200")
+        self.assertNotIn("quantidade_real", record["raw"])
+        self.assertEqual(result["inconsistencies"], [])
 
     def test_real_quantity_is_not_promoted_when_virtual_quantity_is_missing(self):
         stock_row = [""] * 21
@@ -117,6 +123,9 @@ class InventoryCsvParserTests(SimpleTestCase):
         self.assertIn(
             "invalid_quantity",
             [item["type"] for item in result["inconsistencies"]],
+        )
+        self.assertTrue(
+            all(item["severity"] == "error" for item in result["inconsistencies"])
         )
 
     def test_parse_shifted_last_page_columns(self):
@@ -179,4 +188,7 @@ class InventoryCsvParserTests(SimpleTestCase):
         self.assertIn(
             "orphan_lot",
             [item["type"] for item in result["inconsistencies"]],
+        )
+        self.assertTrue(
+            all(item["severity"] == "error" for item in result["inconsistencies"])
         )

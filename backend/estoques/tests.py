@@ -49,9 +49,10 @@ class AdminReadOnlyApiTests(APITestCase):
         cls.competencia = Competencia.objects.create(mes=8, ano=2026)
         cls.importacao = Importacao.objects.create(
             nome_arquivo="inventario-ficticio.csv",
+            hash_arquivo="a" * 64,
             tipo_relatorio="inventario",
             data_importacao=timezone.now(),
-            status="processado",
+            status=Importacao.Status.CONCLUIDA,
             usuario=cls.user,
             competencia=cls.competencia,
             ups=cls.ups,
@@ -193,8 +194,9 @@ class AdminReadOnlyApiTests(APITestCase):
         self.assertNotIn("localizacao", response.data)
         self.assertEqual(response.data["quantidade"], "123.456")
         self.assertEqual(response.data["importacao"]["nome_arquivo"], "inventario-ficticio.csv")
+        self.assertEqual(response.data["importacao"]["hash_arquivo"], "a" * 64)
         self.assertEqual(response.data["importacao"]["tipo_relatorio"], "inventario")
-        self.assertEqual(response.data["importacao"]["status"], "processado")
+        self.assertEqual(response.data["importacao"]["status"], "concluida")
         self.assertEqual(response.data["importacao"]["competencia"]["ano"], 2026)
         self.assertEqual(response.data["importacao"]["ups"]["codigo_gmus"], "CAF")
         self.assertEqual(response.data["importacao"]["usuario"], "farmaceutica")
