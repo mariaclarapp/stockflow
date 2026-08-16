@@ -1,3 +1,4 @@
+from rest_framework import filters
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from .models import Classificacao, Medicamento, PrincipioAtivo, SubgrupoGmus
@@ -30,3 +31,5 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
         "classificacoes",
     )
     serializer_class = MedicamentoSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["descricao", "codigo_gmus"]
