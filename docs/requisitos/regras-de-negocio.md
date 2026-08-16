@@ -80,7 +80,7 @@ O valor consolidado será calculado pelo sistema a partir dos registros individu
 Medicamento manipulado não constitui uma classe farmacológica independente.
 
 A origem de um registro de estoque manipulado continua sendo representada
-administrativamente pela UPS correspondente. Para a futura disponibilidade pública,
+administrativamente pela UPS correspondente. Para a disponibilidade pública,
 porém, a identificação de que o medicamento é manipulado será determinada pela
 classificação/tag `MANIPULADO`, conforme a RN41, e não pela simples existência de saldo,
 lote ou histórico na UPS de manipulação.
@@ -203,10 +203,10 @@ Medicamentos com quantidade igual a zero poderão ser armazenados quando forem a
 O relatório do G-MUS pode omitir itens com saldo zero quando gerado com `Imp. Zero? Não`.
 Por isso, quando existir uma competência completa, a ausência de registro de estoque
 convencional para um medicamento nessa competência representará saldo convencional zero
-para a futura disponibilidade pública. Essa inferência não poderá ser aplicada quando
+para a disponibilidade pública. Essa inferência não poderá ser aplicada quando
 não existir competência completa.
 
-A disponibilidade pública será determinada posteriormente pelas regras de disponibilidade do StockFlow.
+A disponibilidade pública será determinada pelas regras de disponibilidade do StockFlow.
 
 ## RN20 — Registros incompletos ou inconsistentes
 
@@ -248,16 +248,16 @@ Não será disponibilizada ao público a seleção em massa de medicamentos exis
 
 O módulo público deverá apresentar somente informações definidas como públicas.
 
-Na primeira versão da API pública, deverão ser disponibilizados somente:
+Na API pública, deverão ser disponibilizados somente:
 
 - código G-MUS;
 - descrição/apresentação;
-- unidade.
+- unidade;
+- situação de disponibilidade.
 
 Informações administrativas, como quantidade exata em estoque, lote, validade,
 competência, importação, usuário, subgrupo, classificações e UPS de origem, não deverão
-ser exibidas publicamente. Princípio ativo e situação de disponibilidade permanecem
-previstos para evolução futura e não integram esta primeira versão.
+ser exibidas publicamente. Princípio ativo permanece previsto para evolução futura.
 
 ## RN26 — Consulta administrativa
 
@@ -350,13 +350,14 @@ A disponibilidade apresentada ao cidadão deverá ser calculada pelo StockFlow a
 A competência válida para esse cálculo será a competência completa mais recente. Se a
 competência cronologicamente mais recente estiver incompleta, deverá ser usada a
 competência completa anterior mais recente. Se nenhuma competência completa existir, a
-A situação pública dos medicamentos sem a tag ativa `MANIPULADO` será
+situação pública dos medicamentos sem a tag ativa `MANIPULADO` será
 `Disponibilidade não informada`.
 
 O cálculo deverá consolidar internamente os estoques das UPS. O cidadão não deverá
 visualizar o valor numérico utilizado, a UPS de origem nem qual UPS possui o medicamento.
 
-A disponibilidade ainda não integra a primeira versão da API pública de medicamentos.
+A disponibilidade integra a resposta da API pública de medicamentos como situação
+textual, sem expor os dados administrativos usados no cálculo.
 
 ## RN37 — Rastreabilidade das importações
 
@@ -411,7 +412,7 @@ quantidade positiva, lote antigo ou histórico de estoque na UPS de manipulaçã
 todo medicamento com essa tag ativa deverá receber a mensagem especial, inclusive quando
 possuir estoque convencional positivo ou quando o estoque registrado estiver zerado.
 
-Quando a disponibilidade pública for implementada, a ordem de decisão será:
+A ordem de decisão da disponibilidade pública é:
 
 1. Se o medicamento possuir a tag ativa `MANIPULADO`, apresentar exatamente
    `Disponível sob manipulação, confirmar disponibilidade`, independentemente de haver

@@ -40,6 +40,8 @@ class MedicamentoSerializer(serializers.ModelSerializer):
 
 
 class MedicamentoPublicoSerializer(serializers.ModelSerializer):
+    disponibilidade = serializers.CharField(read_only=True)
+
     class Meta:
         model = Medicamento
-        fields = ["codigo_gmus", "descricao", "unidade"]
+        fields = ["codigo_gmus", "descricao", "unidade", "disponibilidade"]

@@ -82,10 +82,9 @@ representacao.
 Somente a associacao com a classificacao canonica `MANIPULADO` que esteja com
 `Classificacao.ativo=True` acionara a regra publica especial.
 
-Na futura disponibilidade publica, a identificacao devera resolver a classificacao
-canonica de forma centralizada e consultar a associacao do medicamento. Nao devera
-inferir essa condicao pelo nome da UPS, por lotes ou por historico de estoque, nem
-espalhar comparacoes de texto por diferentes pontos da aplicacao.
+Na disponibilidade publica, um servico de dominio centralizado consulta a associacao do
+medicamento com a classificacao canonica. A condicao nao e inferida pelo nome da UPS,
+por lotes ou por historico de estoque.
 
 ## Migrations aplicadas
 
@@ -116,7 +115,7 @@ A migration abaixo ja foi aplicada ao banco local:
 
 Ela adiciona o SHA-256 do arquivo, os status iniciais e a restricao de unicidade por competencia, UPS e tipo de relatorio.
 
-As migrations abaixo foram geradas e ainda nao foram aplicadas ao banco local:
+As migrations abaixo tambem foram aplicadas ao banco local:
 
 - `core.0003_ups_compoe_estoque_convencional_and_more`
 - `importacoes.0003_alter_importacao_status`
@@ -172,15 +171,15 @@ Nao existem models proprios `Usuario` ou `Sessao`.
 - `Qtde Virt.` negativa e um erro de linha e nao gera estoque valido.
 - `Qtde R.` nao e utilizada pelo StockFlow, nao integra o registro normalizado e nao e persistida.
 
-## Competencia completa e consolidacao futura
+## Competencia completa e consolidacao publica
 
 Uma competencia sera completa quando houver importacao de inventario `concluida` ou
 `concluida_com_alertas` para cada UPS com `participa_competencia=True`. UPS adicionais
-nao impedem a completude. A soma convencional futura usara somente estoques de UPS com
-`compoe_estoque_convencional=True` e devera agregar todas as linhas e lotes por
+nao impedem a completude. A soma convencional usa somente estoques de UPS com
+`compoe_estoque_convencional=True` e agrega todas as linhas e lotes por
 medicamento.
 
-Se a competencia mais recente estiver incompleta, a disponibilidade futura usara a
+Se a competencia mais recente estiver incompleta, a disponibilidade usa a
 competencia completa anterior mais recente. Sem competencia completa, medicamentos sem
 tag ativa `MANIPULADO` terao `Disponibilidade nao informada`. Em uma competencia
 completa, medicamento sem registro convencional sera tratado como saldo convencional
@@ -193,5 +192,4 @@ Ainda nao foram fechadas:
 - unicidade definitiva de `Lote`;
 - restricao composta definitiva de `Estoque`;
 - estrategia definitiva de reimportacao;
-- implementacao do calculo e da resposta de disponibilidade publica;
 - fonte definitiva para consumo mensal.

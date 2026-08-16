@@ -12,6 +12,7 @@ from .serializers import (
     PrincipioAtivoSerializer,
     SubgrupoGmusSerializer,
 )
+from .services import DisponibilidadePublicaService
 
 
 class SubgrupoGmusViewSet(ReadOnlyModelViewSet):
@@ -52,8 +53,11 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
 
 
 class MedicamentoPublicoListAPIView(ListAPIView):
-    queryset = Medicamento.objects.only("codigo_gmus", "descricao", "unidade")
     serializer_class = MedicamentoPublicoSerializer
     permission_classes = [AllowAny]
     filter_backends = [drf_filters.SearchFilter]
     search_fields = ["descricao", "codigo_gmus"]
+
+    def get_queryset(self):
+        queryset = Medicamento.objects.only("codigo_gmus", "descricao", "unidade")
+        return DisponibilidadePublicaService.anotar_disponibilidade(queryset)

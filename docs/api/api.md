@@ -43,13 +43,14 @@ Cada apresentacao e retornada separadamente. A resposta publica contem somente:
 
 - `codigo_gmus`;
 - `descricao`;
-- `unidade`.
+- `unidade`;
+- `disponibilidade`.
 
 Nao sao expostos UPS, quantidades, lote, validade, competencia, importacao, usuario,
-subgrupo, principios ativos, classificacoes ou disponibilidade.
+subgrupo, principios ativos ou classificacoes.
 
-A disponibilidade publica ainda nao foi implementada. Quando for criada, devera ser
-calculada internamente de forma consolidada a partir dos estoques das UPS configuradas
+A disponibilidade publica e calculada internamente de forma consolidada a partir dos
+estoques das UPS configuradas
 para compor o estoque convencional, sem revelar UPS de origem ou quantidades internas.
 
 A competencia valida sera a competencia completa mais recente. Uma competencia somente
@@ -58,8 +59,7 @@ inventario `concluida` ou `concluida_com_alertas`. Se a mais recente estiver inc
 sera usada a completa anterior; sem competencia completa, medicamentos sem a tag ativa
 `MANIPULADO` terao `Disponibilidade não informada`.
 
-Para medicamentos com a classificacao/tag ativa `MANIPULADO`, a futura situacao publica
-seguira esta ordem:
+O campo `disponibilidade` segue esta ordem:
 
 1. com tag ativa `MANIPULADO`, independentemente do saldo:
    `Disponível sob manipulação, confirmar disponibilidade`;
@@ -70,11 +70,20 @@ seguira esta ordem:
 4. sem tag ativa `MANIPULADO`, com competência completa e sem estoque convencional
    positivo: `Indisponível`.
 
-A tag, e nao saldo, lote ou historico da UPS de manipulacao, determinara a mensagem
-especial. Todo medicamento com a tag ativa devera receber essa mensagem, mesmo com estoque
-convencional positivo ou estoque registrado igual a zero. Esses criterios ainda nao
-alteram a resposta da API publica atual, que nao
-inclui disponibilidade nem dados administrativos.
+A tag, e nao saldo, lote ou historico da UPS de manipulacao, determina a mensagem
+especial. Todo medicamento com a tag ativa recebe essa mensagem, mesmo com estoque
+convencional positivo ou estoque registrado igual a zero.
+
+Exemplo de item publico:
+
+```json
+{
+  "codigo_gmus": "115.1",
+  "descricao": "DIPIRONA / 500MG",
+  "unidade": "COMPR",
+  "disponibilidade": "Disponível"
+}
+```
 
 ## Endpoints administrativos de leitura
 
@@ -283,8 +292,7 @@ Nao foram implementados nesta etapa:
 - reimportacao;
 - calculos de estoque;
 - dashboard;
-- outros endpoints de escrita;
-- disponibilidade publica e suas regras definitivas.
+- outros endpoints de escrita.
 
 ## Separacao futura
 
