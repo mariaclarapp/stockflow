@@ -93,7 +93,10 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo):
         reused_lots = set()
         reported_divergences = set()
         stock_count = 0
-        ignored_count = 0
+        record_lines = {
+            record.get("line") for record in parsed_data.get("records", [])
+        }
+        ignored_count = len(invalid_lines - record_lines)
 
         for record in parsed_data.get("records", []):
             line = record.get("line")
@@ -165,7 +168,10 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo):
         has_warnings = any(
             item.get("severity") == "warning" for item in parser_errors
         )
-        if invalid_lines or service_errors or has_warnings or divergencias:
+        if invalid_lines or service_errors:
+            importacao.status = Importacao.Status.CONCLUIDA_PARCIAL
+            importacao.save(update_fields=["status"])
+        elif has_warnings or divergencias:
             importacao.status = Importacao.Status.CONCLUIDA_COM_ALERTAS
             importacao.save(update_fields=["status"])
 
@@ -219,6 +225,10 @@ def _validate_record(record):
         raise InventoryPersistenceError("Descricao do medicamento ausente.")
     if record.get("quantidade") is None:
         raise InventoryPersistenceError("Qtde Virt. ausente.")
+    if record["quantidade"] < 0:
+        raise InventoryPersistenceError(
+            "Qtde Virt. negativa nao representa estoque valido."
+        )
     return {
         **medicine,
         "unidade": medicine.get("unidade") or "",

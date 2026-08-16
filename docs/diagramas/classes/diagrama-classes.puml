@@ -1,128 +1,144 @@
 @startuml
-class Medicamento {
-  - id : int
-  - codigoGmus : String
-  - descricao : String
-  - unidade : String
+
+skinparam classAttributeIconSize 0
+
+package "Medicamentos" {
+  class Medicamento {
+    - id : int
+    - codigoGmus : String
+    - descricao : String
+    - unidade : String
+  }
+
+  class SubgrupoGmus {
+    - id : int
+    - codigoGmus : int [0..1]
+    - nome : String
+  }
+
+  class PrincipioAtivo {
+    - id : int
+    - nome : String
+  }
+
+  class Classificacao {
+    - id : int
+    - nome : String
+    - cor : String
+    - descricao : String
+    - ativo : boolean
+  }
 }
 
-class SubgrupoGmus {
-  - id : int
-  - codigoGmus : String
-  - nome : String
+package "Core" {
+  class Ups {
+    - id : int
+    - codigoGmus : String
+    - nome : String
+    - participaCompetencia : boolean
+    - compoeEstoqueConvencional : boolean
+  }
+
+  class Competencia {
+    - id : int
+    - mes : int
+    - ano : int
+  }
 }
 
-class PrincipioAtivo {
-  - id : int
-  - nome : String
+package "Estoques" {
+  class Lote {
+    - id : int
+    - codigoLote : String
+    - dataValidade : Date [0..1]
+  }
+
+  class Estoque {
+    - id : int
+    - quantidade : Decimal
+  }
 }
 
-class Classificacao {
-  - id : int
-  - nome : String
-  - cor : String
-  - descricao : String
-  - ativo : boolean
+package "Importacoes" {
+  enum StatusImportacao {
+    concluida
+    concluida_com_alertas
+    concluida_parcial
+  }
+
+  class Importacao {
+    - id : int
+    - nomeArquivo : String
+    - hashArquivo : String
+    - tipoRelatorio : String
+    - dataImportacao : DateTime
+    - status : StatusImportacao
+  }
+
+  class ImportacaoService <<domain service>> {
+    + persistirInventario()
+  }
 }
 
-class Ups {
-  - id : int
-  - codigoGmus : String
-  - nome : String
+package "Django (framework)" {
+  class "User (AUTH_USER_MODEL)" as DjangoUser <<framework>> {
+    - id : int
+  }
+
+  class "Session" as DjangoSession <<framework>> {
+    - sessionKey : String
+    - sessionData : String
+    - expireDate : DateTime
+  }
 }
 
-class Competencia {
-  - id : int
-  - mes : int
-  - ano : int
-}
-
-class Lote {
-  - id : int
-  - codigoLote : String
-  - dataValidade : Date
-}
-
-class Estoque {
-  - id : int
-  - quantidade : Decimal
-}
-
-class Importacao {
-  - id : int
-  - nomeArquivo : String
-  - hashArquivo : String
-  - tipoRelatorio : String
-  - dataImportacao : DateTime
-  - status : String
-}
-
-class Usuario {
-  - id : int
-  - nome : String
-  - email : String
-  - senhaHash : String
-  - ativo : boolean
-}
-
-class Sessao {
-  - id : int
-  - token : String
-  - dataCriacao : DateTime
-  - dataExpiracao : DateTime
-  - ultimoAcesso : DateTime
-}
-
-class ImportacaoService {
-  + validarArquivo()
-  + identificarRelatorio()
-  + processarInventario()
-  + reprocessarImportacao()
-}
-
-class EstoqueService {
-  + consolidarEstoque()
-  + consultarHistorico()
-  + calcularEstoqueTotal()
-  + consultarDisponibilidade()
-}
-
-class MedicamentoService {
-  + filtrarMedicamentos()
-  + gerenciarClassificacoes()
+package "Disponibilidade publica futura" {
+  class DisponibilidadePublicaService <<domain service>> {
+    + consultarSituacao(medicamento : Medicamento) : String
+    - identificarCompetenciaCompleta() : Competencia
+    - consolidarEstoqueConvencional(medicamento : Medicamento, competencia : Competencia) : Decimal
+  }
 }
 
 SubgrupoGmus "0..1" -- "0..*" Medicamento
-
 Medicamento "0..*" -- "0..*" PrincipioAtivo
 Medicamento "0..*" -- "0..*" Classificacao
 
 Medicamento "1" -- "0..*" Lote
 Medicamento "1" -- "0..*" Estoque
-
 Ups "1" -- "0..*" Estoque
 Competencia "1" -- "0..*" Estoque
 Lote "0..1" -- "0..*" Estoque
 Importacao "1" -- "0..*" Estoque
 
-Usuario "1" -- "0..*" Importacao
-Usuario "1" -- "0..*" Sessao
-
+DjangoUser "1" -- "0..*" Importacao : usuario
 Ups "1" -- "0..*" Importacao
 Competencia "1" -- "0..*" Importacao
+Importacao ..> StatusImportacao
 
 ImportacaoService ..> Importacao
 ImportacaoService ..> Estoque
 ImportacaoService ..> Medicamento
 ImportacaoService ..> Lote
+ImportacaoService ..> Ups
+ImportacaoService ..> Competencia
 
-EstoqueService ..> Estoque
-EstoqueService ..> Medicamento
-EstoqueService ..> Competencia
-EstoqueService ..> Ups
+DisponibilidadePublicaService ..> Medicamento
+DisponibilidadePublicaService ..> Classificacao
+DisponibilidadePublicaService ..> Ups
+DisponibilidadePublicaService ..> Competencia
+DisponibilidadePublicaService ..> Importacao
+DisponibilidadePublicaService ..> Estoque
 
-MedicamentoService ..> Medicamento
-MedicamentoService ..> Classificacao
-MedicamentoService ..> Estoque
+note right of DjangoSession
+  Infraestrutura nativa do Django.
+  Nao existe model Sessao no dominio.
+end note
+
+note right of DisponibilidadePublicaService
+  Servico conceitual, ainda nao implementado.
+  Disponibilidade nao e persistida.
+  A resposta publica nao expoe UPS ou quantidades.
+end note
+
 @enduml
-

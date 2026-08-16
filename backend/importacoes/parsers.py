@@ -150,6 +150,21 @@ def parse_inventory_csv(source):
             )
             continue
 
+        if quantity < 0:
+            inconsistencies.append(
+                {
+                    "line": line_number,
+                    "type": "negative_quantity",
+                    "severity": "error",
+                    "message": "Qtde Virt. negativa nao representa estoque valido.",
+                    "raw": {
+                        "quantidade_virtual": quantity_raw,
+                        "row": _raw_row(row),
+                    },
+                }
+            )
+            continue
+
         if pending_material:
             pending_material["pending_lot"] = {
                 "line": line_number,
@@ -192,7 +207,16 @@ def parse_inventory_csv(source):
 
     # Second pass is avoided for normal records, but split material/code rows need to emit
     # the pending stock row after the code-only line is read.
-    records, split_inconsistencies = _resolve_split_records(rows, records)
+    rejected_lines = {
+        item["line"]
+        for item in inconsistencies
+        if item.get("severity") == "error" and item.get("line") is not None
+    }
+    records, split_inconsistencies = _resolve_split_records(
+        rows,
+        records,
+        rejected_lines,
+    )
     inconsistencies.extend(split_inconsistencies)
 
     metadata["total_linhas"] = len(rows)
@@ -431,7 +455,7 @@ def _raw_row(row):
     return [value for value in row]
 
 
-def _resolve_split_records(rows, existing_records):
+def _resolve_split_records(rows, existing_records, rejected_lines):
     records = []
     inconsistencies = []
     current_medicine = None
@@ -468,6 +492,9 @@ def _resolve_split_records(rows, existing_records):
                 "subgrupo": _find_subgrupo(values),
                 "raw": {"material": material},
             }
+            continue
+
+        if line_number in rejected_lines:
             continue
 
         if material and lote_raw and quantity_raw and not MATERIAL_CODE_ONLY_RE.match(material):

@@ -28,14 +28,16 @@ class InventoryUploadApiTests(APITestCase):
         self,
         name="inventario-ficticio.csv",
         description="MEDICAMENTO TESTE",
+        quantity="10",
+        extra_rows=None,
     ):
-        csv_text = "\n".join(
-            [
-                "Filtros: Compet\u00eancia: 202608. UPS: FARMACIA TESTE - PR / 1234567 (9). Imp. Zero? Nao. Imp. Inativo? Nao. Ordenado por: Codigo.,,,,,,,,,,,,,,,,,,,,,",
-                "Material / Apresenta\u00e7\u00e3o,,,,,,Unidade,,,,Sub-Grupo,,,Lote / Validade,,,Qtde Virt.,,,Qtde R.,",
-                f",{description} / 500MG (100.1),,,,,COMPR,,,GRUPO TESTE (47),,,,,L001 / 28/02/2028,10,,,,,",
-            ]
-        )
+        rows = [
+            "Filtros: Compet\u00eancia: 202608. UPS: FARMACIA TESTE - PR / 1234567 (9). Imp. Zero? Nao. Imp. Inativo? Nao. Ordenado por: Codigo.,,,,,,,,,,,,,,,,,,,,,",
+            "Material / Apresenta\u00e7\u00e3o,,,,,,Unidade,,,,Sub-Grupo,,,Lote / Validade,,,Qtde Virt.,,,Qtde R.,",
+            f",{description} / 500MG (100.1),,,,,COMPR,,,GRUPO TESTE (47),,,,,L001 / 28/02/2028,{quantity},,,,,",
+        ]
+        rows.extend(extra_rows or [])
+        csv_text = "\n".join(rows)
         return SimpleUploadedFile(
             name,
             csv_text.encode("utf-8"),
@@ -96,6 +98,22 @@ class InventoryUploadApiTests(APITestCase):
         self.assertEqual(Medicamento.objects.count(), 1)
         self.assertEqual(Lote.objects.count(), 1)
         self.assertEqual(Estoque.objects.count(), 1)
+        self.assertEqual(Importacao.objects.get().status, Importacao.Status.CONCLUIDA)
+
+    def test_upload_with_rejected_record_is_completed_partially(self):
+        self.authenticate()
+        upload = self.csv_upload(
+            extra_rows=[",,,,,,,,,,,,,,L002 / 31/03/2028,-1,,,,,"]
+        )
+
+        response = self.post_csv(upload)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], "concluida_parcial")
+        self.assertEqual(response.data["estoques_criados"], 1)
+        self.assertEqual(response.data["registros_ignorados"], 1)
+        self.assertEqual(Estoque.objects.count(), 1)
+        self.assertEqual(response.data["erros"][0]["type"], "negative_quantity")
 
     def test_duplicate_inventory_returns_conflict_without_new_stock(self):
         self.authenticate()

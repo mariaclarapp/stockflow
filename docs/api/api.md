@@ -22,7 +22,59 @@ Atualmente, a permissao padrao exige usuario autenticado:
 rest_framework.permissions.IsAuthenticated
 ```
 
-Nao existem endpoints publicos anonimos implementados nesta etapa.
+O endpoint `/api/publico/medicamentos/` usa `AllowAny` e nao exige autenticacao.
+
+## Consulta publica de medicamentos
+
+Rota:
+
+```text
+GET /api/publico/medicamentos/
+```
+
+A rota aceita o parametro opcional `search`, com busca parcial e sem diferenciar
+maiusculas de minusculas em descricao e codigo G-MUS:
+
+```text
+GET /api/publico/medicamentos/?search=dipirona
+```
+
+Cada apresentacao e retornada separadamente. A resposta publica contem somente:
+
+- `codigo_gmus`;
+- `descricao`;
+- `unidade`.
+
+Nao sao expostos UPS, quantidades, lote, validade, competencia, importacao, usuario,
+subgrupo, principios ativos, classificacoes ou disponibilidade.
+
+A disponibilidade publica ainda nao foi implementada. Quando for criada, devera ser
+calculada internamente de forma consolidada a partir dos estoques das UPS configuradas
+para compor o estoque convencional, sem revelar UPS de origem ou quantidades internas.
+
+A competencia valida sera a competencia completa mais recente. Uma competencia somente
+sera completa quando todas as UPS configuradas como participantes tiverem importacao de
+inventario `concluida` ou `concluida_com_alertas`. Se a mais recente estiver incompleta,
+sera usada a completa anterior; sem competencia completa, medicamentos sem a tag ativa
+`MANIPULADO` terao `Disponibilidade não informada`.
+
+Para medicamentos com a classificacao/tag ativa `MANIPULADO`, a futura situacao publica
+seguira esta ordem:
+
+1. com tag ativa `MANIPULADO`, independentemente do saldo:
+   `Disponível sob manipulação, confirmar disponibilidade`;
+2. sem tag ativa `MANIPULADO` e sem competência completa:
+   `Disponibilidade não informada`;
+3. sem tag ativa `MANIPULADO`, com competência completa e estoque convencional
+   positivo: `Disponível`;
+4. sem tag ativa `MANIPULADO`, com competência completa e sem estoque convencional
+   positivo: `Indisponível`.
+
+A tag, e nao saldo, lote ou historico da UPS de manipulacao, determinara a mensagem
+especial. Todo medicamento com a tag ativa devera receber essa mensagem, mesmo com estoque
+convencional positivo ou estoque registrado igual a zero. Esses criterios ainda nao
+alteram a resposta da API publica atual, que nao
+inclui disponibilidade nem dados administrativos.
 
 ## Endpoints administrativos de leitura
 
@@ -38,6 +90,47 @@ Rotas disponiveis:
 - `/api/competencias/`
 - `/api/lotes/`
 - `/api/estoques/`
+
+### Pesquisa de medicamentos
+
+O endpoint administrativo de medicamentos aceita o parametro opcional `search`:
+
+```text
+GET /api/medicamentos/?search=dipirona
+```
+
+A pesquisa e parcial e nao diferencia maiusculas de minusculas. Os campos pesquisados
+sao `Medicamento.descricao` e `Medicamento.codigo_gmus`.
+
+Cada apresentacao permanece como um medicamento separado na resposta, preservando seu
+codigo G-MUS, descricao e unidade. Uma consulta sem `search` continua retornando a
+listagem administrativa normal.
+
+### Filtros administrativos
+
+Os filtros usam igualdade exata e podem ser combinados na mesma consulta.
+
+Medicamentos:
+
+- `subgrupo`: ID de `SubgrupoGmus`.
+
+Estoques:
+
+- `ups`: ID de `Ups`;
+- `ups_codigo`: codigo G-MUS de `Ups`;
+- `competencia`: ID de `Competencia`;
+- `subgrupo`: ID do `SubgrupoGmus` associado ao medicamento do estoque.
+
+Exemplos:
+
+```text
+GET /api/medicamentos/?subgrupo=10
+GET /api/medicamentos/?search=dipirona&subgrupo=10
+GET /api/estoques/?ups=1
+GET /api/estoques/?ups_codigo=2780046
+GET /api/estoques/?competencia=8
+GET /api/estoques/?ups=1&competencia=8&subgrupo=10
+```
 
 O endpoint direto abaixo nao existe:
 
@@ -95,6 +188,15 @@ Uma resposta de sucesso usa HTTP `201` e possui esta estrutura:
 ```
 
 Os itens de divergencia, warning ou erro nao incluem as linhas brutas do CSV.
+
+Os status de sucesso seguem estas regras:
+
+- `concluida`: sem warnings ou registros rejeitados;
+- `concluida_com_alertas`: com warnings, mas sem registros rejeitados;
+- `concluida_parcial`: com uma ou mais linhas ou registros rejeitados.
+
+Uma `Qtde Virt.` negativa e retornada como erro de linha, nao cria estoque para a linha
+e torna a importacao `concluida_parcial` quando ainda houver registros processaveis.
 
 Respostas de erro:
 
@@ -176,14 +278,13 @@ A importacao aninhada inclui:
 
 Nao foram implementados nesta etapa:
 
-- endpoints publicos anonimos;
-- filtros;
+- filtros administrativos adicionais;
 - paginacao customizada;
 - reimportacao;
 - calculos de estoque;
 - dashboard;
 - outros endpoints de escrita;
-- regras definitivas de disponibilidade publica.
+- disponibilidade publica e suas regras definitivas.
 
 ## Separacao futura
 
@@ -192,4 +293,6 @@ O projeto possui dois contextos de acesso:
 - modulo administrativo, autenticado;
 - modulo publico, sem autenticacao.
 
-A API atual cobre apenas a consulta administrativa inicial. A API publica devera ser criada separadamente, respeitando as regras de informacao publica: nao expor quantidade exata, lote, validade, UPS de origem ou informacoes administrativas internas.
+A API publica inicial oferece somente a pesquisa de medicamentos e permanece separada
+dos endpoints administrativos. Ela nao expoe quantidade, lote, validade, UPS de origem
+ou outras informacoes administrativas internas.

@@ -208,7 +208,7 @@ class InventoryPersistenceServiceTests(TestCase):
         )
         self.assertEqual(
             summary["importacao"].status,
-            Importacao.Status.CONCLUIDA_COM_ALERTAS,
+            Importacao.Status.CONCLUIDA_PARCIAL,
         )
 
     def test_rolls_back_entire_import_on_unexpected_persistence_error(self):
@@ -291,7 +291,26 @@ class InventoryPersistenceServiceTests(TestCase):
         self.assertEqual(len(summary["erros"]), 1)
         self.assertEqual(
             summary["importacao"].status,
-            Importacao.Status.CONCLUIDA_COM_ALERTAS,
+            Importacao.Status.CONCLUIDA_PARCIAL,
+        )
+
+    def test_negative_quantity_is_rejected_by_persistence(self):
+        parsed_data = self.parsed_data(
+            records=[
+                self.record(line=10, quantity=Decimal("-1")),
+                self.record(line=11, code="101.1"),
+            ]
+        )
+
+        summary = self.persist(parsed_data)
+
+        self.assertEqual(Estoque.objects.count(), 1)
+        self.assertEqual(Estoque.objects.get().medicamento.codigo_gmus, "101.1")
+        self.assertEqual(summary["registros_ignorados"], 1)
+        self.assertEqual(summary["erros"][0]["type"], "persistence_validation")
+        self.assertEqual(
+            summary["importacao"].status,
+            Importacao.Status.CONCLUIDA_PARCIAL,
         )
 
     def test_warning_sets_alert_status_without_rejecting_record(self):

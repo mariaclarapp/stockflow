@@ -7,6 +7,7 @@ from importacoes.views import InventoryUploadAPIView
 from medicamentos.views import (
     ClassificacaoViewSet,
     MedicamentoViewSet,
+    MedicamentoPublicoListAPIView,
     PrincipioAtivoViewSet,
     SubgrupoGmusViewSet,
 )
@@ -23,6 +24,11 @@ router.register("lotes", LoteViewSet, basename="lote")
 router.register("estoques", EstoqueViewSet, basename="estoque")
 
 urlpatterns = [
+    path(
+        "publico/medicamentos/",
+        MedicamentoPublicoListAPIView.as_view(),
+        name="public-medicamento-list",
+    ),
     path(
         "importacoes/inventario/",
         InventoryUploadAPIView.as_view(),

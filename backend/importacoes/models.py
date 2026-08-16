@@ -6,6 +6,7 @@ class Importacao(models.Model):
     class Status(models.TextChoices):
         CONCLUIDA = "concluida", "Concluida"
         CONCLUIDA_COM_ALERTAS = "concluida_com_alertas", "Concluida com alertas"
+        CONCLUIDA_PARCIAL = "concluida_parcial", "Concluida parcial"
 
     nome_arquivo = models.CharField(max_length=255)
     hash_arquivo = models.CharField(max_length=64, blank=True)

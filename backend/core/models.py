@@ -5,6 +5,8 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 class Ups(models.Model):
     codigo_gmus = models.CharField(max_length=50, unique=True)
     nome = models.CharField(max_length=255)
+    participa_competencia = models.BooleanField(default=True)
+    compoe_estoque_convencional = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["nome"]

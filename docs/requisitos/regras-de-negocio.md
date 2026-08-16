@@ -12,7 +12,13 @@ Os dados serão obtidos por meio de relatórios exportados manualmente do G-MUS 
 
 O controle de estoque será baseado em competências mensais.
 
-Para que uma competência seja considerada completa, deverão ser importados os relatórios correspondentes às três UPS utilizadas pela Farmácia Municipal.
+Para que uma competência seja considerada completa, deverá existir uma importação de
+inventário com status `concluida` ou `concluida_com_alertas` para cada UPS configurada
+com `participa_competencia=True`.
+
+UPS adicionais que não participam dessa configuração não impedirão que a competência
+seja considerada completa. A identificação das UPS participantes deverá ser configurada
+nos dados, sem nomes fixados no código-fonte.
 
 As três UPS consideradas atualmente são:
 
@@ -62,7 +68,10 @@ A consolidação dos estoques não deverá eliminar essas informações individu
 
 ## RN06 — Consolidação das UPS
 
-O estoque geral de um medicamento será obtido pela consolidação dos registros correspondentes às três UPS.
+O estoque convencional de um medicamento será obtido pela consolidação dos registros
+das UPS configuradas com `compoe_estoque_convencional=True`. A Farmácia de Manipulação
+deverá ser configurada com esse indicador desativado, sem identificação por nome no
+código-fonte.
 
 O valor consolidado será calculado pelo sistema a partir dos registros individuais, sem necessidade de criar um estoque consolidado independente no banco de dados.
 
@@ -70,7 +79,11 @@ O valor consolidado será calculado pelo sistema a partir dos registros individu
 
 Medicamento manipulado não constitui uma classe farmacológica independente.
 
-A condição de manipulado está relacionada à origem do estoque, representada pela Farmácia de Manipulação.
+A origem de um registro de estoque manipulado continua sendo representada
+administrativamente pela UPS correspondente. Para a futura disponibilidade pública,
+porém, a identificação de que o medicamento é manipulado será determinada pela
+classificação/tag `MANIPULADO`, conforme a RN41, e não pela simples existência de saldo,
+lote ou histórico na UPS de manipulação.
 
 Um mesmo medicamento e uma mesma apresentação podem existir simultaneamente em estoque convencional e em estoque proveniente da Farmácia de Manipulação.
 
@@ -162,6 +175,10 @@ O campo `Qtde Virt.` do relatório de inventário representa a quantidade de est
 
 O campo `Qtde R.` não é utilizado pelo StockFlow. Ele poderá ser reconhecido pelo parser apenas para interpretar a estrutura do CSV, mas seu valor não deverá integrar os dados normalizados do domínio, gerar inconsistências ou ser persistido.
 
+Como o inventário representa saldo de estoque, uma `Qtde Virt.` negativa deverá ser
+classificada como inconsistência `error`. A linha correspondente não deverá gerar um
+registro de estoque válido.
+
 ## RN17 — Competência
 
 A competência do relatório representa o período de referência dos dados e deverá ser armazenada separadamente da data de importação.
@@ -182,6 +199,12 @@ Não será necessária uma tabela independente apenas para histórico de estoque
 ## RN19 — Registros com quantidade zero
 
 Medicamentos com quantidade igual a zero poderão ser armazenados quando forem apresentados dessa forma no relatório importado.
+
+O relatório do G-MUS pode omitir itens com saldo zero quando gerado com `Imp. Zero? Não`.
+Por isso, quando existir uma competência completa, a ausência de registro de estoque
+convencional para um medicamento nessa competência representará saldo convencional zero
+para a futura disponibilidade pública. Essa inferência não poderá ser aplicada quando
+não existir competência completa.
 
 A disponibilidade pública será determinada posteriormente pelas regras de disponibilidade do StockFlow.
 
@@ -225,13 +248,16 @@ Não será disponibilizada ao público a seleção em massa de medicamentos exis
 
 O módulo público deverá apresentar somente informações definidas como públicas.
 
-Atualmente, deverão ser disponibilizados:
+Na primeira versão da API pública, deverão ser disponibilizados somente:
 
-- princípio ativo;
-- apresentação ou dosagem;
-- situação de disponibilidade.
+- código G-MUS;
+- descrição/apresentação;
+- unidade.
 
-Informações administrativas, como quantidade exata em estoque, lote, validade e UPS de origem, não deverão ser exibidas publicamente.
+Informações administrativas, como quantidade exata em estoque, lote, validade,
+competência, importação, usuário, subgrupo, classificações e UPS de origem, não deverão
+ser exibidas publicamente. Princípio ativo e situação de disponibilidade permanecem
+previstos para evolução futura e não integram esta primeira versão.
 
 ## RN26 — Consulta administrativa
 
@@ -321,7 +347,16 @@ Não deverá ser calculado consumo real apenas pela diferença entre dois estoqu
 
 A disponibilidade apresentada ao cidadão deverá ser calculada pelo StockFlow a partir da competência considerada atual e dos registros das UPS.
 
-O cidadão não deverá visualizar o valor numérico utilizado para esse cálculo.
+A competência válida para esse cálculo será a competência completa mais recente. Se a
+competência cronologicamente mais recente estiver incompleta, deverá ser usada a
+competência completa anterior mais recente. Se nenhuma competência completa existir, a
+A situação pública dos medicamentos sem a tag ativa `MANIPULADO` será
+`Disponibilidade não informada`.
+
+O cálculo deverá consolidar internamente os estoques das UPS. O cidadão não deverá
+visualizar o valor numérico utilizado, a UPS de origem nem qual UPS possui o medicamento.
+
+A disponibilidade ainda não integra a primeira versão da API pública de medicamentos.
 
 ## RN37 — Rastreabilidade das importações
 
@@ -335,7 +370,15 @@ Cada importação deverá registrar informações que permitam sua rastreabilida
 - UPS;
 - status do processamento.
 
-Inicialmente, os status persistidos para importações bem-sucedidas serão `concluida` e `concluida_com_alertas`. Falhas inesperadas deverão provocar rollback integral e não deixar dados parcialmente persistidos.
+Os status persistidos terão a seguinte semântica:
+
+- `concluida`: todos os registros foram processados sem warnings ou rejeições;
+- `concluida_com_alertas`: existem warnings não bloqueantes, mas nenhum registro foi rejeitado;
+- `concluida_parcial`: uma ou mais linhas ou registros foram rejeitados.
+
+Somente `concluida` e `concluida_com_alertas` poderão completar uma competência. Falhas
+inesperadas deverão provocar rollback integral e não deixar dados parcialmente
+persistidos.
 
 ## RN38 — Integridade dos dados
 
@@ -354,3 +397,43 @@ Novas UPS, classificações e outras informações configuráveis deverão, semp
 Os dados importados do G-MUS deverão ser preservados em sua forma original sempre que isso for relevante para rastreabilidade e conferência.
 
 Tratamentos, padronizações e informações adicionais do StockFlow deverão complementar os dados de origem, evitando apagar informações necessárias para auditoria ou verificação.
+
+## RN41 — Disponibilidade pública de medicamentos manipulados
+
+`MANIPULADO` é uma classificação/tag associada ao medicamento. Um medicamento não se
+torna uma entidade diferente por possuir essa tag: sua apresentação e seu código G-MUS
+continuam identificando normalmente o mesmo medicamento.
+
+A situação pública especial de medicamento manipulado deverá ser determinada pela
+existência da classificação/tag ativa `MANIPULADO` no medicamento. Uma classificação
+com `ativo=False` não deverá acionar essa regra. A tag ativa não dependerá de
+quantidade positiva, lote antigo ou histórico de estoque na UPS de manipulação. Assim,
+todo medicamento com essa tag ativa deverá receber a mensagem especial, inclusive quando
+possuir estoque convencional positivo ou quando o estoque registrado estiver zerado.
+
+Quando a disponibilidade pública for implementada, a ordem de decisão será:
+
+1. Se o medicamento possuir a tag ativa `MANIPULADO`, apresentar exatamente
+   `Disponível sob manipulação, confirmar disponibilidade`, independentemente de haver
+   estoque convencional positivo ou de o estoque registrado estar zerado.
+2. Se o medicamento não possuir a tag ativa `MANIPULADO` e não existir competência
+   completa, apresentar `Disponibilidade não informada`.
+3. Se o medicamento não possuir a tag ativa `MANIPULADO`, existir competência completa
+   e houver estoque convencional
+   positivo considerado válido para a consulta pública, apresentar `Disponível`.
+4. Se o medicamento não possuir a tag ativa `MANIPULADO`, existir competência completa
+   e não houver estoque convencional positivo, apresentar `Indisponível`.
+
+A existência de lote antigo, saldo positivo anterior ou simples histórico na UPS de
+manipulação não garante que o medicamento esteja sendo manipulado atualmente e não
+deverá ser usada para afirmar disponibilidade.
+
+A tag poderá ser usada internamente no cálculo, mas o cidadão deverá receber somente a
+situação pública resultante. O módulo público não deverá revelar UPS, quantidade por
+UPS, quantidade consolidada, estoque da UPS de manipulação, lotes, validade,
+competência, importação ou outros dados administrativos usados na decisão. A UPS
+continuará sendo informação exclusivamente administrativa.
+
+Licitações, contratos e processos de compra não fazem parte do escopo do StockFlow. O
+StockFlow não deverá criar funcionalidades, models, tabelas, campos, requisitos,
+integrações ou módulos para controlar essas informações como parte desta regra.

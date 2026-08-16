@@ -66,6 +66,26 @@ App `estoques`:
 - `Estoque` referencia `Medicamento`, `Ups`, `Competencia`, `Lote` e `Importacao`.
 - `Estoque.lote` e opcional.
 - `Ups` representa a localizacao e a origem do estoque no relatorio de inventario.
+- `Ups.participa_competencia` configura se a unidade precisa de inventario valido para
+  completar uma competencia.
+- `Ups.compoe_estoque_convencional` configura se seus estoques participam da futura
+  consolidacao convencional.
+
+## Classificacao MANIPULADO
+
+A estrutura atual ja permite representar `MANIPULADO` como uma `Classificacao`
+associada ao medicamento pela relacao muitos-para-muitos existente.
+`Classificacao.nome` e unico e possui tamanho suficiente para armazenar o nome
+canonico `MANIPULADO`. Nenhuma alteracao de model ou migration e necessaria para essa
+representacao.
+
+Somente a associacao com a classificacao canonica `MANIPULADO` que esteja com
+`Classificacao.ativo=True` acionara a regra publica especial.
+
+Na futura disponibilidade publica, a identificacao devera resolver a classificacao
+canonica de forma centralizada e consultar a associacao do medicamento. Nao devera
+inferir essa condicao pelo nome da UPS, por lotes ou por historico de estoque, nem
+espalhar comparacoes de texto por diferentes pontos da aplicacao.
 
 ## Migrations aplicadas
 
@@ -90,11 +110,19 @@ As migrations abaixo foram aplicadas para usar a UPS como unica localizacao/orig
 
 A primeira removeu a FK de `Estoque`; a segunda depende dela e removeu a tabela antiga.
 
-A migration abaixo foi gerada nesta etapa e ainda nao foi aplicada ao banco local:
+A migration abaixo ja foi aplicada ao banco local:
 
 - `importacoes.0002_importacao_hash_arquivo_alter_importacao_status_and_more`
 
 Ela adiciona o SHA-256 do arquivo, os status iniciais e a restricao de unicidade por competencia, UPS e tipo de relatorio.
+
+As migrations abaixo foram geradas e ainda nao foram aplicadas ao banco local:
+
+- `core.0003_ups_compoe_estoque_convencional_and_more`
+- `importacoes.0003_alter_importacao_status`
+
+Elas adicionam as duas configuracoes booleanas de `Ups` e registram
+`concluida_parcial` entre as opcoes de status da importacao.
 
 ## Tabelas de dominio
 
@@ -133,12 +161,30 @@ Nao existem models proprios `Usuario` ou `Sessao`.
 - `Competencia.mes` possui validacao e restricao de banco para ficar entre 1 e 12.
 - `Estoque.quantidade` usa `DecimalField(max_digits=14, decimal_places=3)`.
 - `Importacao` impede duplicidade da combinacao `(competencia, ups, tipo_relatorio)`.
-- `Importacao.status` utiliza inicialmente `concluida` e `concluida_com_alertas`.
+- `Ups.participa_competencia` e `Ups.compoe_estoque_convencional` usam `True` como
+  padrao e permitem configurar as unidades sem inferencia por nome.
+- `Importacao.status` utiliza `concluida`, `concluida_com_alertas` e
+  `concluida_parcial`.
 
 ## Quantidades do inventario
 
 - `Qtde Virt.` e a fonte da quantidade de estoque utilizada pelo StockFlow.
+- `Qtde Virt.` negativa e um erro de linha e nao gera estoque valido.
 - `Qtde R.` nao e utilizada pelo StockFlow, nao integra o registro normalizado e nao e persistida.
+
+## Competencia completa e consolidacao futura
+
+Uma competencia sera completa quando houver importacao de inventario `concluida` ou
+`concluida_com_alertas` para cada UPS com `participa_competencia=True`. UPS adicionais
+nao impedem a completude. A soma convencional futura usara somente estoques de UPS com
+`compoe_estoque_convencional=True` e devera agregar todas as linhas e lotes por
+medicamento.
+
+Se a competencia mais recente estiver incompleta, a disponibilidade futura usara a
+competencia completa anterior mais recente. Sem competencia completa, medicamentos sem
+tag ativa `MANIPULADO` terao `Disponibilidade nao informada`. Em uma competencia
+completa, medicamento sem registro convencional sera tratado como saldo convencional
+zero, pois o G-MUS pode omitir saldos zerados.
 
 ## Decisoes ainda pendentes
 
@@ -147,5 +193,5 @@ Ainda nao foram fechadas:
 - unicidade definitiva de `Lote`;
 - restricao composta definitiva de `Estoque`;
 - estrategia definitiva de reimportacao;
-- regras finais de disponibilidade publica;
+- implementacao do calculo e da resposta de disponibilidade publica;
 - fonte definitiva para consumo mensal.

@@ -128,6 +128,28 @@ class InventoryCsvParserTests(SimpleTestCase):
             all(item["severity"] == "error" for item in result["inconsistencies"])
         )
 
+    def test_negative_virtual_quantity_is_rejected(self):
+        csv_text = "\n".join(
+            [
+                "Filtros: Competência: 202608. UPS: FARMACIA TESTE - PR / 1234567 (9). Imp. Zero? Não. Imp. Inativo? Não. Ordenado por: Código.,,,,,,,,,,,,,,,,,,,,",
+                "Material / Apresentação,,,,,,Unidade,,,,Sub-Grupo,,,Lote / Validade,,,Qtde Virt.,,,Qtde R.,",
+                ",MEDICAMENTO A / 500MG (100.1),,,,,COMPR,,,,,,,,L001 / 28/02/2028,-1,,,,,",
+                ",MEDICAMENTO B / 10MG (101.1),,,,,FRASC,,,,,,,,L002 / 31/12/2028,5,,,,,",
+            ]
+        )
+
+        result = self.parse(csv_text)
+
+        self.assertEqual(len(result["records"]), 1)
+        self.assertEqual(result["records"][0]["medicamento"]["codigo_gmus"], "101.1")
+        negative_issue = next(
+            item
+            for item in result["inconsistencies"]
+            if item["type"] == "negative_quantity"
+        )
+        self.assertEqual(negative_issue["severity"], "error")
+        self.assertEqual(negative_issue["line"], 3)
+
     def test_parse_shifted_last_page_columns(self):
         csv_text = "\n".join(
             [

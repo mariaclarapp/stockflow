@@ -37,3 +37,9 @@ class MedicamentoSerializer(serializers.ModelSerializer):
             "principios_ativos",
             "classificacoes",
         ]
+
+
+class MedicamentoPublicoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Medicamento
+        fields = ["codigo_gmus", "descricao", "unidade"]
