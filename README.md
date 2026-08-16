@@ -31,7 +31,9 @@ A documentação técnica está organizada em `docs/`, incluindo:
 - diagrama de classes;
 - casos de uso;
 - diagramas de sequência;
-- arquitetura da solução.
+- arquitetura da solução;
+- [API](docs/api/api.md);
+- [banco de dados](docs/banco-de-dados/banco-de-dados.md).
 
 ## Módulos
 

@@ -341,3 +341,9 @@ Sempre que possível:
 6. informar qualquer pendência ou decisão de negócio necessária.
 
 Não declarar que algo funciona sem ter executado a verificação correspondente.
+
+---
+
+## 23. Documentação sincronizada
+
+Alterações futuras na API ou no banco de dados devem manter a documentação correspondente em `docs/api/` e `docs/banco-de-dados/` sincronizada com a implementação.

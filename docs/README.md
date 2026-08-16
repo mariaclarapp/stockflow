@@ -16,6 +16,22 @@ Arquivos:
 - [`requisitos-nao-funcionais.md`](./requisitos/requisitos-nao-funcionais.md)
 - [`regras-de-negocio.md`](./requisitos/regras-de-negocio.md)
 
+### API
+
+A pasta [`api`](./api/) documenta o estado implementado da API do backend.
+
+Arquivos:
+
+- [`api.md`](./api/api.md)
+
+### Banco de Dados
+
+A pasta [`banco-de-dados`](./banco-de-dados/) documenta a configuração e a modelagem implementada no banco de dados.
+
+Arquivos:
+
+- [`banco-de-dados.md`](./banco-de-dados/banco-de-dados.md)
+
 ### Diagramas
 
 A pasta [`diagramas`](./diagramas/) contém os artefatos de modelagem do StockFlow.
