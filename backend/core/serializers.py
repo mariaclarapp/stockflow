@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Competencia, LocalizacaoEstoque, Ups
+from .models import Competencia, Ups
 
 
 class UpsSerializer(serializers.ModelSerializer):
@@ -13,9 +13,3 @@ class CompetenciaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Competencia
         fields = ["id", "mes", "ano"]
-
-
-class LocalizacaoEstoqueSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = LocalizacaoEstoque
-        fields = ["id", "nome"]

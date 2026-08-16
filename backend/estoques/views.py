@@ -18,7 +18,6 @@ class EstoqueViewSet(ReadOnlyModelViewSet):
         "lote",
         "lote__medicamento",
         "lote__medicamento__subgrupo_gmus",
-        "localizacao",
         "importacao",
         "importacao__competencia",
         "importacao__ups",

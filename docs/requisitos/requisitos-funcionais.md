@@ -12,11 +12,11 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
 | RF06 | Agrupar os dados importados por medicamento, UPS e competência | Administrativo |
 | RF07 | Permitir reimportação e atualização dos dados de um relatório | Administrativo |
 | RF08 | Consolidar automaticamente os dados das três UPS | Administrativo |
-| RF09 | Manter a identificação da UPS, localização e lote de cada medicamento | Administrativo |
+| RF09 | Manter a identificação da UPS, que representa a localização/origem, e do lote de cada medicamento | Administrativo |
 | RF10 | Gerenciar classificações e categorias dos medicamentos | Administrativo |
 | RF11 | Filtrar medicamentos por diferentes características | Administrativo |
 | RF12 | Selecionar múltiplos medicamentos para visualização | Administrativo |
-| RF13 | Visualizar os medicamentos conforme sua localização de estoque | Administrativo |
+| RF13 | Visualizar os medicamentos conforme sua UPS de estoque | Administrativo |
 | RF14 | Consultar histórico de estoque por medicamento | Administrativo |
 | RF15 | Calcular a média de consumo dos medicamentos | Administrativo |
 | RF16 | Comparar médias de consumo de diferentes períodos | Administrativo |
@@ -33,5 +33,5 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
 - O módulo público não exige autenticação.
 - A seleção de múltiplos medicamentos é destinada ao módulo administrativo.
 - No módulo público, a consulta será individual por medicamento.
-- O processamento dos relatórios deverá preservar competência, UPS, localização, lote, validade e demais informações disponíveis no arquivo importado.
+- O processamento dos relatórios deverá preservar competência, UPS, lote, validade e demais informações disponíveis no arquivo importado. No inventário, a UPS representa a localização/origem do estoque.
 - Alguns requisitos relacionados aos cálculos de consumo dependem da definição definitiva da fonte utilizada para obtenção do consumo mensal.

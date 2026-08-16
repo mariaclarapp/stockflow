@@ -1,11 +1,7 @@
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from .models import Competencia, LocalizacaoEstoque, Ups
-from .serializers import (
-    CompetenciaSerializer,
-    LocalizacaoEstoqueSerializer,
-    UpsSerializer,
-)
+from .models import Competencia, Ups
+from .serializers import CompetenciaSerializer, UpsSerializer
 
 
 class UpsViewSet(ReadOnlyModelViewSet):
@@ -16,8 +12,3 @@ class UpsViewSet(ReadOnlyModelViewSet):
 class CompetenciaViewSet(ReadOnlyModelViewSet):
     queryset = Competencia.objects.all()
     serializer_class = CompetenciaSerializer
-
-
-class LocalizacaoEstoqueViewSet(ReadOnlyModelViewSet):
-    queryset = LocalizacaoEstoque.objects.all()
-    serializer_class = LocalizacaoEstoqueSerializer

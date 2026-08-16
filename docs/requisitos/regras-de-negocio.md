@@ -30,10 +30,11 @@ Durante a importação, o sistema deverá identificar as informações disponív
 - código do medicamento no G-MUS;
 - unidade;
 - subgrupo;
-- localização;
 - lote;
 - validade;
 - quantidade.
+
+No relatório de inventário, a UPS/unidade identificada nos metadados representa a localização e a origem de todos os registros do arquivo.
 
 ## RN04 — Reimportação
 
@@ -53,7 +54,6 @@ O sistema deverá preservar a relação do registro com:
 - UPS;
 - competência;
 - lote, quando disponível;
-- localização;
 - importação responsável pelo registro.
 
 A consolidação dos estoques não deverá eliminar essas informações individuais.
@@ -140,19 +140,25 @@ Um medicamento poderá possuir vários lotes simultaneamente.
 
 Cada lote deverá preservar seu código e sua data de validade, quando disponíveis.
 
-O mesmo código de lote poderá aparecer em diferentes registros de estoque, inclusive em diferentes localizações ou UPS, sem que isso seja automaticamente considerado erro.
+O mesmo código de lote poderá aparecer em diferentes registros de estoque, inclusive em diferentes UPS, sem que isso seja automaticamente considerado erro.
 
-## RN15 — Quantidade por lote e localização
+## RN15 — Quantidade por lote e UPS
 
 A quantidade pertence ao registro de estoque, e não exclusivamente ao lote.
 
-Isso permite que um mesmo lote esteja presente em mais de uma localização ou UPS com quantidades diferentes.
+Isso permite que um mesmo lote esteja presente em mais de uma UPS com quantidades diferentes.
 
-## RN16 — Localização
+## RN16 — UPS como localização do estoque
 
-A localização fornecida pelo relatório de inventário deverá ser preservada durante a importação.
+A UPS/unidade fornecida nos metadados do relatório de inventário representa a localização e a origem do estoque e deverá ser preservada durante a importação.
 
-O sistema deverá permitir consultar o estoque considerando também sua localização.
+Não existe uma entidade de localização separada nesse contexto. O sistema deverá permitir consultar o estoque por UPS.
+
+## RN16-A — Quantidades do inventário
+
+O campo `Qtde Virt.` do relatório de inventário representa a quantidade de estoque utilizada pelo StockFlow.
+
+Quando `Qtde R.` estiver preenchida, seu valor deverá ser preservado separadamente para rastreabilidade, sem substituir automaticamente `Qtde Virt.` e sem ser utilizado como quantidade de estoque sem nova decisão de negócio.
 
 ## RN17 — Competência
 
@@ -221,7 +227,7 @@ Atualmente, deverão ser disponibilizados:
 - apresentação ou dosagem;
 - situação de disponibilidade.
 
-Informações administrativas, como quantidade exata em estoque, lote, validade e localização, não deverão ser exibidas publicamente.
+Informações administrativas, como quantidade exata em estoque, lote, validade e UPS de origem, não deverão ser exibidas publicamente.
 
 ## RN26 — Consulta administrativa
 
@@ -234,7 +240,6 @@ A consulta poderá incluir:
 - histórico por competência;
 - lotes;
 - validades;
-- localizações;
 - classificações;
 - subgrupos;
 - filtros administrativos.
@@ -254,7 +259,6 @@ Os filtros poderão considerar, conforme os dados disponíveis:
 - classificação;
 - subgrupo;
 - UPS;
-- localização;
 - disponibilidade;
 - princípio ativo;
 - apresentação.
@@ -305,7 +309,7 @@ Essa funcionalidade poderá ser utilizada pela farmacêutica para identificar al
 
 A regra técnica definitiva para obtenção dos valores de consumo mensal ainda deverá ser validada durante o desenvolvimento.
 
-O relatório de inventário será utilizado como fonte principal para estoque mensal, lotes, validade, localização e demais informações disponíveis.
+O relatório de inventário será utilizado como fonte principal para estoque mensal, lotes, validade, UPS de origem e demais informações disponíveis.
 
 Não deverá ser calculado consumo real apenas pela diferença entre dois estoques mensais quando existirem entradas ou outras movimentações que possam alterar o saldo.
 
@@ -328,7 +332,7 @@ Cada importação deverá registrar informações que permitam sua rastreabilida
 
 ## RN38 — Integridade dos dados
 
-O sistema deverá evitar duplicidades e inconsistências entre medicamento, competência, UPS, lote, localização e importação.
+O sistema deverá evitar duplicidades e inconsistências entre medicamento, competência, UPS, lote e importação.
 
 As regras específicas de restrições `UNIQUE` e validações do banco serão definidas durante a implementação física do banco de dados.
 

@@ -43,11 +43,6 @@ class Lote {
   - dataValidade : Date
 }
 
-class LocalizacaoEstoque {
-  - id : int
-  - nome : String
-}
-
 class Estoque {
   - id : int
   - quantidade : Decimal
@@ -107,7 +102,6 @@ Medicamento "1" -- "0..*" Estoque
 Ups "1" -- "0..*" Estoque
 Competencia "1" -- "0..*" Estoque
 Lote "0..1" -- "0..*" Estoque
-LocalizacaoEstoque "1" -- "0..*" Estoque
 Importacao "1" -- "0..*" Estoque
 
 Usuario "1" -- "0..*" Importacao

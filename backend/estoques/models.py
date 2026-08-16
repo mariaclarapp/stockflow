@@ -43,11 +43,6 @@ class Estoque(models.Model):
         blank=True,
         related_name="estoques",
     )
-    localizacao = models.ForeignKey(
-        "core.LocalizacaoEstoque",
-        on_delete=models.PROTECT,
-        related_name="estoques",
-    )
     importacao = models.ForeignKey(
         "importacoes.Importacao",
         on_delete=models.PROTECT,

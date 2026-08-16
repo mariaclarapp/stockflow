@@ -38,7 +38,6 @@ App `core`:
 
 - `Ups`
 - `Competencia`
-- `LocalizacaoEstoque`
 
 App `medicamentos`:
 
@@ -63,9 +62,9 @@ App `estoques`:
 - `Medicamento` possui relacao muitos-para-muitos com `Classificacao`.
 - `Lote` pertence a um `Medicamento`.
 - `Importacao` referencia usuario autenticado, `Competencia` e `Ups`.
-- `Estoque` referencia `Medicamento`, `Ups`, `Competencia`, `Lote`, `LocalizacaoEstoque` e `Importacao`.
+- `Estoque` referencia `Medicamento`, `Ups`, `Competencia`, `Lote` e `Importacao`.
 - `Estoque.lote` e opcional.
-- `Estoque.localizacao` e obrigatoria.
+- `Ups` representa a localizacao e a origem do estoque no relatorio de inventario.
 
 ## Migrations aplicadas
 
@@ -83,12 +82,18 @@ As migrations iniciais do dominio foram aplicadas para:
 - `importacoes.0001_initial`
 - `estoques.0001_initial`
 
+As migrations abaixo foram aplicadas para usar a UPS como unica localizacao/origem do estoque:
+
+- `estoques.0002_remove_estoque_localizacao`
+- `core.0002_delete_localizacaoestoque`
+
+A primeira removeu a FK de `Estoque`; a segunda depende dela e removeu a tabela antiga.
+
 ## Tabelas de dominio
 
 Tabelas criadas pelos apps de dominio:
 
 - `core_competencia`
-- `core_localizacaoestoque`
 - `core_ups`
 - `medicamentos_subgrupogmus`
 - `medicamentos_principioativo`
@@ -120,6 +125,11 @@ Nao existem models proprios `Usuario` ou `Sessao`.
 - `Competencia` possui unicidade para a combinacao `(ano, mes)`.
 - `Competencia.mes` possui validacao e restricao de banco para ficar entre 1 e 12.
 - `Estoque.quantidade` usa `DecimalField(max_digits=14, decimal_places=3)`.
+
+## Quantidades do inventario
+
+- `Qtde Virt.` e a fonte da quantidade de estoque utilizada pelo StockFlow.
+- `Qtde R.`, quando preenchida no CSV, e preservada separadamente pelo parser para rastreabilidade e nao substitui automaticamente `Qtde Virt.`.
 
 ## Decisoes ainda pendentes
 

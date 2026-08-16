@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from core.models import Competencia, LocalizacaoEstoque, Ups
+from core.models import Competencia, Ups
 from estoques.models import Estoque, Lote
 from importacoes.models import Importacao
 from medicamentos.models import (
@@ -47,7 +47,6 @@ class AdminReadOnlyApiTests(APITestCase):
 
         cls.ups = Ups.objects.create(codigo_gmus="CAF", nome="CAF")
         cls.competencia = Competencia.objects.create(mes=8, ano=2026)
-        cls.localizacao = LocalizacaoEstoque.objects.create(nome="Prateleira A")
         cls.importacao = Importacao.objects.create(
             nome_arquivo="inventario-ficticio.csv",
             tipo_relatorio="inventario",
@@ -67,7 +66,6 @@ class AdminReadOnlyApiTests(APITestCase):
             ups=cls.ups,
             competencia=cls.competencia,
             lote=cls.lote,
-            localizacao=cls.localizacao,
             importacao=cls.importacao,
             quantidade=Decimal("123.456"),
         )
@@ -76,7 +74,6 @@ class AdminReadOnlyApiTests(APITestCase):
             ups=cls.ups,
             competencia=cls.competencia,
             lote=None,
-            localizacao=cls.localizacao,
             importacao=cls.importacao,
             quantidade=Decimal("0.000"),
         )
@@ -92,7 +89,6 @@ class AdminReadOnlyApiTests(APITestCase):
             "medicamento-list",
             "ups-list",
             "competencia-list",
-            "localizacao-estoque-list",
             "lote-list",
             "estoque-list",
         ]
@@ -114,7 +110,6 @@ class AdminReadOnlyApiTests(APITestCase):
             "medicamento-list",
             "ups-list",
             "competencia-list",
-            "localizacao-estoque-list",
             "lote-list",
             "estoque-list",
         ]
@@ -124,12 +119,13 @@ class AdminReadOnlyApiTests(APITestCase):
                 response = self.client.get(reverse(endpoint))
                 self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_importacoes_endpoint_is_not_registered(self):
+    def test_removed_endpoints_are_not_registered(self):
         self.authenticate()
 
-        response = self.client.get("/api/importacoes/")
-
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        for path in ["/api/importacoes/", "/api/localizacoes-estoque/"]:
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_admin_endpoints_are_read_only(self):
         self.authenticate()
@@ -140,7 +136,6 @@ class AdminReadOnlyApiTests(APITestCase):
             "medicamento-list",
             "ups-list",
             "competencia-list",
-            "localizacao-estoque-list",
             "lote-list",
             "estoque-list",
         ]
@@ -151,7 +146,6 @@ class AdminReadOnlyApiTests(APITestCase):
             ("medicamento-detail", self.medicamento.id),
             ("ups-detail", self.ups.id),
             ("competencia-detail", self.competencia.id),
-            ("localizacao-estoque-detail", self.localizacao.id),
             ("lote-detail", self.lote.id),
             ("estoque-detail", self.estoque.id),
         ]
@@ -196,7 +190,7 @@ class AdminReadOnlyApiTests(APITestCase):
         self.assertEqual(response.data["competencia"]["mes"], 8)
         self.assertEqual(response.data["competencia"]["ano"], 2026)
         self.assertEqual(response.data["lote"]["codigo_lote"], "L001")
-        self.assertEqual(response.data["localizacao"]["nome"], "Prateleira A")
+        self.assertNotIn("localizacao", response.data)
         self.assertEqual(response.data["quantidade"], "123.456")
         self.assertEqual(response.data["importacao"]["nome_arquivo"], "inventario-ficticio.csv")
         self.assertEqual(response.data["importacao"]["tipo_relatorio"], "inventario")

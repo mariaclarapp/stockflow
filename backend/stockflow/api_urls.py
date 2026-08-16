@@ -1,6 +1,6 @@
 from rest_framework.routers import DefaultRouter
 
-from core.views import CompetenciaViewSet, LocalizacaoEstoqueViewSet, UpsViewSet
+from core.views import CompetenciaViewSet, UpsViewSet
 from estoques.views import EstoqueViewSet, LoteViewSet
 from medicamentos.views import (
     ClassificacaoViewSet,
@@ -17,11 +17,6 @@ router.register("classificacoes", ClassificacaoViewSet, basename="classificacao"
 router.register("medicamentos", MedicamentoViewSet, basename="medicamento")
 router.register("ups", UpsViewSet, basename="ups")
 router.register("competencias", CompetenciaViewSet, basename="competencia")
-router.register(
-    "localizacoes-estoque",
-    LocalizacaoEstoqueViewSet,
-    basename="localizacao-estoque",
-)
 router.register("lotes", LoteViewSet, basename="lote")
 router.register("estoques", EstoqueViewSet, basename="estoque")
 

@@ -104,15 +104,13 @@ Ele contém informações relevantes como:
 - código;
 - UPS;
 - competência;
-- localização;
 - lote;
 - validade;
 - quantidade;
 - outras informações existentes no relatório.
 
-A localização existe no CSV do inventário e deve ser considerada pela implementação.
-
-Não remover ou ignorar esse campo.
+A UPS/unidade do relatório representa a localização e a origem do estoque. Não criar
+uma entidade de localização separada para o inventário.
 
 ---
 
@@ -134,7 +132,7 @@ Evitar criar estruturas redundantes quando a informação já puder ser derivada
 
 ---
 
-## 10. Lotes, validade e localização
+## 10. Lotes, validade e UPS
 
 Um medicamento pode possuir múltiplos lotes.
 
@@ -142,14 +140,13 @@ Os registros devem preservar, quando disponíveis:
 
 - lote;
 - validade;
-- localização;
 - quantidade;
 - UPS;
 - competência.
 
 A quantidade deve estar associada ao registro de estoque correspondente.
 
-Não assumir que um lote existe em apenas uma localização ou UPS.
+Não assumir que um lote existe em apenas uma UPS.
 
 ---
 
@@ -192,7 +189,7 @@ Não exibir publicamente, salvo alteração explícita dos requisitos:
 - quantidade exata em estoque;
 - lote;
 - validade;
-- localização;
+- UPS de origem;
 - informações administrativas internas.
 
 ---

@@ -78,12 +78,6 @@ Table LOTE {
 }
 
 
-Table LOCALIZACAO_ESTOQUE {
-  id_localizacao int [pk, increment]
-  nome varchar [not null]
-}
-
-
 Table USUARIO {
   id_usuario int [pk, increment]
   nome varchar [not null]
@@ -125,7 +119,6 @@ Table ESTOQUE {
   ups_id int [not null]
   competencia_id int [not null]
   lote_id int
-  localizacao_id int
   importacao_id int [not null]
 
 
@@ -158,6 +151,5 @@ Ref: ESTOQUE.medicamento_id > MEDICAMENTO.id_medicamento
 Ref: ESTOQUE.ups_id > UPS.id_ups
 Ref: ESTOQUE.competencia_id > COMPETENCIA.id_competencia
 Ref: ESTOQUE.lote_id > LOTE.id_lote
-Ref: ESTOQUE.localizacao_id > LOCALIZACAO_ESTOQUE.id_localizacao
 Ref: ESTOQUE.importacao_id > IMPORTACAO.id_importacao
 

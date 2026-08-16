@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from core.serializers import CompetenciaSerializer, LocalizacaoEstoqueSerializer, UpsSerializer
+from core.serializers import CompetenciaSerializer, UpsSerializer
 from importacoes.serializers import ImportacaoSerializer
 from medicamentos.serializers import MedicamentoSerializer
 
@@ -20,7 +20,6 @@ class EstoqueSerializer(serializers.ModelSerializer):
     ups = UpsSerializer(read_only=True)
     competencia = CompetenciaSerializer(read_only=True)
     lote = LoteSerializer(read_only=True)
-    localizacao = LocalizacaoEstoqueSerializer(read_only=True)
     importacao = ImportacaoSerializer(read_only=True)
 
     class Meta:
@@ -31,7 +30,6 @@ class EstoqueSerializer(serializers.ModelSerializer):
             "ups",
             "competencia",
             "lote",
-            "localizacao",
             "importacao",
             "quantidade",
         ]

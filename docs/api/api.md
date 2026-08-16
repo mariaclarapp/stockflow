@@ -36,13 +36,13 @@ Rotas disponiveis:
 - `/api/medicamentos/`
 - `/api/ups/`
 - `/api/competencias/`
-- `/api/localizacoes-estoque/`
 - `/api/lotes/`
 - `/api/estoques/`
 
 O endpoint direto abaixo nao existe:
 
 - `/api/importacoes/`
+- `/api/localizacoes-estoque/`
 
 A importacao e exposta apenas de forma aninhada em estoque, para preservar a rastreabilidade do registro consultado.
 
@@ -69,7 +69,6 @@ Serializers de `core`:
 
 - `UpsSerializer`
 - `CompetenciaSerializer`
-- `LocalizacaoEstoqueSerializer`
 
 Serializers de `medicamentos`:
 
@@ -97,9 +96,10 @@ A representacao de estoque inclui dados aninhados de:
 - UPS;
 - competencia;
 - lote, quando houver;
-- localizacao;
 - importacao responsavel;
 - quantidade.
+
+A UPS representa a localizacao e a origem do estoque no relatorio de inventario. Nao existe serializer ou campo separado de localizacao.
 
 A importacao aninhada inclui:
 
@@ -132,4 +132,4 @@ O projeto possui dois contextos de acesso:
 - modulo administrativo, autenticado;
 - modulo publico, sem autenticacao.
 
-A API atual cobre apenas a consulta administrativa inicial. A API publica devera ser criada separadamente, respeitando as regras de informacao publica: nao expor quantidade exata, lote, validade, localizacao ou informacoes administrativas internas.
+A API atual cobre apenas a consulta administrativa inicial. A API publica devera ser criada separadamente, respeitando as regras de informacao publica: nao expor quantidade exata, lote, validade, UPS de origem ou informacoes administrativas internas.

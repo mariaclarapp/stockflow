@@ -38,15 +38,3 @@ class Competencia(models.Model):
 
     def __str__(self):
         return f"{self.mes:02d}/{self.ano}"
-
-
-class LocalizacaoEstoque(models.Model):
-    nome = models.CharField(max_length=255)
-
-    class Meta:
-        ordering = ["nome"]
-        verbose_name = "localizacao de estoque"
-        verbose_name_plural = "localizacoes de estoque"
-
-    def __str__(self):
-        return self.nome

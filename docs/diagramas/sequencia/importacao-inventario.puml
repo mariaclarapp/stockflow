@@ -25,9 +25,8 @@ else Arquivo válido
 
     loop Para cada registro do inventário
         Parser -> Parser : identificar medicamento
-        Parser -> Parser : identificar localização
         Parser -> Parser : identificar lote e validade
-        Parser -> Parser : obter quantidade
+        Parser -> Parser : obter Qtde Virt. e preservar Qtde R.
 
         Parser -> Banco : salvar ou atualizar dados
         Banco --> Parser : confirmação

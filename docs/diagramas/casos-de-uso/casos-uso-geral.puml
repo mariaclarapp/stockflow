@@ -15,7 +15,7 @@ rectangle "StockFlow" {
 
     usecase "Consultar medicamentos" as UC05
     usecase "Consultar histórico\nde estoque" as UC06
-    usecase "Visualizar lotes,\nvalidades e localizações" as UC07
+    usecase "Visualizar lotes,\nvalidades e estoque por UPS" as UC07
     usecase "Selecionar múltiplos\nmedicamentos" as UC08
 
     usecase "Gerenciar classificações" as UC09
