@@ -65,5 +65,16 @@ npm run lint
 npm run preview
 ```
 
-Nesta etapa, somente Login, protecao de rotas e a estrutura inicial da Visao geral
-estao implementados. Os demais itens da sidebar sao destinos visuais desabilitados.
+## Importacao de inventario
+
+A rota administrativa `/admin/importacoes` permite selecionar e enviar um relatorio
+CSV de inventario para `POST /api/importacoes/inventario/`. O envio usa
+`multipart/form-data`, no campo `arquivo`, e preserva o fluxo de sessao e CSRF da
+aplicacao.
+
+A tela apresenta o resumo retornado pela API e trata importacoes concluidas, concluidas
+com alertas e parciais. Reimportacao e historico de importacoes ainda nao fazem parte
+deste fluxo.
+
+Nesta etapa, Login, protecao de rotas, a estrutura inicial da Visao geral e a tela de
+Importacoes estao implementados. Os demais itens da sidebar continuam desabilitados.

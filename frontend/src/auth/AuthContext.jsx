@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { ApiError } from "../api/client";
+import { ApiError, AUTH_INVALID_EVENT } from "../api/client";
 import {
   getCurrentUser,
   loginWithSession,
@@ -32,6 +32,17 @@ export function AuthProvider({ children }) {
     loadSession();
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    function invalidateSession() {
+      setUser(null);
+    }
+
+    window.addEventListener(AUTH_INVALID_EVENT, invalidateSession);
+    return () => {
+      window.removeEventListener(AUTH_INVALID_EVENT, invalidateSession);
     };
   }, []);
 

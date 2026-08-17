@@ -1,14 +1,5 @@
 import { apiRequest } from "./client";
-
-async function getCsrfToken() {
-  const data = await apiRequest("/api/auth/csrf/");
-
-  if (!data?.csrfToken) {
-    throw new Error("Resposta CSRF inválida.");
-  }
-
-  return data.csrfToken;
-}
+import { getCsrfToken } from "./csrf";
 
 export async function loginWithSession(credentials) {
   const csrfToken = await getCsrfToken();

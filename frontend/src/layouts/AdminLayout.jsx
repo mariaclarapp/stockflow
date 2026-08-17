@@ -11,14 +11,14 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/auth-context";
 import { Brand } from "../components/Brand";
 
 const navItems = [
-  { label: "Visão geral", icon: LayoutDashboard, active: true },
-  { label: "Importações", icon: FileUp },
+  { label: "Visão geral", icon: LayoutDashboard, to: "/admin", end: true },
+  { label: "Importações", icon: FileUp, to: "/admin/importacoes" },
   { label: "Medicamentos", icon: Pill },
   { label: "Competências", icon: CalendarDays },
   { label: "Análises", icon: BarChart3 },
@@ -66,18 +66,27 @@ function AdminLayout() {
         </div>
 
         <nav className="sidebar__nav" aria-label="Navegação administrativa">
-          {navItems.map(({ label, icon: Icon, active }) => (
-            <button
-              key={label}
-              type="button"
-              className={`nav-item${active ? " nav-item--active" : ""}`}
-              disabled={!active}
-              aria-current={active ? "page" : undefined}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </button>
-          ))}
+          {navItems.map(({ label, icon: Icon, to, end }) =>
+            to ? (
+              <NavLink
+                key={label}
+                to={to}
+                end={end}
+                onClick={() => setIsSidebarOpen(false)}
+                className={({ isActive }) =>
+                  `nav-item${isActive ? " nav-item--active" : ""}`
+                }
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </NavLink>
+            ) : (
+              <button key={label} type="button" className="nav-item" disabled>
+                <Icon size={18} />
+                <span>{label}</span>
+              </button>
+            ),
+          )}
         </nav>
 
         <div className="sidebar__footer">

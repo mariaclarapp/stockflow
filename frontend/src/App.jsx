@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 import DashboardPage from "./pages/DashboardPage";
+import ImportacoesPage from "./pages/ImportacoesPage";
 import LoginPage from "./pages/LoginPage";
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="importacoes" element={<ImportacoesPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />
