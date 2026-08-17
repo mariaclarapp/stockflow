@@ -8,10 +8,13 @@ import ImportacoesPage from "./pages/ImportacoesPage";
 import LoginPage from "./pages/LoginPage";
 import MedicamentoDetalhePage from "./pages/MedicamentoDetalhePage";
 import MedicamentosPage from "./pages/MedicamentosPage";
+import PublicMedicamentosPage from "./pages/PublicMedicamentosPage";
 
 function App() {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/medicamentos" replace />} />
+      <Route path="/medicamentos" element={<PublicMedicamentosPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/admin" element={<AdminLayout />}>
@@ -22,7 +25,7 @@ function App() {
           <Route path="medicamentos/:id" element={<MedicamentoDetalhePage />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/admin" replace />} />
+      <Route path="*" element={<Navigate to="/medicamentos" replace />} />
     </Routes>
   );
 }

@@ -1,6 +1,7 @@
 # StockFlow Frontend
 
-Frontend administrativo do StockFlow desenvolvido com React e Vite, em JavaScript.
+Frontend web do StockFlow desenvolvido com React e Vite, em JavaScript. A aplicacao
+reune a consulta publica de medicamentos e o modulo administrativo autenticado.
 
 ## Configuracao local
 
@@ -24,6 +25,9 @@ npm run dev
 ```
 
 O frontend fica disponivel em `http://127.0.0.1:5173`.
+
+A rota inicial redireciona para a consulta publica em `/medicamentos`. O acesso ao
+modulo administrativo permanece disponivel em `/login`.
 
 ## Backend local
 
@@ -52,6 +56,8 @@ O frontend usa a sessao nativa do Django:
 
 Todas as requisicoes usam `credentials: "include"`. Senha e tokens de autenticacao
 nao sao armazenados em `localStorage`.
+
+A consulta publica nao depende de sessao e envia suas requisicoes sem credenciais.
 
 Somente sessoes de usuarios Django ativos com `is_staff=True` sao aceitas pela area
 administrativa. `is_superuser` nao e necessario.
@@ -88,6 +94,17 @@ completa mais recente e o historico mensal. A tela consulta em paralelo
 `GET /api/medicamentos/{id}/` e `GET /api/medicamentos/{id}/historico/`; consolidacao,
 completude e totais por UPS permanecem sob responsabilidade do backend.
 
+## Consulta publica de medicamentos
+
+A rota publica `/medicamentos` permite pesquisar apresentacoes por descricao ou codigo
+G-MUS sem autenticacao. A busca e enviada somente ao confirmar o formulario e consulta
+`GET /api/publico/medicamentos/?search=<termo>`.
+
+Cada apresentacao permanece em um resultado separado. A interface exibe exclusivamente
+codigo G-MUS, descricao, unidade e a situacao textual de disponibilidade calculada pelo
+backend. Quantidades, UPS, competencia, lotes, validade, importacao, classificacoes e
+demais informacoes administrativas nao sao expostas.
+
 ## Acompanhamento de competencias
 
 A rota `/admin/competencias` consulta `GET /api/competencias/acompanhamento/` uma unica
@@ -97,6 +114,6 @@ expandido para mostrar o inventario de todas as UPS participantes, incluindo as 
 ainda estao pendentes, e oferece acesso direto a `/admin/importacoes` quando a
 competencia esta incompleta.
 
-Nesta etapa, Login, protecao de rotas, Visao geral, Importacoes, consulta de Medicamentos
-e acompanhamento de Competencias estao implementados. Analises e Configuracoes
-continuam desabilitadas.
+Nesta etapa, consulta publica, Login, protecao de rotas, Visao geral, Importacoes,
+consulta administrativa de Medicamentos e acompanhamento de Competencias estao
+implementados. Analises e Configuracoes continuam desabilitadas.

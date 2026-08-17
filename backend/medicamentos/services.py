@@ -16,6 +16,7 @@ from django.db.models.functions import Coalesce
 from core.services import CompetenciaService
 from estoques.models import Estoque
 
+from .domain import CLASSIFICACAO_MANIPULADO
 from .models import Classificacao
 
 
@@ -30,7 +31,7 @@ class DisponibilidadePublicaService:
     def anotar_disponibilidade(cls, queryset):
         competencia = CompetenciaService.identificar_competencia_completa()
         tag_manipulado_ativa = Classificacao.objects.filter(
-            nome="MANIPULADO",
+            nome=CLASSIFICACAO_MANIPULADO,
             ativo=True,
             medicamentos=OuterRef("pk"),
         )

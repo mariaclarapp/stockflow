@@ -442,6 +442,13 @@ quantidade positiva, lote antigo ou histórico de estoque na UPS de manipulaçã
 todo medicamento com essa tag ativa deverá receber a mensagem especial, inclusive quando
 possuir estoque convencional positivo ou quando o estoque registrado estiver zerado.
 
+Quando a descrição normalizada do medicamento importada do G-MUS contiver o marcador
+explícito `(MANIPULADO)`, com comparação sem distinção entre maiúsculas e minúsculas, o
+StockFlow deverá associar automaticamente ao medicamento a classificação canônica ativa
+`MANIPULADO`. A associação deverá ser idempotente e não deverá depender da UPS, do saldo,
+do lote ou do nome da unidade. A ausência posterior do marcador não autoriza a remoção
+automática da classificação sem uma regra de negócio específica para essa operação.
+
 A ordem de decisão da disponibilidade pública é:
 
 1. Se o medicamento possuir a tag ativa `MANIPULADO`, apresentar exatamente

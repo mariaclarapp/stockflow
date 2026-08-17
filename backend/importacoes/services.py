@@ -3,7 +3,11 @@ from django.utils import timezone
 
 from core.models import Competencia, Ups
 from estoques.models import Estoque, Lote
-from medicamentos.models import Medicamento, SubgrupoGmus
+from medicamentos.domain import (
+    CLASSIFICACAO_MANIPULADO,
+    descricao_possui_marcador_manipulado,
+)
+from medicamentos.models import Classificacao, Medicamento, SubgrupoGmus
 
 from .models import Importacao
 
@@ -130,6 +134,10 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo):
                     line=line,
                     divergences=divergencias,
                     reported=reported_divergences,
+                )
+                _ensure_manipulated_classification(
+                    medicine=medicine,
+                    description=medicine_data["descricao"],
                 )
 
                 lot, lot_created = _get_or_create_lot(medicine, record.get("lote"))
@@ -300,6 +308,20 @@ def _get_or_create_lot(medicine, lot_data):
         ),
         True,
     )
+
+
+def _ensure_manipulated_classification(*, medicine, description):
+    if not descricao_possui_marcador_manipulado(description):
+        return
+
+    classification, _ = Classificacao.objects.get_or_create(
+        nome=CLASSIFICACAO_MANIPULADO,
+        defaults={"ativo": True},
+    )
+    if not classification.ativo:
+        classification.ativo = True
+        classification.save(update_fields=["ativo"])
+    medicine.classificacoes.add(classification)
 
 
 def _register_medicine_divergences(

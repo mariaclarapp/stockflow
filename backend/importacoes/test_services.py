@@ -8,7 +8,8 @@ from django.test import TestCase
 
 from core.models import Competencia, Ups
 from estoques.models import Estoque, Lote
-from medicamentos.models import Medicamento, SubgrupoGmus
+from medicamentos.domain import CLASSIFICACAO_MANIPULADO
+from medicamentos.models import Classificacao, Medicamento, SubgrupoGmus
 
 from .models import Importacao
 from .parsers import parse_inventory_csv
@@ -125,6 +126,103 @@ class InventoryPersistenceServiceTests(TestCase):
         self.assertEqual(Medicamento.objects.count(), 1)
         self.assertEqual(Estoque.objects.get().medicamento, existing)
         self.assertEqual(summary["medicamentos_reutilizados"], 1)
+
+    def test_new_manipulated_medicine_receives_classification(self):
+        self.persist(
+            self.parsed_data(
+                records=[
+                    self.record(
+                        description="MEDICAMENTO (manipulado) / 30MG",
+                    )
+                ]
+            )
+        )
+
+        medicine = Medicamento.objects.get()
+        classification = Classificacao.objects.get(
+            nome=CLASSIFICACAO_MANIPULADO
+        )
+        self.assertTrue(classification.ativo)
+        self.assertTrue(medicine.classificacoes.filter(pk=classification.pk).exists())
+
+    def test_existing_medicine_receives_manipulated_classification(self):
+        medicine = Medicamento.objects.create(
+            codigo_gmus="100.1",
+            descricao="MEDICAMENTO (MANIPULADO) / 30MG",
+            unidade="CAPS",
+        )
+
+        self.persist(
+            self.parsed_data(
+                records=[
+                    self.record(
+                        description="MEDICAMENTO (MANIPULADO) / 30MG",
+                        unit="CAPS",
+                    )
+                ]
+            )
+        )
+
+        self.assertTrue(
+            medicine.classificacoes.filter(
+                nome=CLASSIFICACAO_MANIPULADO,
+                ativo=True,
+            ).exists()
+        )
+
+    def test_manipulated_association_is_not_duplicated_for_multiple_lots(self):
+        records = [
+            self.record(
+                line=1,
+                description="MEDICAMENTO (MANIPULADO) / 30MG",
+                lot_code="L001",
+            ),
+            self.record(
+                line=2,
+                description="MEDICAMENTO (MANIPULADO) / 30MG",
+                lot_code="L002",
+            ),
+        ]
+
+        self.persist(self.parsed_data(records=records))
+
+        medicine = Medicamento.objects.get()
+        self.assertEqual(
+            medicine.classificacoes.filter(nome=CLASSIFICACAO_MANIPULADO).count(),
+            1,
+        )
+
+    def test_common_medicine_does_not_receive_manipulated_classification(self):
+        self.persist()
+
+        self.assertFalse(Classificacao.objects.exists())
+        self.assertEqual(Medicamento.objects.get().classificacoes.count(), 0)
+
+    def test_manipulated_classification_is_reused_and_reactivated(self):
+        classification = Classificacao.objects.create(
+            nome=CLASSIFICACAO_MANIPULADO,
+            ativo=False,
+        )
+        records = [
+            self.record(
+                line=1,
+                code="100.1",
+                description="MEDICAMENTO A (MANIPULADO) / 30MG",
+            ),
+            self.record(
+                line=2,
+                code="101.1",
+                description="MEDICAMENTO B (MANIPULADO) / 60MG",
+                lot_code="L002",
+            ),
+        ]
+
+        self.persist(self.parsed_data(records=records))
+
+        classification.refresh_from_db()
+        self.assertTrue(classification.ativo)
+        self.assertEqual(Classificacao.objects.count(), 1)
+        self.assertEqual(classification.medicamentos.count(), 2)
 
     def test_reuses_existing_competence_and_ups(self):
         competence = Competencia.objects.create(ano=2026, mes=8)

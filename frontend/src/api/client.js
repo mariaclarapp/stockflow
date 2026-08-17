@@ -14,15 +14,20 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest(path, options = {}) {
+  const {
+    notifyAuthFailure = true,
+    credentials = "include",
+    ...fetchOptions
+  } = options;
   let response;
 
   try {
     response = await fetch(`${API_URL}${path}`, {
-      ...options,
-      credentials: "include",
+      ...fetchOptions,
+      credentials,
       headers: {
         Accept: "application/json",
-        ...options.headers,
+        ...fetchOptions.headers,
       },
     });
   } catch {
@@ -37,7 +42,10 @@ export async function apiRequest(path, options = {}) {
   const data = hasJson ? await response.json() : null;
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+    if (
+      notifyAuthFailure &&
+      (response.status === 401 || response.status === 403)
+    ) {
       window.dispatchEvent(new CustomEvent(AUTH_INVALID_EVENT));
     }
     throw new ApiError(
