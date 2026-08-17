@@ -7,8 +7,8 @@ from core.auth_views import (
     LoginAPIView,
     LogoutAPIView,
 )
-from core.views import CompetenciaViewSet, UpsViewSet
-from estoques.views import EstoqueViewSet, LoteViewSet
+from core.views import CompetenciaViewSet, DashboardResumoAPIView, UpsViewSet
+from estoques.views import HistoricoMedicamentoAPIView, EstoqueViewSet, LoteViewSet
 from importacoes.views import InventoryUploadAPIView
 from medicamentos.views import (
     ClassificacaoViewSet,
@@ -35,9 +35,19 @@ urlpatterns = [
     path("auth/logout/", LogoutAPIView.as_view(), name="auth-logout"),
     path("auth/me/", CurrentUserAPIView.as_view(), name="auth-me"),
     path(
+        "dashboard/resumo/",
+        DashboardResumoAPIView.as_view(),
+        name="dashboard-resumo",
+    ),
+    path(
         "publico/medicamentos/",
         MedicamentoPublicoListAPIView.as_view(),
         name="public-medicamento-list",
+    ),
+    path(
+        "medicamentos/<int:pk>/historico/",
+        HistoricoMedicamentoAPIView.as_view(),
+        name="medicamento-historico",
     ),
     path(
         "importacoes/inventario/",

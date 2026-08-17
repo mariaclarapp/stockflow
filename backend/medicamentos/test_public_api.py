@@ -156,10 +156,12 @@ class PublicMedicineAvailabilityTests(APITestCase):
         )
         self.ups_a = Ups.objects.create(
             codigo_gmus="UPS-A",
+            id_unidade_gmus="A",
             nome="UNIDADE CONVENCIONAL A",
         )
         self.ups_b = Ups.objects.create(
             codigo_gmus="UPS-B",
+            id_unidade_gmus="B",
             nome="UNIDADE CONVENCIONAL B",
         )
         self.url = reverse("public-medicamento-list")
@@ -405,6 +407,7 @@ class PublicMedicineAvailabilityTests(APITestCase):
         self.complete_competence(competence)
         nonconventional_ups = Ups.objects.create(
             codigo_gmus="UPS-NAO-CONVENCIONAL",
+            id_unidade_gmus="NC",
             nome="UNIDADE NAO CONVENCIONAL",
             participa_competencia=False,
             compoe_estoque_convencional=False,

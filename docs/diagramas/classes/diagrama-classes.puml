@@ -53,6 +53,7 @@ package "Core" {
   class Ups {
     - id : int
     - codigoGmus : String
+    - idUnidadeGmus : String
     - nome : String
     - participaCompetencia : boolean
     - compoeEstoqueConvencional : boolean

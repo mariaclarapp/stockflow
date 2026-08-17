@@ -6,10 +6,55 @@ from .models import Competencia, Ups
 class UpsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ups
-        fields = ["id", "codigo_gmus", "nome"]
+        fields = [
+            "id",
+            "codigo_gmus",
+            "id_unidade_gmus",
+            "nome",
+            "participa_competencia",
+            "compoe_estoque_convencional",
+        ]
 
 
 class CompetenciaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Competencia
         fields = ["id", "mes", "ano"]
+
+
+class DashboardCompetenciaSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    ano = serializers.IntegerField()
+    mes = serializers.IntegerField()
+    completa = serializers.BooleanField()
+
+
+class DashboardUpsTotaisSerializer(serializers.Serializer):
+    participantes = serializers.IntegerField()
+    importadas = serializers.IntegerField()
+
+
+class DashboardImportacaoUpsSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    codigo_gmus = serializers.CharField()
+    id_unidade_gmus = serializers.CharField()
+    nome = serializers.CharField()
+
+
+class DashboardImportacaoSerializer(serializers.Serializer):
+    ups = DashboardImportacaoUpsSerializer()
+    status = serializers.CharField()
+    data_importacao = serializers.DateTimeField()
+    registros_estoque = serializers.IntegerField()
+
+
+class DashboardTotaisSerializer(serializers.Serializer):
+    medicamentos = serializers.IntegerField()
+    estoques = serializers.IntegerField()
+
+
+class DashboardResumoSerializer(serializers.Serializer):
+    competencia_atual = DashboardCompetenciaSerializer(allow_null=True)
+    ups = DashboardUpsTotaisSerializer()
+    importacoes = DashboardImportacaoSerializer(many=True)
+    totais = DashboardTotaisSerializer()

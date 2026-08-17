@@ -5,6 +5,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import DashboardPage from "./pages/DashboardPage";
 import ImportacoesPage from "./pages/ImportacoesPage";
 import LoginPage from "./pages/LoginPage";
+import MedicamentoDetalhePage from "./pages/MedicamentoDetalhePage";
 import MedicamentosPage from "./pages/MedicamentosPage";
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="importacoes" element={<ImportacoesPage />} />
           <Route path="medicamentos" element={<MedicamentosPage />} />
+          <Route path="medicamentos/:id" element={<MedicamentoDetalhePage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />

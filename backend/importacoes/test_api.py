@@ -194,6 +194,7 @@ class InventoryUploadApiTests(APITestCase):
         self.assertEqual(response.data["tipo_relatorio"], "inventario")
         self.assertEqual(response.data["competencia"], {"ano": 2026, "mes": 8})
         self.assertEqual(response.data["ups"]["codigo_gmus"], "1234567")
+        self.assertEqual(response.data["ups"]["id_unidade_gmus"], "9")
         self.assertEqual(response.data["registros_processados"], 1)
         self.assertEqual(response.data["registros_ignorados"], 0)
         self.assertEqual(response.data["medicamentos_criados"], 0)

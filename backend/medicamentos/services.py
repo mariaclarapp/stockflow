@@ -3,11 +3,9 @@ from decimal import Decimal
 from django.db.models import (
     Case,
     CharField,
-    Count,
     DecimalField,
     Exists,
     OuterRef,
-    Q,
     Subquery,
     Sum,
     Value,
@@ -15,9 +13,8 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 
-from core.models import Competencia, Ups
+from core.services import CompetenciaService
 from estoques.models import Estoque
-from importacoes.models import Importacao
 
 from .models import Classificacao
 
@@ -29,40 +26,9 @@ class DisponibilidadePublicaService:
     DISPONIVEL = "Disponível"
     INDISPONIVEL = "Indisponível"
     NAO_INFORMADA = "Disponibilidade não informada"
-    TIPO_RELATORIO_INVENTARIO = "inventario"
-    STATUS_IMPORTACAO_VALIDOS = (
-        Importacao.Status.CONCLUIDA,
-        Importacao.Status.CONCLUIDA_COM_ALERTAS,
-    )
-
-    @classmethod
-    def identificar_competencia_completa(cls):
-        total_ups_participantes = Ups.objects.filter(
-            participa_competencia=True
-        ).count()
-        if total_ups_participantes == 0:
-            return None
-
-        return (
-            Competencia.objects.annotate(
-                total_ups_importadas=Count(
-                    "importacoes__ups",
-                    filter=Q(
-                        importacoes__tipo_relatorio=cls.TIPO_RELATORIO_INVENTARIO,
-                        importacoes__status__in=cls.STATUS_IMPORTACAO_VALIDOS,
-                        importacoes__ups__participa_competencia=True,
-                    ),
-                    distinct=True,
-                )
-            )
-            .filter(total_ups_importadas=total_ups_participantes)
-            .order_by("-ano", "-mes")
-            .first()
-        )
-
     @classmethod
     def anotar_disponibilidade(cls, queryset):
-        competencia = cls.identificar_competencia_completa()
+        competencia = CompetenciaService.identificar_competencia_completa()
         tag_manipulado_ativa = Classificacao.objects.filter(
             nome="MANIPULADO",
             ativo=True,

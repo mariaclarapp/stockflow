@@ -221,6 +221,7 @@ def parse_inventory_csv(source):
 
     metadata["total_linhas"] = len(rows)
     metadata["total_registros_extraidos"] = len(records)
+    _validate_ups_metadata(metadata, inconsistencies)
 
     return {
         "tipo_relatorio": "inventario",
@@ -284,7 +285,7 @@ def _extract_metadata(line_number, values, non_empty, metadata):
         metadata["ups"] = {
             "nome": filters_match.group("ups_nome").strip(),
             "codigo_gmus": filters_match.group("ups_codigo"),
-            "id_unidade": filters_match.group("ups_id"),
+            "id_unidade_gmus": filters_match.group("ups_id"),
         }
 
     unidade_match = UNIDADE_RE.search(first_value)
@@ -318,6 +319,29 @@ def _extract_metadata(line_number, values, non_empty, metadata):
     for value in values:
         if re.match(r"^\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}$", value):
             metadata["data_emissao"] = value
+
+
+def _validate_ups_metadata(metadata, inconsistencies):
+    ups = metadata.get("ups") or {}
+    unidade = metadata.get("unidade") or {}
+    id_cabecalho = ups.get("id_unidade_gmus")
+    id_unidade = unidade.get("id")
+
+    if id_cabecalho and id_unidade and id_cabecalho != id_unidade:
+        inconsistencies.append(
+            {
+                "line": None,
+                "type": "ups_unit_id_mismatch",
+                "severity": "error",
+                "message": (
+                    "O identificador da UPS no filtro diverge da unidade do relatorio."
+                ),
+                "raw": {
+                    "id_unidade_filtro": id_cabecalho,
+                    "id_unidade_cabecalho": id_unidade,
+                },
+            }
+        )
 
 
 def _is_auxiliary_line(values, non_empty):

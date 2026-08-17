@@ -42,6 +42,12 @@ Durante a importação, o sistema deverá identificar as informações disponív
 
 No relatório de inventário, a UPS/unidade identificada nos metadados representa a localização e a origem de todos os registros do arquivo.
 
+A UPS será identificada pela combinação do código G-MUS do estabelecimento com o
+identificador da unidade apresentado no relatório. O código do estabelecimento pode ser
+compartilhado por várias UPS; o nome não será utilizado como chave. O identificador
+informado entre parênteses no filtro deverá coincidir com o valor repetido no cabeçalho
+`Unidade`. Divergências entre esses valores impedirão a importação.
+
 ## RN04 — Reimportação
 
 O sistema deverá permitir a reimportação de relatórios.
@@ -167,6 +173,10 @@ Isso permite que um mesmo lote esteja presente em mais de uma UPS com quantidade
 
 A UPS/unidade fornecida nos metadados do relatório de inventário representa a localização e a origem do estoque e deverá ser preservada durante a importação.
 
+`Ups.codigo_gmus` preserva o código compartilhado do estabelecimento e
+`Ups.id_unidade_gmus` preserva o identificador específico da unidade no G-MUS. A
+combinação dos dois campos identifica uma UPS de forma única.
+
 Não existe uma entidade de localização separada nesse contexto. O sistema deverá permitir consultar o estoque por UPS.
 
 ## RN16-A — Quantidades do inventário
@@ -195,6 +205,21 @@ A data de importação não deverá ser utilizada como substituta da competênci
 O histórico mensal de estoque será obtido a partir dos registros armazenados por competência.
 
 Não será necessária uma tabela independente apenas para histórico de estoque, pois os registros de estoque associados às competências já preservam essa evolução temporal.
+
+No detalhe administrativo de um medicamento, o estoque atual corresponderá à
+competência completa mais recente. Competências incompletas não poderão ser usadas como
+estoque atual, mas poderão aparecer no histórico identificadas explicitamente como
+incompletas. Registros válidos de importações `concluida_parcial` poderão integrar esse
+histórico, sem fazer a competência ser considerada completa.
+
+O histórico administrativo deverá preservar os totais por UPS. O total convencional
+consolidado somará todas as linhas e lotes das UPS com
+`compoe_estoque_convencional=True`, sem ocultar do detalhamento as demais UPS. O estoque
+atual também preservará os registros e lotes individuais, inclusive lote ausente.
+
+Se não existir competência completa, o estoque atual administrativo não será informado.
+Se existir competência completa e o medicamento não possuir registro nela, seu saldo
+convencional será representado como zero, sem que isso seja tratado como erro.
 
 ## RN19 — Registros com quantidade zero
 

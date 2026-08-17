@@ -47,10 +47,15 @@ Table MEDICAMENTO_CLASSIFICACAO {
 
 Table UPS {
   id bigint [pk, increment]
-  codigo_gmus varchar(50) [not null, unique]
+  codigo_gmus varchar(50) [not null]
+  id_unidade_gmus varchar(50) [not null]
   nome varchar(255) [not null]
   participa_competencia boolean [not null, default: true]
   compoe_estoque_convencional boolean [not null, default: true]
+
+  indexes {
+    (codigo_gmus, id_unidade_gmus) [unique]
+  }
 }
 
 Table COMPETENCIA {

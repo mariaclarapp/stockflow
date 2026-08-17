@@ -1,4 +1,5 @@
-import { PackageSearch, Pill } from "lucide-react";
+import { ArrowRight, PackageSearch, Pill } from "lucide-react";
+import { Link } from "react-router-dom";
 
 function subgroupText(subgroup) {
   if (!subgroup) return "Não informado";
@@ -63,6 +64,7 @@ function MedicationList({ medications }) {
               <th scope="col">Medicamento / Apresentação</th>
               <th scope="col">Unidade</th>
               <th scope="col">Subgrupo G-MUS</th>
+              <th scope="col"><span className="visually-hidden">Ação</span></th>
             </tr>
           </thead>
           <tbody>
@@ -77,6 +79,16 @@ function MedicationList({ medications }) {
                 </td>
                 <td>{medication.unidade || "Não informada"}</td>
                 <td>{subgroupText(medication.subgrupo_gmus)}</td>
+                <td className="medication-table__action">
+                  <Link
+                    className="medication-detail-link"
+                    to={`/admin/medicamentos/${medication.id}`}
+                    aria-label={`Ver detalhes de ${medication.descricao}`}
+                  >
+                    Ver detalhes
+                    <ArrowRight size={15} />
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -101,6 +113,13 @@ function MedicationList({ medications }) {
               </div>
             </dl>
             <MedicationDetails medication={medication} />
+            <Link
+              className="medication-card__detail-link"
+              to={`/admin/medicamentos/${medication.id}`}
+            >
+              Ver detalhes
+              <ArrowRight size={15} />
+            </Link>
           </article>
         ))}
       </div>

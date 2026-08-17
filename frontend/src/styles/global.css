@@ -617,7 +617,7 @@ p {
 
 .overview-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin: 18px 0 32px;
 }
@@ -721,6 +721,39 @@ th {
 
 .empty-table-state strong {
   font-size: 0.76rem;
+}
+
+.dashboard-error {
+  margin-bottom: 18px;
+}
+
+.dashboard-error button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.dashboard-ups-cell {
+  display: block;
+  min-width: 220px;
+}
+
+.dashboard-ups-cell strong,
+.dashboard-ups-cell small {
+  display: block;
+}
+
+.dashboard-ups-cell small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.65rem;
 }
 
 .import-page {
@@ -1454,19 +1487,23 @@ th {
 }
 
 .medication-table th:nth-child(1) {
-  width: 14%;
+  width: 12%;
 }
 
 .medication-table th:nth-child(2) {
-  width: 45%;
+  width: 40%;
 }
 
 .medication-table th:nth-child(3) {
-  width: 13%;
+  width: 11%;
 }
 
 .medication-table th:nth-child(4) {
-  width: 28%;
+  width: 25%;
+}
+
+.medication-table th:nth-child(5) {
+  width: 12%;
 }
 
 .medication-table th,
@@ -1506,6 +1543,42 @@ th {
   color: var(--text);
   font-size: 0.78rem;
   font-weight: 750;
+}
+
+.medication-table__action {
+  text-align: right;
+}
+
+.medication-detail-link,
+.medication-card__detail-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--primary-800);
+  font-size: 0.69rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.medication-detail-link:hover,
+.medication-card__detail-link:hover {
+  color: var(--primary-900);
+  text-decoration: underline;
+}
+
+.medication-detail-link:focus-visible,
+.medication-card__detail-link:focus-visible,
+.detail-back-link:focus-visible {
+  outline: 3px solid rgba(11, 129, 120, 0.22);
+  outline-offset: 3px;
+}
+
+.medication-card__detail-link {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
 }
 
 .medication-details {
@@ -1595,6 +1668,482 @@ th {
   display: none;
 }
 
+.medication-detail-page {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 34px clamp(26px, 4vw, 58px) 68px;
+}
+
+.detail-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 22px;
+  color: var(--primary-800);
+  font-size: 0.74rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.detail-back-link:hover {
+  text-decoration: underline;
+}
+
+.medication-detail-header {
+  padding-bottom: 30px;
+  border-bottom: 1px solid var(--border);
+}
+
+.medication-detail-header__title {
+  position: relative;
+  padding-right: 150px;
+}
+
+.medication-detail-header__title h1 {
+  max-width: 900px;
+  margin: 12px 0 8px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 1.75rem;
+  line-height: 1.28;
+  letter-spacing: 0;
+}
+
+.medication-detail-header__unit {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid #cfe1de;
+  border-radius: 999px;
+  color: var(--primary-800);
+  background: #edf7f5;
+  font-size: 0.7rem;
+  font-weight: 750;
+}
+
+.medication-registration-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 25px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--border);
+}
+
+.medication-registration-summary__item,
+.medication-registration-summary__classifications {
+  min-width: 0;
+  padding: 17px 19px;
+  background: #ffffff;
+}
+
+.medication-registration-summary__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  color: var(--primary-800);
+}
+
+.medication-registration-summary__item span {
+  min-width: 0;
+}
+
+.medication-registration-summary small,
+.current-stock-total small,
+.ups-stock-card__total small,
+.history-card__total small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.medication-registration-summary__item strong {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.medication-registration-summary__classifications {
+  grid-column: 1 / -1;
+}
+
+.medication-registration-summary__classifications > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.detail-classification-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid #a9c9c3;
+  border-radius: 999px;
+  color: #3f4e4a;
+  background: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.detail-classification-badge em {
+  color: #8a3a24;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.detail-section {
+  margin-top: 38px;
+}
+
+.detail-section__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.detail-section__heading h2 {
+  margin: 4px 0 0;
+  font-size: 1.08rem;
+  letter-spacing: 0;
+}
+
+.detail-section__heading p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.competence-status,
+.consolidation-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 750;
+}
+
+.competence-status--complete {
+  color: #13633f;
+  background: #e3f5e9;
+}
+
+.competence-status--incomplete {
+  color: #8a3a24;
+  background: #ffe8de;
+}
+
+.current-stock-total {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+  border-left: 4px solid var(--primary-700);
+  color: var(--primary-800);
+  background: #eaf6f3;
+}
+
+.current-stock-total > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.current-stock-total strong,
+.ups-stock-card__total strong,
+.history-card__total strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 1.15rem;
+}
+
+.current-stock-total strong small,
+.ups-stock-card__total strong small {
+  display: inline;
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.ups-stock-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ups-stock-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(37, 76, 71, 0.05);
+}
+
+.ups-stock-card > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 17px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ups-stock-card__icon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--primary-800);
+  background: var(--primary-100);
+}
+
+.ups-stock-card h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.78rem;
+  letter-spacing: 0;
+}
+
+.ups-stock-card header p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.consolidation-badge {
+  color: #13633f;
+  background: #e3f5e9;
+}
+
+.consolidation-badge--excluded {
+  color: #5f625f;
+  background: #edf1f0;
+}
+
+.ups-stock-card__total {
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border);
+  background: #fbfdfc;
+}
+
+.ups-stock-card__total strong {
+  font-size: 0.94rem;
+}
+
+.stock-record-table-wrapper,
+.history-table-wrapper {
+  overflow-x: auto;
+}
+
+.stock-record-table,
+.history-table {
+  table-layout: fixed;
+}
+
+.stock-record-table th,
+.stock-record-table td {
+  padding: 11px 14px;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.stock-record-table th:nth-child(1) {
+  width: 36%;
+}
+
+.stock-record-table th:nth-child(2) {
+  width: 31%;
+}
+
+.stock-record-table th:nth-child(3) {
+  width: 33%;
+}
+
+.stock-record-table td:last-child {
+  color: var(--text);
+  font-weight: 750;
+}
+
+.detail-empty-state,
+.current-stock-empty {
+  display: flex;
+  min-height: 120px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  border: 1px dashed #bed4d0;
+  border-radius: 8px;
+  color: var(--primary-800);
+  background: #f8fbfa;
+}
+
+.detail-empty-state strong {
+  display: block;
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.detail-empty-state p,
+.current-stock-empty p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.history-table-wrapper {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.history-table th,
+.history-table td {
+  padding: 14px 18px;
+  vertical-align: top;
+}
+
+.history-table th:nth-child(1) {
+  width: 16%;
+}
+
+.history-table th:nth-child(2) {
+  width: 15%;
+}
+
+.history-table th:nth-child(3) {
+  width: 23%;
+}
+
+.history-table th:nth-child(4) {
+  width: 46%;
+}
+
+.history-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.history-competence {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+  font-weight: 750;
+}
+
+.history-competence svg {
+  color: var(--primary-700);
+}
+
+.history-total {
+  color: var(--text);
+  font-weight: 750;
+}
+
+.history-ups-list {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-ups-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.history-ups-list strong {
+  flex: 0 0 auto;
+  color: #40504c;
+  font-size: 0.68rem;
+}
+
+.history-no-ups {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.history-card-list {
+  display: none;
+}
+
+.detail-page-state {
+  display: grid;
+  min-height: calc(100vh - 100px);
+  place-content: center;
+  justify-items: center;
+  color: var(--primary-800);
+  text-align: center;
+}
+
+.detail-page-state strong {
+  margin-top: 12px;
+  font-size: 0.78rem;
+}
+
+.detail-page-state h1 {
+  margin: 14px 0 7px;
+  color: var(--text);
+  font-size: 1.35rem;
+  letter-spacing: 0;
+}
+
+.detail-page-state p {
+  max-width: 440px;
+  margin-bottom: 18px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.detail-page-state--error {
+  color: var(--danger);
+}
+
+.detail-page-state__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-retry-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+}
+
 @media (max-width: 900px) {
   .login-page {
     grid-template-columns: minmax(320px, 440px);
@@ -1661,6 +2210,10 @@ th {
     justify-self: end;
     min-height: 28px;
   }
+
+  .ups-stock-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1692,6 +2245,10 @@ th {
 
   .medications-page {
     padding: 28px 16px 44px;
+  }
+
+  .medication-detail-page {
+    padding: 24px 16px 46px;
   }
 
   .page-heading {
@@ -1867,6 +2424,103 @@ th {
     overflow-wrap: anywhere;
     color: #4f5d5a;
     font-size: 0.7rem;
+  }
+
+  .medication-detail-header__title {
+    padding-right: 0;
+  }
+
+  .medication-detail-header__title h1 {
+    margin-top: 11px;
+    font-size: 1.35rem;
+  }
+
+  .medication-detail-header__unit {
+    position: static;
+    margin-top: 7px;
+  }
+
+  .medication-registration-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .medication-registration-summary__classifications {
+    grid-column: auto;
+  }
+
+  .detail-section {
+    margin-top: 30px;
+  }
+
+  .detail-section__heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .current-stock-total {
+    padding: 16px;
+  }
+
+  .ups-stock-card > header {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .consolidation-badge {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .stock-record-table th,
+  .stock-record-table td {
+    padding: 10px;
+    white-space: normal;
+  }
+
+  .history-table-wrapper {
+    display: none;
+  }
+
+  .history-card-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .history-card {
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #ffffff;
+  }
+
+  .history-card > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 11px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .history-card > header > strong {
+    font-size: 0.8rem;
+  }
+
+  .history-card__total {
+    padding: 13px 0;
+  }
+
+  .history-card__total strong {
+    font-size: 0.9rem;
+  }
+
+  .detail-page-state__actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .detail-page-state__actions > * {
+    width: 100%;
   }
 
   .competence-banner {

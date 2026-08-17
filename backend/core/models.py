@@ -3,13 +3,20 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class Ups(models.Model):
-    codigo_gmus = models.CharField(max_length=50, unique=True)
+    codigo_gmus = models.CharField(max_length=50)
+    id_unidade_gmus = models.CharField(max_length=50)
     nome = models.CharField(max_length=255)
     participa_competencia = models.BooleanField(default=True)
     compoe_estoque_convencional = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["nome"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["codigo_gmus", "id_unidade_gmus"],
+                name="unique_ups_codigo_id_unidade_gmus",
+            )
+        ]
         verbose_name = "UPS"
         verbose_name_plural = "UPS"
 

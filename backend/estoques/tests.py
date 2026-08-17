@@ -46,7 +46,11 @@ class AdminReadOnlyApiTests(APITestCase):
             unidade="frasco",
         )
 
-        cls.ups = Ups.objects.create(codigo_gmus="CAF", nome="CAF")
+        cls.ups = Ups.objects.create(
+            codigo_gmus="2780046",
+            id_unidade_gmus="10",
+            nome="CAF",
+        )
         cls.competencia = Competencia.objects.create(mes=8, ano=2026)
         cls.importacao = Importacao.objects.create(
             nome_arquivo="inventario-ficticio.csv",
@@ -188,7 +192,8 @@ class AdminReadOnlyApiTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["medicamento"]["codigo_gmus"], "115.1")
-        self.assertEqual(response.data["ups"]["codigo_gmus"], "CAF")
+        self.assertEqual(response.data["ups"]["codigo_gmus"], "2780046")
+        self.assertEqual(response.data["ups"]["id_unidade_gmus"], "10")
         self.assertEqual(response.data["competencia"]["mes"], 8)
         self.assertEqual(response.data["competencia"]["ano"], 2026)
         self.assertEqual(response.data["lote"]["codigo_lote"], "L001")
@@ -199,7 +204,10 @@ class AdminReadOnlyApiTests(APITestCase):
         self.assertEqual(response.data["importacao"]["tipo_relatorio"], "inventario")
         self.assertEqual(response.data["importacao"]["status"], "concluida")
         self.assertEqual(response.data["importacao"]["competencia"]["ano"], 2026)
-        self.assertEqual(response.data["importacao"]["ups"]["codigo_gmus"], "CAF")
+        self.assertEqual(
+            response.data["importacao"]["ups"]["codigo_gmus"],
+            "2780046",
+        )
         self.assertEqual(response.data["importacao"]["usuario"], "farmaceutica")
 
     def test_optional_lote_is_serialized_as_null(self):

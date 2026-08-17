@@ -32,7 +32,7 @@ class InventoryPersistenceServiceTests(TestCase):
                 "ups": {
                     "nome": "FARMACIA TESTE",
                     "codigo_gmus": "1234567",
-                    "id_unidade": "9",
+                    "id_unidade_gmus": "9",
                 },
             },
             "records": records if records is not None else [self.record()],
@@ -90,6 +90,7 @@ class InventoryPersistenceServiceTests(TestCase):
         self.assertEqual(stock.medicamento.descricao, "MEDICAMENTO TESTE / 500MG")
         self.assertEqual(stock.medicamento.unidade, "COMPR")
         self.assertEqual(stock.ups.codigo_gmus, "1234567")
+        self.assertEqual(stock.ups.id_unidade_gmus, "9")
         self.assertEqual(stock.competencia.ano, 2026)
         self.assertEqual(stock.importacao.usuario, self.user)
         self.assertEqual(stock.importacao.tipo_relatorio, "inventario")
@@ -127,7 +128,11 @@ class InventoryPersistenceServiceTests(TestCase):
 
     def test_reuses_existing_competence_and_ups(self):
         competence = Competencia.objects.create(ano=2026, mes=8)
-        ups = Ups.objects.create(codigo_gmus="1234567", nome="FARMACIA TESTE")
+        ups = Ups.objects.create(
+            codigo_gmus="1234567",
+            id_unidade_gmus="9",
+            nome="FARMACIA TESTE",
+        )
 
         summary = self.persist()
 
@@ -345,3 +350,40 @@ class InventoryPersistenceServiceTests(TestCase):
 
         self.assertEqual(Importacao.objects.count(), 1)
         self.assertEqual(Estoque.objects.count(), 1)
+
+    def test_distinguishes_ups_with_shared_code_by_unit_identifier(self):
+        farmacia_data = self.parsed_data()
+        farmacia_data["metadata"]["ups"] = {
+            "nome": "FARMACIA MUNICIPAL",
+            "codigo_gmus": "2780046",
+            "id_unidade_gmus": "9",
+        }
+        caf_data = self.parsed_data(records=[self.record(line=2, code="101.1")])
+        caf_data["metadata"]["ups"] = {
+            "nome": "CAF",
+            "codigo_gmus": "2780046",
+            "id_unidade_gmus": "10",
+        }
+
+        farmacia = self.persist(farmacia_data)
+        caf = self.persist(caf_data)
+
+        self.assertNotEqual(farmacia["importacao"].ups_id, caf["importacao"].ups_id)
+        self.assertEqual(Ups.objects.count(), 2)
+        self.assertEqual(Importacao.objects.count(), 2)
+        self.assertEqual(
+            Estoque.objects.get(
+                medicamento__codigo_gmus="100.1"
+            ).ups.id_unidade_gmus,
+            "9",
+        )
+        self.assertEqual(
+            Estoque.objects.get(
+                medicamento__codigo_gmus="101.1"
+            ).ups.id_unidade_gmus,
+            "10",
+        )
+
+        for parsed_data in (farmacia_data, caf_data):
+            with self.assertRaises(DuplicateInventoryImportError):
+                self.persist(parsed_data)

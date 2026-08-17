@@ -170,6 +170,57 @@ Rotas disponiveis:
 - `/api/lotes/`
 - `/api/estoques/`
 
+### Resumo administrativo do Dashboard
+
+```text
+GET /api/dashboard/resumo/
+```
+
+Exige usuario administrativo com `is_staff=True`. O endpoint utiliza a competencia
+completa mais recente identificada por `CompetenciaService` e retorna em uma unica
+resposta apenas os dados necessarios para a Visao Geral:
+
+```json
+{
+  "competencia_atual": {
+    "id": 8,
+    "ano": 2026,
+    "mes": 8,
+    "completa": true
+  },
+  "ups": {
+    "participantes": 3,
+    "importadas": 3
+  },
+  "importacoes": [
+    {
+      "ups": {
+        "id": 2,
+        "codigo_gmus": "2780046",
+        "id_unidade_gmus": "9",
+        "nome": "UPS EXEMPLO"
+      },
+      "status": "concluida",
+      "data_importacao": "2026-08-17T10:00:00-03:00",
+      "registros_estoque": 100
+    }
+  ],
+  "totais": {
+    "medicamentos": 333,
+    "estoques": 716
+  }
+}
+```
+
+`importadas` conta somente inventarios com status `concluida` ou
+`concluida_com_alertas` das UPS participantes. `estoques` conta os registros associados
+a competencia completa selecionada. Se nao houver competencia completa,
+`competencia_atual` sera `null`, `importacoes` sera uma lista vazia e nenhum estoque de
+competencias incompletas sera misturado ao resumo.
+
+O endpoint nao calcula consumo medio, cobertura, giro, necessidade de compra ou os
+indicadores RF15-RF19.
+
 ### Pesquisa de medicamentos
 
 O endpoint administrativo de medicamentos aceita o parametro opcional `search`:
@@ -188,6 +239,10 @@ listagem administrativa normal.
 ### Filtros administrativos
 
 Os filtros usam igualdade exata e podem ser combinados na mesma consulta.
+Como `codigo_gmus` pode ser compartilhado por varias UPS, a selecao de uma unidade
+especifica deve usar `ups`, com o ID interno retornado pela API administrativa. O
+parametro legado `ups_codigo` e rejeitado com HTTP `400` para evitar resultados
+ambiguos.
 
 Medicamentos:
 
@@ -195,8 +250,8 @@ Medicamentos:
 
 Estoques:
 
+- `medicamento`: ID de `Medicamento`;
 - `ups`: ID de `Ups`;
-- `ups_codigo`: codigo G-MUS de `Ups`;
 - `competencia`: ID de `Competencia`;
 - `subgrupo`: ID do `SubgrupoGmus` associado ao medicamento do estoque.
 
@@ -206,10 +261,78 @@ Exemplos:
 GET /api/medicamentos/?subgrupo=10
 GET /api/medicamentos/?search=dipirona&subgrupo=10
 GET /api/estoques/?ups=1
-GET /api/estoques/?ups_codigo=2780046
+GET /api/estoques/?medicamento=42
 GET /api/estoques/?competencia=8
 GET /api/estoques/?ups=1&competencia=8&subgrupo=10
 ```
+
+### Historico administrativo de medicamento
+
+```text
+GET /api/medicamentos/{id}/historico/
+```
+
+Exige usuario administrativo. O endpoint retorna a competencia completa mais recente
+como `estoque_atual`, com totais por UPS e registros/lotes separados. Competencias
+incompletas podem aparecer em `historico` com `completa=false`; importacoes
+`concluida_parcial` nao completam uma competencia.
+
+`quantidade_consolidada_convencional` soma todas as linhas e lotes somente das UPS com
+`compoe_estoque_convencional=True`. UPS nao convencionais permanecem visiveis no
+detalhamento administrativo. As quantidades sao representadas como strings decimais.
+
+Formato resumido:
+
+```json
+{
+  "medicamento_id": 42,
+  "estoque_atual": {
+    "competencia": {"id": 8, "ano": 2026, "mes": 8, "completa": true},
+    "quantidade_consolidada_convencional": "125.000",
+    "por_ups": [
+      {
+        "ups": {
+          "id": 2,
+          "codigo_gmus": "2780046",
+          "id_unidade_gmus": "9",
+          "nome": "UPS EXEMPLO",
+          "compoe_estoque_convencional": true
+        },
+        "quantidade_total": "100.000",
+        "registros": [
+          {
+            "estoque_id": 901,
+            "quantidade": "60.000",
+            "lote": {
+              "id": 18,
+              "codigo_lote": "LOTE-A",
+              "data_validade": "2027-05-31"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "historico": [
+    {
+      "competencia": {"id": 7, "ano": 2026, "mes": 7, "completa": false},
+      "quantidade_consolidada_convencional": "110.000",
+      "por_ups": [
+        {
+          "ups": {"id": 2, "codigo_gmus": "2780046", "id_unidade_gmus": "9", "nome": "UPS EXEMPLO"},
+          "quantidade_total": "85.000"
+        }
+      ]
+    }
+  ]
+}
+```
+
+Se nao houver competencia completa, `estoque_atual` sera `null`. Se houver competencia
+completa, mas o medicamento estiver ausente nela, o consolidado sera `"0.000"` e
+`por_ups` sera vazio. A competencia apresentada em `estoque_atual` nao e repetida em
+`historico`; as demais competencias com registros sao ordenadas da mais recente para a
+mais antiga.
 
 O endpoint direto abaixo nao existe:
 
@@ -252,7 +375,11 @@ Uma resposta de sucesso usa HTTP `201` e possui esta estrutura:
   "tipo_relatorio": "inventario",
   "hash_arquivo": "sha256-do-arquivo",
   "competencia": {"ano": 2026, "mes": 8},
-  "ups": {"codigo_gmus": "1234567", "nome": "UPS DO RELATORIO"},
+  "ups": {
+    "codigo_gmus": "2780046",
+    "id_unidade_gmus": "9",
+    "nome": "UPS DO RELATORIO"
+  },
   "registros_processados": 1,
   "registros_ignorados": 0,
   "medicamentos_criados": 1,
@@ -361,7 +488,7 @@ Nao foram implementados nesta etapa:
 - paginacao customizada;
 - reimportacao;
 - calculos de estoque;
-- dashboard;
+- indicadores administrativos RF15-RF19;
 - outros endpoints de escrita.
 
 ## Separacao futura

@@ -49,7 +49,7 @@ class InventoryCsvParserTests(SimpleTestCase):
             {
                 "nome": "FARMACIA TESTE - PR",
                 "codigo_gmus": "1234567",
-                "id_unidade": "9",
+                "id_unidade_gmus": "9",
             },
         )
         self.assertEqual(result["metadata"]["unidade"]["nome"], "FARMACIA TESTE - PR")
@@ -78,6 +78,23 @@ class InventoryCsvParserTests(SimpleTestCase):
         self.assertEqual(second["quantidade"], Decimal("5"))
 
         self.assertEqual(result["inconsistencies"], [])
+
+    def test_reports_mismatch_between_filter_and_unit_identifier(self):
+        csv_text = "\n".join(
+            [
+                "Filtros: Competência: 202608. UPS: FARMACIA TESTE - PR / 1234567 (9).,,,,",
+                "Unidade: 10 - FARMACIA TESTE - PR,,,,",
+            ]
+        )
+
+        result = self.parse(csv_text)
+
+        self.assertEqual(
+            result["inconsistencies"][0]["type"],
+            "ups_unit_id_mismatch",
+        )
+        self.assertEqual(result["inconsistencies"][0]["severity"], "error")
+        self.assertIsNone(result["inconsistencies"][0]["line"])
 
     def test_real_quantity_is_ignored_even_when_invalid(self):
         stock_row = [""] * 21

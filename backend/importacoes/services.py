@@ -34,6 +34,7 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo):
         )
         ups, ups_criada = Ups.objects.get_or_create(
             codigo_gmus=ups_data["codigo_gmus"],
+            id_unidade_gmus=ups_data["id_unidade_gmus"],
             defaults={"nome": ups_data["nome"]},
         )
         if not ups_criada and ups.nome != ups_data["nome"]:
@@ -204,7 +205,11 @@ def _validate_import_context(parsed_data, user, nome_arquivo):
     ups = metadata.get("ups") or {}
     if competencia.get("ano") is None or competencia.get("mes") is None:
         raise InventoryPersistenceError("Competencia ausente nos metadados.")
-    if not ups.get("codigo_gmus") or not ups.get("nome"):
+    if (
+        not ups.get("codigo_gmus")
+        or not ups.get("id_unidade_gmus")
+        or not ups.get("nome")
+    ):
         raise InventoryPersistenceError("UPS ausente nos metadados.")
     if not parsed_data.get("tipo_relatorio"):
         raise InventoryPersistenceError("Tipo de relatorio ausente no parser.")

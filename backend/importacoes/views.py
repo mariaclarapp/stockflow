@@ -96,6 +96,7 @@ def _build_success_response(summary):
         },
         "ups": {
             "codigo_gmus": importacao.ups.codigo_gmus,
+            "id_unidade_gmus": importacao.ups.id_unidade_gmus,
             "nome": importacao.ups.nome,
         },
         "registros_processados": summary["registros_processados"],

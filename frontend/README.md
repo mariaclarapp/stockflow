@@ -83,6 +83,11 @@ G-MUS como uma apresentacao independente. A tela oferece busca textual por descr
 codigo (`search`) e filtro pelos subgrupos reais fornecidos por
 `GET /api/subgrupos-gmus/` (`subgrupo`).
 
+A rota `/admin/medicamentos/:id` apresenta os dados cadastrais, o estoque da competencia
+completa mais recente e o historico mensal. A tela consulta em paralelo
+`GET /api/medicamentos/{id}/` e `GET /api/medicamentos/{id}/historico/`; consolidacao,
+completude e totais por UPS permanecem sob responsabilidade do backend.
+
 Nesta etapa, Login, protecao de rotas, a estrutura inicial da Visao geral, Importacoes e
 a consulta de Medicamentos estao implementados. Os demais itens da sidebar continuam
 desabilitados.

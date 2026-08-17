@@ -66,6 +66,8 @@ App `estoques`:
 - `Estoque` referencia `Medicamento`, `Ups`, `Competencia`, `Lote` e `Importacao`.
 - `Estoque.lote` e opcional.
 - `Ups` representa a localizacao e a origem do estoque no relatorio de inventario.
+- `Ups.codigo_gmus` preserva o codigo do estabelecimento, que pode ser compartilhado.
+- `Ups.id_unidade_gmus` preserva o identificador especifico da unidade no G-MUS.
 - `Ups.participa_competencia` configura se a unidade precisa de inventario valido para
   completar uma competencia.
 - `Ups.compoe_estoque_convencional` configura se seus estoques participam da futura
@@ -123,6 +125,16 @@ As migrations abaixo tambem foram aplicadas ao banco local:
 Elas adicionam as duas configuracoes booleanas de `Ups` e registram
 `concluida_parcial` entre as opcoes de status da importacao.
 
+As migrations de identificacao das unidades G-MUS tambem foram aplicadas:
+
+- `core.0004_ups_id_unidade_gmus_alter_ups_codigo_gmus_and_more`
+- `core.0005_alter_ups_id_unidade_gmus`
+
+A primeira adiciona temporariamente o identificador como anulavel, remove a unicidade
+isolada do codigo compartilhado e cria a restricao composta. O dado local existente foi
+corrigido de forma controlada antes da segunda migration, que torna
+`id_unidade_gmus` obrigatorio.
+
 ## Tabelas de dominio
 
 Tabelas criadas pelos apps de dominio:
@@ -155,7 +167,8 @@ Nao existem models proprios `Usuario` ou `Sessao`.
 - `SubgrupoGmus.codigo_gmus` e unico quando informado.
 - `Classificacao.nome` e unico.
 - `Medicamento.codigo_gmus` e unico.
-- `Ups.codigo_gmus` e unico.
+- `Ups` possui unicidade composta para `(codigo_gmus, id_unidade_gmus)`; o codigo
+  G-MUS isolado pode pertencer a varias unidades.
 - `Competencia` possui unicidade para a combinacao `(ano, mes)`.
 - `Competencia.mes` possui validacao e restricao de banco para ficar entre 1 e 12.
 - `Estoque.quantidade` usa `DecimalField(max_digits=14, decimal_places=3)`.
@@ -184,6 +197,12 @@ competencia completa anterior mais recente. Sem competencia completa, medicament
 tag ativa `MANIPULADO` terao `Disponibilidade nao informada`. Em uma competencia
 completa, medicamento sem registro convencional sera tratado como saldo convencional
 zero, pois o G-MUS pode omitir saldos zerados.
+
+A identificacao de competencias completas e centralizada em um servico de dominio
+compartilhado pela disponibilidade publica e pelo historico administrativo. O historico
+e derivado de `Estoque`, `Competencia`, `Ups`, `Lote` e `Importacao`; nao existe tabela
+de historico ou de estoque consolidado. As somas preservam os registros individuais e
+nao utilizam `distinct` sobre quantidade.
 
 ## Decisoes ainda pendentes
 

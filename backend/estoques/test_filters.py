@@ -53,8 +53,12 @@ class AdminStructuredFiltersApiTests(APITestCase):
             unidade="COMPR",
             subgrupo_gmus=cls.subgrupo_a,
         )
-        cls.ups_a = Ups.objects.create(codigo_gmus="UPS-A", nome="UPS A")
-        cls.ups_b = Ups.objects.create(codigo_gmus="UPS-B", nome="UPS B")
+        cls.ups_a = Ups.objects.create(
+            codigo_gmus="2780046", id_unidade_gmus="9", nome="UPS A"
+        )
+        cls.ups_b = Ups.objects.create(
+            codigo_gmus="2780046", id_unidade_gmus="10", nome="UPS B"
+        )
         cls.competencia_a = Competencia.objects.create(ano=2026, mes=8)
         cls.competencia_b = Competencia.objects.create(ano=2026, mes=9)
 
@@ -97,21 +101,27 @@ class AdminStructuredFiltersApiTests(APITestCase):
     def authenticate(self):
         self.client.force_authenticate(user=self.user)
 
-    def test_filters_stock_by_ups_id_and_code(self):
+    def test_filters_stock_by_unambiguous_stockflow_ups_id(self):
         self.authenticate()
 
-        responses = [
-            self.client.get(self.estoques_url, {"ups": self.ups_a.pk}),
-            self.client.get(self.estoques_url, {"ups_codigo": "UPS-A"}),
-        ]
+        response = self.client.get(self.estoques_url, {"ups": self.ups_a.pk})
 
-        for response in responses:
-            with self.subTest(response=response):
-                self.assertEqual(response.status_code, status.HTTP_200_OK)
-                self.assertEqual(len(response.data), 3)
-                self.assertTrue(
-                    all(item["ups"]["id"] == self.ups_a.pk for item in response.data)
-                )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 3)
+        self.assertTrue(
+            all(item["ups"]["id"] == self.ups_a.pk for item in response.data)
+        )
+
+    def test_rejects_ambiguous_shared_ups_code_filter(self):
+        self.authenticate()
+
+        response = self.client.get(
+            self.estoques_url,
+            {"ups_codigo": "2780046"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("ups_codigo", str(response.data))
 
     def test_filters_stock_by_competence(self):
         self.authenticate()

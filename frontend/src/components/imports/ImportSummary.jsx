@@ -62,7 +62,9 @@ function ImportSummary({ result, fileName }) {
           <span>
             <small>UPS</small>
             <strong>{result.ups?.nome || "Não informada"}</strong>
-            {result.ups?.codigo_gmus && <em>{result.ups.codigo_gmus}</em>}
+            {result.ups?.id_unidade_gmus && (
+              <em>Unidade G-MUS {result.ups.id_unidade_gmus}</em>
+            )}
           </span>
         </div>
         <div>
