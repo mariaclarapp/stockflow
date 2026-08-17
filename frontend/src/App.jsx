@@ -5,6 +5,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import DashboardPage from "./pages/DashboardPage";
 import ImportacoesPage from "./pages/ImportacoesPage";
 import LoginPage from "./pages/LoginPage";
+import MedicamentosPage from "./pages/MedicamentosPage";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="importacoes" element={<ImportacoesPage />} />
+          <Route path="medicamentos" element={<MedicamentosPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/admin" replace />} />

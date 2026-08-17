@@ -19,7 +19,7 @@ import { Brand } from "../components/Brand";
 const navItems = [
   { label: "Visão geral", icon: LayoutDashboard, to: "/admin", end: true },
   { label: "Importações", icon: FileUp, to: "/admin/importacoes" },
-  { label: "Medicamentos", icon: Pill },
+  { label: "Medicamentos", icon: Pill, to: "/admin/medicamentos" },
   { label: "Competências", icon: CalendarDays },
   { label: "Análises", icon: BarChart3 },
   { label: "Configurações", icon: Settings },

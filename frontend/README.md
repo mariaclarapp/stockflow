@@ -76,5 +76,13 @@ A tela apresenta o resumo retornado pela API e trata importacoes concluidas, con
 com alertas e parciais. Reimportacao e historico de importacoes ainda nao fazem parte
 deste fluxo.
 
-Nesta etapa, Login, protecao de rotas, a estrutura inicial da Visao geral e a tela de
-Importacoes estao implementados. Os demais itens da sidebar continuam desabilitados.
+## Consulta administrativa de medicamentos
+
+A rota `/admin/medicamentos` consulta `GET /api/medicamentos/` e preserva cada codigo
+G-MUS como uma apresentacao independente. A tela oferece busca textual por descricao ou
+codigo (`search`) e filtro pelos subgrupos reais fornecidos por
+`GET /api/subgrupos-gmus/` (`subgrupo`).
+
+Nesta etapa, Login, protecao de rotas, a estrutura inicial da Visao geral, Importacoes e
+a consulta de Medicamentos estao implementados. Os demais itens da sidebar continuam
+desabilitados.
