@@ -16,13 +16,83 @@ O prefixo atual das rotas e:
 
 Os endpoints administrativos utilizam a configuracao padrao definida em `REST_FRAMEWORK`.
 
-Atualmente, a permissao padrao exige usuario autenticado:
+Atualmente, a permissao padrao exige usuario Django ativo e administrativo
+(`is_staff=True`):
 
 ```text
-rest_framework.permissions.IsAuthenticated
+rest_framework.permissions.IsAdminUser
 ```
 
 O endpoint `/api/publico/medicamentos/` usa `AllowAny` e nao exige autenticacao.
+O endpoint `/api/auth/csrf/` tambem permanece anonimo. `is_superuser` nao e exigido
+para acessar o modulo administrativo.
+
+O fluxo administrativo usa sessao e cookies nativos do Django. Nao sao utilizados
+JWT, tokens proprios ou senhas fora do mecanismo de autenticacao do framework.
+
+## Autenticacao administrativa por sessao
+
+O frontend deve enviar requisicoes com credenciais, por exemplo usando
+`credentials: "include"`. A origem permitida e configurada por `FRONTEND_URL`; nenhuma
+URL de producao e fixada no codigo.
+
+### Obter CSRF
+
+```text
+GET /api/auth/csrf/
+```
+
+O endpoint e anonimo, cria o cookie `csrftoken` e retorna o token que deve ser enviado
+no cabecalho `X-CSRFToken` das requisicoes de escrita:
+
+```json
+{"csrfToken": "token-csrf"}
+```
+
+### Login
+
+```text
+POST /api/auth/login/
+Content-Type: application/json
+X-CSRFToken: token-csrf
+
+{"username": "usuario", "password": "senha"}
+```
+
+Credenciais validas criam a sessao do Django e retornam somente:
+
+```json
+{
+  "user": {
+    "id": 1,
+    "username": "usuario",
+    "is_staff": true,
+    "is_superuser": false
+  }
+}
+```
+
+Credenciais invalidas, usuarios inativos e usuarios sem `is_staff=True` recebem a
+mesma resposta generica, sem indicar o motivo da recusa.
+
+### Usuario atual
+
+```text
+GET /api/auth/me/
+```
+
+Exige uma sessao valida de usuario ativo com `is_staff=True` e retorna diretamente
+`id`, `username`, `is_staff` e `is_superuser`.
+
+### Logout
+
+```text
+POST /api/auth/logout/
+X-CSRFToken: token-csrf
+```
+
+Exige sessao administrativa autorizada e protecao CSRF, encerra apenas a sessao atual
+e retorna HTTP `204`.
 
 ## Consulta publica de medicamentos
 

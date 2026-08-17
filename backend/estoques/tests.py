@@ -23,6 +23,7 @@ class AdminReadOnlyApiTests(APITestCase):
         cls.user = get_user_model().objects.create_user(
             username="farmaceutica",
             password="senha-ficticia",
+            is_staff=True,
         )
         cls.subgrupo = SubgrupoGmus.objects.create(codigo_gmus=10, nome="Analgesicos")
         cls.principio_ativo = PrincipioAtivo.objects.create(nome="Dipirona")

@@ -18,6 +18,7 @@ class InventoryUploadApiTests(APITestCase):
         self.user = get_user_model().objects.create_user(
             username="farmaceutica_upload_teste",
             password="senha-ficticia",
+            is_staff=True,
         )
         self.url = reverse("inventory-import-upload")
 

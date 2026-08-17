@@ -48,3 +48,27 @@ Destinado à consulta pública de medicamentos, sem necessidade de autenticaçã
 ## Status
 
 Em desenvolvimento.
+
+## Execucao local
+
+Inicie o backend Django:
+
+```powershell
+cd backend
+.\.venv\Scripts\python manage.py runserver 127.0.0.1:8000
+```
+
+Em outro terminal, instale e inicie o frontend:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+O frontend usa `VITE_API_URL`, configurada em `frontend/.env`, para localizar a API.
+O valor local padrao e `http://127.0.0.1:8000`. O backend deve possuir
+`FRONTEND_URL=http://127.0.0.1:5173` para permitir cookies de sessao e CSRF durante o
+desenvolvimento.
+
+Mais detalhes estao em [`frontend/README.md`](frontend/README.md).

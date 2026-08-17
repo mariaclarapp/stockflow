@@ -12,6 +12,7 @@ class AdminMedicineSearchApiTests(APITestCase):
         cls.user = get_user_model().objects.create_user(
             username="farmaceutica_pesquisa",
             password="senha-ficticia",
+            is_staff=True,
         )
         cls.presentations = [
             Medicamento.objects.create(

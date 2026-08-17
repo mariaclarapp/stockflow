@@ -19,6 +19,7 @@ class AdminStructuredFiltersApiTests(APITestCase):
         cls.user = get_user_model().objects.create_user(
             username="farmaceutica_filtros",
             password="senha-ficticia",
+            is_staff=True,
         )
         cls.subgrupo_a = SubgrupoGmus.objects.create(
             codigo_gmus=10,

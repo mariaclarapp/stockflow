@@ -3,7 +3,7 @@ import logging
 
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 class InventoryUploadAPIView(APIView):
     parser_classes = [MultiPartParser, FormParser]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         serializer = InventoryUploadSerializer(data=request.data)

@@ -224,6 +224,11 @@ O módulo administrativo será restrito a usuários autenticados e autorizados.
 
 Estão previstos poucos usuários administrativos, inicialmente vinculados principalmente às farmacêuticas responsáveis pelo estoque.
 
+Nesta etapa, um usuário Django somente será considerado autorizado para o módulo
+administrativo quando possuir simultaneamente `is_active=True` e `is_staff=True`.
+`is_superuser` não será requisito de acesso. Não serão criados grupos, perfis ou um
+sistema próprio de permissões para representar essa autorização.
+
 ## RN22 — Sessões administrativas
 
 O sistema deverá controlar sessões dos usuários administrativos.
