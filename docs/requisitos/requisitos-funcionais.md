@@ -25,7 +25,7 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
 | RF19 | Exibir indicadores de situação do estoque | Administrativo |
 | RF20 | Consultar medicamentos | Público |
 | RF21 | Consultar disponibilidade dos medicamentos | Público |
-| RF22 | Exibir princípio ativo, apresentação/dosagem e disponibilidade | Público |
+| RF22 | Exibir o medicamento conforme identificado pelo G-MUS, sua apresentação/dosagem, unidade e disponibilidade | Público |
 
 ## Observações
 

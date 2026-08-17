@@ -127,15 +127,22 @@ O sistema deverá permitir medicamentos com apresentações complexas, incluindo
 - diferentes concentrações;
 - diferentes formas farmacêuticas;
 - diferentes volumes;
-- combinações de dois ou mais princípios ativos.
+- combinações de medicamentos ou substâncias descritas pelo G-MUS.
 
-## RN10 — Princípios ativos
+## RN10 — Identificação do medicamento no G-MUS
 
-Um medicamento poderá possuir um ou mais princípios ativos.
+Para exibição e consulta, o StockFlow utilizará a descrição original do medicamento
+fornecida pelo G-MUS. Essa descrição preserva o nome do medicamento ou combinação, a
+apresentação/dosagem, a concentração e, quando informados, o volume e a forma.
 
-Um mesmo princípio ativo poderá estar relacionado a diferentes medicamentos/apresentações.
+Cada código G-MUS continuará representando uma apresentação separada. O campo de
+unidade complementará a apresentação conforme o relatório.
 
-A relação entre medicamentos e princípios ativos deverá permitir associação muitos-para-muitos.
+A estrutura técnica `PrincipioAtivo` e sua relação muitos-para-muitos com `Medicamento`
+existem atualmente no modelo, mas não são alimentadas pelos relatórios de inventário e
+não são necessárias para cumprir a consulta pública atual. Sua permanência ou remoção
+será avaliada posteriormente como limpeza da modelagem, sem constituir funcionalidade
+futura obrigatória.
 
 ## RN11 — Subgrupos do G-MUS
 
@@ -296,9 +303,13 @@ Na API pública, deverão ser disponibilizados somente:
 - unidade;
 - situação de disponibilidade.
 
+A descrição/apresentação do G-MUS será a fonte para exibir ao cidadão o medicamento,
+inclusive combinações, dosagens, concentrações, volumes e formas nela informados. Não
+será necessário expor uma entidade separada de princípio ativo.
+
 Informações administrativas, como quantidade exata em estoque, lote, validade,
 competência, importação, usuário, subgrupo, classificações e UPS de origem, não deverão
-ser exibidas publicamente. Princípio ativo permanece previsto para evolução futura.
+ser exibidas publicamente.
 
 ## RN26 — Consulta administrativa
 
@@ -331,7 +342,7 @@ Os filtros poderão considerar, conforme os dados disponíveis:
 - subgrupo;
 - UPS;
 - disponibilidade;
-- princípio ativo;
+- medicamento/descrição;
 - apresentação.
 
 ## RN29 — Indicador visual de estoque

@@ -65,6 +65,13 @@ App `estoques`:
 - `Importacao.hash_arquivo` preserva o SHA-256 do CSV, sem armazenar seu conteudo completo.
 - `Estoque` referencia `Medicamento`, `Ups`, `Competencia`, `Lote` e `Importacao`.
 - `Estoque.lote` e opcional.
+
+`PrincipioAtivo` e sua relacao muitos-para-muitos permanecem descritos porque ainda
+existem no schema atual. Os relatorios de inventario nao fornecem uma coluna separada
+nem alimentam essa estrutura. A consulta publica usa `Medicamento.descricao` e
+`Medicamento.unidade`; portanto, `PrincipioAtivo` nao e obrigatorio para o RF22. Sua
+permanencia ou remocao sera avaliada posteriormente como limpeza de modelagem, sem
+representar funcionalidade futura obrigatoria.
 - `Ups` representa a localizacao e a origem do estoque no relatorio de inventario.
 - `Ups.codigo_gmus` preserva o codigo do estabelecimento, que pode ser compartilhado.
 - `Ups.id_unidade_gmus` preserva o identificador especifico da unidade no G-MUS.

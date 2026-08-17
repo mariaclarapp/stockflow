@@ -116,6 +116,11 @@ Cada apresentacao e retornada separadamente. A resposta publica contem somente:
 - `unidade`;
 - `disponibilidade`.
 
+O campo `descricao` preserva o medicamento conforme identificado pelo G-MUS, incluindo
+nome ou combinacao, apresentacao/dosagem, concentracao e, quando presentes no relatorio,
+volume e forma. `unidade` complementa essa apresentacao. O contrato publico nao depende
+nem expoe uma entidade separada de principio ativo.
+
 Nao sao expostos UPS, quantidades, lote, validade, competencia, importacao, usuario,
 subgrupo, principios ativos ou classificacoes.
 
