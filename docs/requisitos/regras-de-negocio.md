@@ -56,13 +56,18 @@ informado entre parênteses no filtro deverá coincidir com o valor repetido no 
 
 ## RN04 — Reimportação
 
-O sistema deverá permitir a reimportação de relatórios.
+O sistema permite a reimportação explícita de inventário para a mesma combinação de
+competência, UPS e tipo de relatório. Um upload duplicado sem confirmação continua
+bloqueado e não altera os dados existentes.
 
-Quando uma nova importação corresponder a dados já existentes para a mesma competência e UPS, o sistema deverá atualizar ou reprocessar os registros relacionados, evitando duplicidades.
+Quando confirmada, a reimportação reutiliza o mesmo registro de `Importacao`, substitui
+somente os estoques vinculados a ele e atualiza seus metadados. A remoção dos estoques
+anteriores, a criação dos novos registros e a atualização da importação ocorrem em uma
+única transação. Qualquer falha reverte integralmente a operação.
 
-A estratégia técnica definitiva de identificação de uma importação repetida será definida durante a implementação do módulo de importação.
-
-Enquanto essa estratégia não estiver implementada, uma segunda importação para a mesma combinação de competência, UPS e tipo de relatório deverá ser bloqueada, sem substituir ou duplicar estoques silenciosamente.
+Medicamentos, lotes e classificações são compartilhados e não são removidos durante a
+substituição. Lotes que deixarem de ser referenciados não são excluídos automaticamente.
+Um arquivo com o mesmo SHA-256 já processado não provoca nova substituição.
 
 ## RN05 — Preservação da origem
 

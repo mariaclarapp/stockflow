@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from .parsers import UnknownReportTypeError, parse_report_csv
 from .serializers import InventoryUploadSerializer
 from .services import (
-    DuplicateInventoryImportError,
+    InventoryImportConflictError,
     InventoryPersistenceError,
     persist_inventory_import,
 )
@@ -27,6 +27,7 @@ class InventoryUploadAPIView(APIView):
         serializer = InventoryUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         arquivo = serializer.validated_data["arquivo"]
+        reimportar = serializer.validated_data["reimportar"]
 
         try:
             parsed_data = parse_report_csv(arquivo)
@@ -63,8 +64,9 @@ class InventoryUploadAPIView(APIView):
                 parsed_data=parsed_data,
                 user=request.user,
                 nome_arquivo=arquivo.name,
+                reimportar=reimportar,
             )
-        except DuplicateInventoryImportError as error:
+        except InventoryImportConflictError as error:
             return Response(
                 {"erro": str(error)},
                 status=status.HTTP_409_CONFLICT,
@@ -83,7 +85,11 @@ class InventoryUploadAPIView(APIView):
 
         return Response(
             _build_success_response(summary),
-            status=status.HTTP_201_CREATED,
+            status=(
+                status.HTTP_200_OK
+                if summary["reimportacao"]
+                else status.HTTP_201_CREATED
+            ),
         )
 
 
@@ -92,6 +98,7 @@ def _build_success_response(summary):
     issues = summary.get("erros", [])
     return {
         "importacao_id": importacao.pk,
+        "reimportacao": summary["reimportacao"],
         "status": importacao.status,
         "tipo_relatorio": importacao.tipo_relatorio,
         "hash_arquivo": importacao.hash_arquivo,

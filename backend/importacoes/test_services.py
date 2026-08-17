@@ -13,7 +13,12 @@ from medicamentos.models import Classificacao, Medicamento, SubgrupoGmus
 
 from .models import Importacao
 from .parsers import parse_inventory_csv
-from .services import DuplicateInventoryImportError, persist_inventory_import
+from .services import (
+    DuplicateInventoryImportError,
+    ReimportationTargetNotFoundError,
+    SameInventoryFileError,
+    persist_inventory_import,
+)
 
 
 class InventoryPersistenceServiceTests(TestCase):
@@ -69,11 +74,19 @@ class InventoryPersistenceServiceTests(TestCase):
             "raw": {},
         }
 
-    def persist(self, parsed_data=None):
+    def persist(
+        self,
+        parsed_data=None,
+        *,
+        reimportar=False,
+        nome_arquivo="inventario-ficticio.csv",
+        user=None,
+    ):
         return persist_inventory_import(
             parsed_data=parsed_data or self.parsed_data(),
-            user=self.user,
-            nome_arquivo="inventario-ficticio.csv",
+            user=user or self.user,
+            nome_arquivo=nome_arquivo,
+            reimportar=reimportar,
         )
 
     def test_persists_valid_inventory_with_one_medicine(self):
@@ -448,6 +461,201 @@ class InventoryPersistenceServiceTests(TestCase):
 
         self.assertEqual(Importacao.objects.count(), 1)
         self.assertEqual(Estoque.objects.count(), 1)
+
+    def test_explicit_reimport_reuses_import_and_replaces_stocks_and_metadata(self):
+        original_data = self.parsed_data(
+            records=[
+                self.record(line=1, code="100.1", quantity=Decimal("10")),
+                self.record(line=2, code="101.1", lot_code="L002"),
+            ]
+        )
+        original = self.persist(original_data)["importacao"]
+        original_pk = original.pk
+        original_stock_ids = set(original.estoques.values_list("pk", flat=True))
+        shared_medicine = Medicamento.objects.get(codigo_gmus="101.1")
+        replacement_user = get_user_model().objects.create_user(
+            username="farmaceutica_reimportacao",
+            password="senha-ficticia",
+        )
+        replacement_data = self.parsed_data(
+            records=[self.record(code="100.1", quantity=Decimal("25"))]
+        )
+        replacement_data["hash_arquivo"] = hashlib.sha256(
+            b"arquivo-substituto"
+        ).hexdigest()
+
+        summary = self.persist(
+            replacement_data,
+            reimportar=True,
+            nome_arquivo="inventario-corrigido.csv",
+            user=replacement_user,
+        )
+
+        original.refresh_from_db()
+        self.assertTrue(summary["reimportacao"])
+        self.assertFalse(summary["importacao_criada"])
+        self.assertEqual(original.pk, original_pk)
+        self.assertEqual(original.nome_arquivo, "inventario-corrigido.csv")
+        self.assertEqual(original.hash_arquivo, replacement_data["hash_arquivo"])
+        self.assertEqual(original.usuario, replacement_user)
+        self.assertFalse(Estoque.objects.filter(pk__in=original_stock_ids).exists())
+        self.assertEqual(original.estoques.count(), 1)
+        self.assertEqual(original.estoques.get().quantidade, Decimal("25"))
+        self.assertTrue(Medicamento.objects.filter(pk=shared_medicine.pk).exists())
+
+    def test_reimport_does_not_change_other_ups_or_competence_stocks(self):
+        primary = self.persist()["importacao"]
+        other_ups_data = self.parsed_data(
+            records=[self.record(code="200.1", lot_code="UPS-2")]
+        )
+        other_ups_data["metadata"]["ups"] = {
+            "nome": "OUTRA UPS",
+            "codigo_gmus": "1234567",
+            "id_unidade_gmus": "10",
+        }
+        other_ups = self.persist(other_ups_data)["importacao"]
+        other_competence_data = self.parsed_data(
+            records=[self.record(code="300.1", lot_code="COMP-2")]
+        )
+        other_competence_data["metadata"]["competencia"] = {
+            "raw": "202609",
+            "ano": 2026,
+            "mes": 9,
+        }
+        other_competence = self.persist(other_competence_data)["importacao"]
+        protected_stock_ids = set(
+            Estoque.objects.filter(
+                importacao__in=[other_ups, other_competence]
+            ).values_list("pk", flat=True)
+        )
+        replacement = self.parsed_data(
+            records=[self.record(quantity=Decimal("99"))]
+        )
+        replacement["hash_arquivo"] = hashlib.sha256(b"replacement").hexdigest()
+
+        self.persist(replacement, reimportar=True)
+
+        self.assertEqual(primary.estoques.count(), 1)
+        self.assertEqual(
+            set(Estoque.objects.filter(pk__in=protected_stock_ids).values_list("pk", flat=True)),
+            protected_stock_ids,
+        )
+
+    def test_same_hash_does_not_replace_existing_inventory(self):
+        importacao = self.persist()["importacao"]
+        original_stock_ids = list(importacao.estoques.values_list("pk", flat=True))
+
+        with self.assertRaisesRegex(SameInventoryFileError, "mesmo arquivo"):
+            self.persist(reimportar=True)
+
+        importacao.refresh_from_db()
+        self.assertEqual(importacao.hash_arquivo, self.file_hash)
+        self.assertEqual(
+            list(importacao.estoques.values_list("pk", flat=True)),
+            original_stock_ids,
+        )
+
+    def test_reimport_requires_target_for_detected_competence_and_ups(self):
+        with self.assertRaisesRegex(
+            ReimportationTargetNotFoundError,
+            "Nao existe importacao",
+        ):
+            self.persist(reimportar=True)
+
+        self.assertEqual(Importacao.objects.count(), 0)
+        self.assertEqual(Competencia.objects.count(), 0)
+        self.assertEqual(Ups.objects.count(), 0)
+        self.assertEqual(Medicamento.objects.count(), 0)
+        self.assertEqual(Lote.objects.count(), 0)
+        self.assertEqual(Estoque.objects.count(), 0)
+
+    def test_reimport_keeps_manipulated_classification_behavior(self):
+        importacao = self.persist()["importacao"]
+        replacement = self.parsed_data(
+            records=[
+                self.record(description="MEDICAMENTO (MANIPULADO) / 500MG")
+            ]
+        )
+        replacement["hash_arquivo"] = hashlib.sha256(b"manipulado").hexdigest()
+
+        self.persist(replacement, reimportar=True)
+
+        medicine = importacao.estoques.get().medicamento
+        self.assertTrue(
+            medicine.classificacoes.filter(
+                nome=CLASSIFICACAO_MANIPULADO,
+                ativo=True,
+            ).exists()
+        )
+
+    def test_reimport_rolls_back_old_stocks_after_partial_new_persistence(self):
+        original_data = self.parsed_data(
+            records=[
+                self.record(line=1, code="100.1", quantity=Decimal("10")),
+                self.record(line=2, code="101.1", lot_code="L002", quantity=Decimal("20")),
+            ]
+        )
+        importacao = self.persist(original_data)["importacao"]
+        original_import = {
+            "nome_arquivo": importacao.nome_arquivo,
+            "hash_arquivo": importacao.hash_arquivo,
+            "status": importacao.status,
+            "usuario_id": importacao.usuario_id,
+        }
+        original_stocks = list(
+            importacao.estoques.order_by("pk").values(
+                "id",
+                "medicamento_id",
+                "lote_id",
+                "quantidade",
+            )
+        )
+        replacement = self.parsed_data(
+            records=[
+                self.record(line=1, code="200.1", lot_code="NEW-1"),
+                self.record(line=2, code="201.1", lot_code="NEW-2"),
+            ]
+        )
+        replacement["hash_arquivo"] = hashlib.sha256(b"falha-parcial").hexdigest()
+        original_create = Estoque.objects.create
+        create_calls = 0
+
+        def fail_after_first_stock(**kwargs):
+            nonlocal create_calls
+            create_calls += 1
+            if create_calls == 2:
+                raise RuntimeError("falha depois do primeiro estoque novo")
+            return original_create(**kwargs)
+
+        with patch(
+            "importacoes.services.Estoque.objects.create",
+            side_effect=fail_after_first_stock,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "primeiro estoque novo"):
+                self.persist(replacement, reimportar=True)
+
+        importacao.refresh_from_db()
+        self.assertEqual(
+            {
+                "nome_arquivo": importacao.nome_arquivo,
+                "hash_arquivo": importacao.hash_arquivo,
+                "status": importacao.status,
+                "usuario_id": importacao.usuario_id,
+            },
+            original_import,
+        )
+        self.assertEqual(
+            list(
+                importacao.estoques.order_by("pk").values(
+                    "id",
+                    "medicamento_id",
+                    "lote_id",
+                    "quantidade",
+                )
+            ),
+            original_stocks,
+        )
+        self.assertFalse(Medicamento.objects.filter(codigo_gmus__in=["200.1", "201.1"]).exists())
 
     def test_distinguishes_ups_with_shared_code_by_unit_identifier(self):
         farmacia_data = self.parsed_data()

@@ -1563,6 +1563,76 @@ th {
   background: #fff3f3;
 }
 
+.import-error > div {
+  min-width: 0;
+}
+
+.import-error__action {
+  min-height: 34px;
+  margin-top: 10px;
+}
+
+.confirmation-overlay {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 39, 36, 0.48);
+}
+
+.confirmation-dialog {
+  display: grid;
+  width: min(100%, 480px);
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 24px;
+  border: var(--admin-card-border);
+  border-radius: var(--admin-card-radius);
+  background: #ffffff;
+  box-shadow: 0 20px 55px rgba(20, 48, 43, 0.2);
+}
+
+.confirmation-dialog__icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 8px;
+  color: #8a5b16;
+  background: #fff3d7;
+}
+
+.confirmation-dialog__content h2 {
+  margin: 1px 0 7px;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.confirmation-dialog__content p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.confirmation-dialog__actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 5px;
+}
+
+.confirmation-dialog__actions .primary-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
 .upload-card__actions {
   display: flex;
   justify-content: flex-end;

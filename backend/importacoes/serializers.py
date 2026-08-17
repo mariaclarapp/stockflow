@@ -9,6 +9,7 @@ from .models import Importacao
 
 class InventoryUploadSerializer(serializers.Serializer):
     arquivo = serializers.FileField(allow_empty_file=False, write_only=True)
+    reimportar = serializers.BooleanField(default=False, required=False, write_only=True)
 
     def validate_arquivo(self, arquivo):
         if Path(arquivo.name).suffix.lower() != ".csv":

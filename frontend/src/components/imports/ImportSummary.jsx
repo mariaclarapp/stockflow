@@ -43,8 +43,12 @@ function ImportSummary({ result, fileName }) {
     <section className="import-result" aria-labelledby="import-result-title">
       <header className="import-result__header">
         <div>
-          <span className="eyebrow">Resultado do processamento</span>
-          <h2 id="import-result-title">Importação registrada</h2>
+          <span className="eyebrow">
+            {result.reimportacao ? "Estoque substituído" : "Resultado do processamento"}
+          </span>
+          <h2 id="import-result-title">
+            {result.reimportacao ? "Reimportação concluída" : "Importação registrada"}
+          </h2>
         </div>
         <ImportStatusBadge status={result.status} />
       </header>

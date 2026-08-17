@@ -413,7 +413,14 @@ Exemplo do corpo:
 ```text
 Content-Type: multipart/form-data
 arquivo: inventario.csv
+reimportar: false
 ```
+
+O campo multipart opcional `reimportar` aceita um booleano e assume `false`. Sem a
+indicação explícita, uma importação existente para a combinação detectada de
+competência, UPS e tipo de relatório permanece protegida e a API retorna `409`.
+O frontend pode então solicitar confirmação e repetir o upload com
+`reimportar=true`.
 
 O backend detecta o tipo do relatorio pelo conteudo do CSV antes de selecionar o parser.
 Atualmente, o unico formato reconhecido e `inventario`; o usuario nao escolhe o tipo
@@ -426,11 +433,13 @@ O segmento `/inventario/` foi mantido para preservar compatibilidade com o front
 com o contrato atual, no qual inventario ainda e o unico formato suportado. Ele nao
 substitui a deteccao pelo conteudo nem permite que o usuario escolha o parser.
 
-Uma resposta de sucesso usa HTTP `201` e possui esta estrutura:
+Uma nova importação usa HTTP `201 Created`. Uma reimportação bem-sucedida usa HTTP
+`200 OK`, pois atualiza a mesma `Importacao`. Ambas usam a mesma estrutura:
 
 ```json
 {
   "importacao_id": 1,
+  "reimportacao": false,
   "status": "concluida",
   "tipo_relatorio": "inventario",
   "hash_arquivo": "sha256-do-arquivo",
@@ -453,6 +462,17 @@ Uma resposta de sucesso usa HTTP `201` e possui esta estrutura:
 }
 ```
 
+Na reimportação, `reimportacao` será `true` e `importacao_id` continuará sendo o ID do
+registro original. O backend usa a competência, a UPS e o tipo detectados no próprio
+CSV como chave; não aceita um alvo oculto indicado pelo frontend.
+
+A substituição ocorre em uma transação atômica: somente os registros de `Estoque`
+vinculados à importação encontrada são removidos, os novos estoques são persistidos e
+os metadados (`nome_arquivo`, hash, data, status e usuário) são atualizados. Em caso de
+falha, os estoques e metadados anteriores são restaurados pelo rollback. Medicamentos,
+lotes e classificações não são removidos. Um arquivo com SHA-256 igual ao já
+processado retorna `409` e não executa a substituição.
+
 Os itens de divergencia, warning ou erro nao incluem as linhas brutas do CSV.
 
 Os status de sucesso seguem estas regras:
@@ -468,7 +488,9 @@ Respostas de erro:
 
 - `400 Bad Request`: arquivo ausente, extensao invalida, falha de parsing ou contexto invalido;
 - `401 Unauthorized` ou `403 Forbidden`: usuario nao autenticado;
-- `409 Conflict`: ja existe importacao para a mesma competencia, UPS e tipo de relatorio;
+- `409 Conflict`: ja existe importacao sem confirmacao de reimportacao, o arquivo tem o
+  mesmo SHA-256 ja processado ou `reimportar=true` nao encontrou importacao para a chave
+  detectada no CSV;
 - `422 Unprocessable Entity`: tipo de relatorio desconhecido, erro global do parser ou ausencia de registros processaveis;
 - `500 Internal Server Error`: falha inesperada, com mensagem generica e rollback da persistencia.
 
@@ -546,7 +568,8 @@ Nao foram implementados nesta etapa:
 
 - filtros administrativos adicionais;
 - paginacao customizada;
-- reimportacao;
+- versionamento ou historico de versoes de uma importacao;
+- limpeza automatica de lotes sem estoque apos reimportacao;
 - calculos de estoque;
 - indicadores administrativos RF15-RF19;
 - outros endpoints de escrita.

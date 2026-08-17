@@ -16,12 +16,24 @@ class InventoryPersistenceError(ValueError):
     pass
 
 
-class DuplicateInventoryImportError(InventoryPersistenceError):
+class InventoryImportConflictError(InventoryPersistenceError):
     pass
 
 
-def persist_inventory_import(*, parsed_data, user, nome_arquivo):
-    """Persist one new inventory import from normalized parser output."""
+class DuplicateInventoryImportError(InventoryImportConflictError):
+    pass
+
+
+class SameInventoryFileError(InventoryImportConflictError):
+    pass
+
+
+class ReimportationTargetNotFoundError(InventoryImportConflictError):
+    pass
+
+
+def persist_inventory_import(*, parsed_data, user, nome_arquivo, reimportar=False):
+    """Persist a new inventory or atomically replace an existing one."""
     with transaction.atomic():
         _validate_import_context(parsed_data, user, nome_arquivo)
 
@@ -52,37 +64,55 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo):
                 }
             )
 
-        if Importacao.objects.filter(
-            competencia=competencia,
-            ups=ups,
-            tipo_relatorio=report_type,
-        ).exists():
-            raise DuplicateInventoryImportError(
-                "Ja existe uma importacao para esta competencia, UPS e tipo de relatorio."
-            )
-
-        try:
-            with transaction.atomic():
-                importacao = Importacao.objects.create(
-                    nome_arquivo=nome_arquivo,
-                    hash_arquivo=file_hash,
-                    tipo_relatorio=report_type,
-                    data_importacao=timezone.now(),
-                    status=Importacao.Status.CONCLUIDA,
-                    usuario=user,
-                    competencia=competencia,
-                    ups=ups,
-                )
-        except IntegrityError as error:
-            if Importacao.objects.filter(
+        importacao = (
+            Importacao.objects.select_for_update()
+            .filter(
                 competencia=competencia,
                 ups=ups,
                 tipo_relatorio=report_type,
-            ).exists():
-                raise DuplicateInventoryImportError(
-                    "Ja existe uma importacao para esta competencia, UPS e tipo de relatorio."
-                ) from error
-            raise
+            )
+            .first()
+        )
+        reimportacao = importacao is not None
+
+        if importacao is not None and not reimportar:
+            raise DuplicateInventoryImportError(
+                "Ja existe uma importacao para esta competencia, UPS e tipo de relatorio."
+            )
+        if importacao is not None and importacao.hash_arquivo == file_hash:
+            raise SameInventoryFileError(
+                "Este mesmo arquivo ja foi processado para esta competencia e UPS."
+            )
+        if importacao is None and reimportar:
+            raise ReimportationTargetNotFoundError(
+                "Nao existe importacao para substituir com a competencia e UPS do arquivo."
+            )
+
+        if importacao is not None:
+            Estoque.objects.filter(importacao=importacao).delete()
+        else:
+            try:
+                with transaction.atomic():
+                    importacao = Importacao.objects.create(
+                        nome_arquivo=nome_arquivo,
+                        hash_arquivo=file_hash,
+                        tipo_relatorio=report_type,
+                        data_importacao=timezone.now(),
+                        status=Importacao.Status.CONCLUIDA,
+                        usuario=user,
+                        competencia=competencia,
+                        ups=ups,
+                    )
+            except IntegrityError as error:
+                if Importacao.objects.filter(
+                    competencia=competencia,
+                    ups=ups,
+                    tipo_relatorio=report_type,
+                ).exists():
+                    raise DuplicateInventoryImportError(
+                        "Ja existe uma importacao para esta competencia, UPS e tipo de relatorio."
+                    ) from error
+                raise
 
         parser_errors = list(parsed_data.get("inconsistencies", []))
         invalid_lines = {
@@ -174,19 +204,49 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo):
             )
             stock_count += 1
 
+        if reimportacao and stock_count == 0:
+            raise InventoryPersistenceError(
+                "A reimportacao nao gerou registros de estoque validos."
+            )
+
         has_warnings = any(
             item.get("severity") == "warning" for item in parser_errors
         )
+        import_status = Importacao.Status.CONCLUIDA
         if invalid_lines or service_errors:
-            importacao.status = Importacao.Status.CONCLUIDA_PARCIAL
-            importacao.save(update_fields=["status"])
+            import_status = Importacao.Status.CONCLUIDA_PARCIAL
         elif has_warnings or divergencias:
-            importacao.status = Importacao.Status.CONCLUIDA_COM_ALERTAS
+            import_status = Importacao.Status.CONCLUIDA_COM_ALERTAS
+
+        if reimportacao:
+            importacao.nome_arquivo = nome_arquivo
+            importacao.hash_arquivo = file_hash
+            importacao.tipo_relatorio = report_type
+            importacao.data_importacao = timezone.now()
+            importacao.status = import_status
+            importacao.usuario = user
+            importacao.competencia = competencia
+            importacao.ups = ups
+            importacao.save(
+                update_fields=[
+                    "nome_arquivo",
+                    "hash_arquivo",
+                    "tipo_relatorio",
+                    "data_importacao",
+                    "status",
+                    "usuario",
+                    "competencia",
+                    "ups",
+                ]
+            )
+        elif importacao.status != import_status:
+            importacao.status = import_status
             importacao.save(update_fields=["status"])
 
         return {
             "importacao": importacao,
-            "importacao_criada": True,
+            "importacao_criada": not reimportacao,
+            "reimportacao": reimportacao,
             "competencia_criada": competencia_criada,
             "ups_criada": ups_criada,
             "registros_recebidos": len(parsed_data.get("records", [])),

@@ -47,10 +47,13 @@ class InventoryUploadApiTests(APITestCase):
             content_type="text/csv",
         )
 
-    def post_csv(self, upload=None):
+    def post_csv(self, upload=None, *, reimportar=None):
+        data = {"arquivo": upload if upload is not None else self.csv_upload()}
+        if reimportar is not None:
+            data["reimportar"] = reimportar
         return self.client.post(
             self.url,
-            {"arquivo": upload or self.csv_upload()},
+            data,
             format="multipart",
         )
 
@@ -102,6 +105,7 @@ class InventoryUploadApiTests(APITestCase):
         self.assertEqual(Lote.objects.count(), 1)
         self.assertEqual(Estoque.objects.count(), 1)
         self.assertEqual(Importacao.objects.get().status, Importacao.Status.CONCLUIDA)
+        self.assertFalse(response.data["reimportacao"])
 
     def test_unknown_report_returns_controlled_error_without_persistence(self):
         self.authenticate()
@@ -143,6 +147,90 @@ class InventoryUploadApiTests(APITestCase):
         self.assertIn("Ja existe uma importacao", second_response.data["erro"])
         self.assertEqual(Importacao.objects.count(), 1)
         self.assertEqual(Estoque.objects.count(), 1)
+
+    def test_explicit_reimport_updates_same_import_and_returns_ok(self):
+        self.authenticate()
+        first_response = self.post_csv()
+        importacao = Importacao.objects.get()
+        original_pk = importacao.pk
+        original_hash = importacao.hash_arquivo
+        original_stock_ids = list(importacao.estoques.values_list("pk", flat=True))
+
+        response = self.post_csv(
+            self.csv_upload(
+                name="inventario-corrigido.csv",
+                quantity="25",
+            ),
+            reimportar=True,
+        )
+
+        importacao.refresh_from_db()
+        self.assertEqual(first_response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["reimportacao"])
+        self.assertEqual(response.data["importacao_id"], original_pk)
+        self.assertEqual(importacao.pk, original_pk)
+        self.assertEqual(importacao.nome_arquivo, "inventario-corrigido.csv")
+        self.assertNotEqual(importacao.hash_arquivo, original_hash)
+        self.assertFalse(Estoque.objects.filter(pk__in=original_stock_ids).exists())
+        self.assertEqual(importacao.estoques.get().quantidade, 25)
+
+    def test_reimport_with_same_hash_returns_conflict_without_replacement(self):
+        self.authenticate()
+        self.post_csv()
+        importacao = Importacao.objects.get()
+        original_stock_ids = list(importacao.estoques.values_list("pk", flat=True))
+
+        response = self.post_csv(reimportar=True)
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn("mesmo arquivo", response.data["erro"])
+        self.assertEqual(
+            list(importacao.estoques.values_list("pk", flat=True)),
+            original_stock_ids,
+        )
+
+    def test_unknown_report_during_reimport_preserves_old_inventory(self):
+        self.authenticate()
+        self.post_csv()
+        importacao = Importacao.objects.get()
+        original_stock_ids = list(importacao.estoques.values_list("pk", flat=True))
+        unknown = SimpleUploadedFile(
+            "desconhecido.csv",
+            b"codigo,descricao\n1,RELATORIO DESCONHECIDO",
+            content_type="text/csv",
+        )
+
+        response = self.post_csv(unknown, reimportar=True)
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(Importacao.objects.count(), 1)
+        self.assertEqual(
+            list(importacao.estoques.values_list("pk", flat=True)),
+            original_stock_ids,
+        )
+
+    def test_parser_failure_during_reimport_preserves_old_inventory(self):
+        self.authenticate()
+        self.post_csv()
+        importacao = Importacao.objects.get()
+        original_stock_ids = list(importacao.estoques.values_list("pk", flat=True))
+
+        with patch(
+            "importacoes.views.parse_report_csv",
+            side_effect=ValueError("falha de parsing"),
+        ):
+            response = self.post_csv(
+                self.csv_upload(quantity="30"),
+                reimportar=True,
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Importacao.objects.count(), 1)
+        self.assertEqual(
+            list(importacao.estoques.values_list("pk", flat=True)),
+            original_stock_ids,
+        )
 
     def test_parser_exception_returns_bad_request(self):
         self.authenticate()

@@ -79,8 +79,12 @@ CSV de inventario para `POST /api/importacoes/inventario/`. O envio usa
 aplicacao.
 
 A tela apresenta o resumo retornado pela API e trata importacoes concluidas, concluidas
-com alertas e parciais. Reimportacao e historico de importacoes ainda nao fazem parte
-deste fluxo.
+com alertas e parciais. Quando a API informa conflito para uma competencia/UPS ja
+importada, a tela oferece a acao explicita `Reimportar e substituir` e solicita
+confirmacao em um modal antes de reenviar o mesmo arquivo com o campo multipart
+`reimportar=true`. A substituicao e transacional no backend e o resumo indica quando o
+processamento foi uma reimportacao. Arquivos identicos, com o mesmo SHA-256, nao sao
+processados novamente. Historico de versoes de importacao nao faz parte deste fluxo.
 
 ## Consulta administrativa de medicamentos
 
