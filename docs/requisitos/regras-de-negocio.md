@@ -28,6 +28,12 @@ As três UPS consideradas atualmente são:
 
 ## RN03 — Identificação automática da importação
 
+O tipo de relatório deverá ser identificado pelo backend a partir da estrutura e do
+conteúdo do CSV, antes da execução de um parser específico. O usuário não deverá escolher
+manualmente o tipo. Atualmente, o único formato reconhecido pelo StockFlow é o relatório
+de inventário; arquivos que não correspondam a um formato conhecido deverão ser
+rejeitados de maneira controlada, sem persistência parcial.
+
 Durante a importação, o sistema deverá identificar as informações disponíveis no próprio relatório, incluindo, quando presentes:
 
 - competência;

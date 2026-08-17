@@ -33,7 +33,9 @@ class InventoryUploadApiTests(APITestCase):
         extra_rows=None,
     ):
         rows = [
+            ",,Inventário,,,,,,,,,,,,,,,,,,",
             "Filtros: Compet\u00eancia: 202608. UPS: FARMACIA TESTE - PR / 1234567 (9). Imp. Zero? Nao. Imp. Inativo? Nao. Ordenado por: Codigo.,,,,,,,,,,,,,,,,,,,,,",
+            "Unidade: 9 - FARMACIA TESTE - PR,,,,,,,,,,,,,,,,,,,,",
             "Material / Apresenta\u00e7\u00e3o,,,,,,Unidade,,,,Sub-Grupo,,,Lote / Validade,,,Qtde Virt.,,,Qtde R.,",
             f",{description} / 500MG (100.1),,,,,COMPR,,,GRUPO TESTE (47),,,,,L001 / 28/02/2028,{quantity},,,,,",
         ]
@@ -82,7 +84,7 @@ class InventoryUploadApiTests(APITestCase):
     def test_upload_rejects_non_csv_extension_before_parsing(self):
         self.authenticate()
 
-        with patch("importacoes.views.parse_inventory_csv") as parser:
+        with patch("importacoes.views.parse_report_csv") as parser:
             response = self.post_csv(self.csv_upload(name="inventario.txt"))
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -100,6 +102,20 @@ class InventoryUploadApiTests(APITestCase):
         self.assertEqual(Lote.objects.count(), 1)
         self.assertEqual(Estoque.objects.count(), 1)
         self.assertEqual(Importacao.objects.get().status, Importacao.Status.CONCLUIDA)
+
+    def test_unknown_report_returns_controlled_error_without_persistence(self):
+        self.authenticate()
+        upload = SimpleUploadedFile(
+            "relatorio.csv",
+            b"codigo,descricao\n1,ARQUIVO GENERICO",
+            content_type="text/csv",
+        )
+
+        response = self.post_csv(upload)
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.data, {"erro": "Tipo de relatório não reconhecido."})
+        self.assert_domain_is_empty()
 
     def test_upload_with_rejected_record_is_completed_partially(self):
         self.authenticate()
@@ -132,7 +148,7 @@ class InventoryUploadApiTests(APITestCase):
         self.authenticate()
 
         with patch(
-            "importacoes.views.parse_inventory_csv",
+            "importacoes.views.parse_report_csv",
             side_effect=ValueError("data de validade invalida"),
         ):
             response = self.post_csv()
@@ -154,7 +170,7 @@ class InventoryUploadApiTests(APITestCase):
             ],
         }
 
-        with patch("importacoes.views.parse_inventory_csv", return_value=parsed_data), patch(
+        with patch("importacoes.views.parse_report_csv", return_value=parsed_data), patch(
             "importacoes.views.persist_inventory_import"
         ) as persistence:
             response = self.post_csv()

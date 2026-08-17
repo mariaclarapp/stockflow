@@ -2,9 +2,78 @@ import hashlib
 from datetime import date
 from decimal import Decimal
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase
 
-from .parsers import parse_inventory_csv
+from .parsers import (
+    REPORT_TYPE_INVENTORY,
+    UnknownReportTypeError,
+    detect_report_type,
+    parse_inventory_csv,
+    parse_report_csv,
+)
+
+
+def inventory_structure(*, ups_name="FARMACIA TESTE", unit_id="9"):
+    return "\n".join(
+        [
+            ",,Inventário,,,,,,,,,,,,,,,,,,",
+            f"Filtros: Competência: 202608. UPS: {ups_name} / 1234567 ({unit_id}).,,,,,,,,,,,,,,,,,,,,",
+            f"Unidade: {unit_id} - {ups_name},,,,,,,,,,,,,,,,,,,,",
+            "Material / Apresentação,,,,,,Unidade,,,,Sub-Grupo,,,Lote / Validade,,,Qtde Virt.,,,Qtde R.,",
+            ",MEDICAMENTO / 10MG (100.1),,,,,COMPR,,,,,,,,L001 / 31/12/2028,10,,,,,",
+        ]
+    )
+
+
+class ReportTypeDetectionTests(SimpleTestCase):
+    def test_detects_valid_inventory(self):
+        report = inventory_structure().encode("utf-8")
+
+        self.assertEqual(detect_report_type(report), REPORT_TYPE_INVENTORY)
+        self.assertEqual(parse_report_csv(report)["tipo_relatorio"], "inventario")
+
+    def test_recognizes_structures_from_the_three_ups(self):
+        for name, unit_id in (
+            ("FARMACIA MUNICIPAL", "9"),
+            ("CAF", "10"),
+            ("FARMACIA DE MANIPULACAO", "19"),
+        ):
+            with self.subTest(unit_id=unit_id):
+                self.assertEqual(
+                    detect_report_type(
+                        inventory_structure(ups_name=name, unit_id=unit_id).encode(
+                            "utf-8"
+                        )
+                    ),
+                    REPORT_TYPE_INVENTORY,
+                )
+
+    def test_detection_does_not_depend_on_filename(self):
+        report = SimpleUploadedFile(
+            "nome-sem-relacao-com-o-tipo.csv",
+            inventory_structure().encode("utf-8"),
+        )
+
+        self.assertEqual(detect_report_type(report), REPORT_TYPE_INVENTORY)
+
+    def test_generic_csv_is_not_detected_as_inventory(self):
+        with self.assertRaisesRegex(
+            UnknownReportTypeError,
+            "Tipo de relatório não reconhecido",
+        ):
+            detect_report_type(b"codigo,descricao\n1,ARQUIVO GENERICO")
+
+    def test_insufficient_inventory_structure_is_rejected(self):
+        incomplete = "\n".join(
+            [
+                ",,Inventário,,,,",
+                "Material / Apresentação,Unidade,Lote / Validade,Qtde Virt.",
+            ]
+        )
+
+        with self.assertRaises(UnknownReportTypeError):
+            parse_report_csv(incomplete.encode("utf-8"))
 
 
 class InventoryCsvParserTests(SimpleTestCase):

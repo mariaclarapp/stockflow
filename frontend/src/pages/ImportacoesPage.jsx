@@ -24,7 +24,7 @@ function requestErrorMessage(error) {
     return "Esta competência e UPS já possuem uma importação de inventário.";
   }
   if (error.status === 422) {
-    return "O relatório não possui registros processáveis ou contém um erro global.";
+    return error.message || "O relatório não possui registros processáveis ou contém um erro global.";
   }
   if (error.status === 400) {
     return error.message || "O arquivo não pôde ser interpretado.";

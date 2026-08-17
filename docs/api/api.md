@@ -415,10 +415,16 @@ Content-Type: multipart/form-data
 arquivo: inventario.csv
 ```
 
-O endpoint executa o parser de inventario e usa o nome original e o hash SHA-256 do
-arquivo na persistencia. Erros `error` associados a uma linha rejeitam somente aquela
-linha. Erros globais sem linha, ou um arquivo sem registros processaveis, bloqueiam a
-importacao antes da persistencia.
+O backend detecta o tipo do relatorio pelo conteudo do CSV antes de selecionar o parser.
+Atualmente, o unico formato reconhecido e `inventario`; o usuario nao escolhe o tipo
+manualmente. Depois da deteccao, o endpoint executa o parser de inventario e usa o nome
+original e o hash SHA-256 do arquivo na persistencia. Erros `error` associados a uma
+linha rejeitam somente aquela linha. Erros globais sem linha, um tipo desconhecido ou um
+arquivo sem registros processaveis bloqueiam a importacao antes da persistencia.
+
+O segmento `/inventario/` foi mantido para preservar compatibilidade com o frontend e
+com o contrato atual, no qual inventario ainda e o unico formato suportado. Ele nao
+substitui a deteccao pelo conteudo nem permite que o usuario escolha o parser.
 
 Uma resposta de sucesso usa HTTP `201` e possui esta estrutura:
 
@@ -463,7 +469,7 @@ Respostas de erro:
 - `400 Bad Request`: arquivo ausente, extensao invalida, falha de parsing ou contexto invalido;
 - `401 Unauthorized` ou `403 Forbidden`: usuario nao autenticado;
 - `409 Conflict`: ja existe importacao para a mesma competencia, UPS e tipo de relatorio;
-- `422 Unprocessable Entity`: erro global do parser ou ausencia de registros processaveis;
+- `422 Unprocessable Entity`: tipo de relatorio desconhecido, erro global do parser ou ausencia de registros processaveis;
 - `500 Internal Server Error`: falha inesperada, com mensagem generica e rollback da persistencia.
 
 ## Metodos permitidos

@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .parsers import parse_inventory_csv
+from .parsers import UnknownReportTypeError, parse_report_csv
 from .serializers import InventoryUploadSerializer
 from .services import (
     DuplicateInventoryImportError,
@@ -29,7 +29,12 @@ class InventoryUploadAPIView(APIView):
         arquivo = serializer.validated_data["arquivo"]
 
         try:
-            parsed_data = parse_inventory_csv(arquivo)
+            parsed_data = parse_report_csv(arquivo)
+        except UnknownReportTypeError as error:
+            return Response(
+                {"erro": str(error)},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
         except (csv.Error, UnicodeError, ValueError):
             return Response(
                 {"erro": "Nao foi possivel interpretar o arquivo CSV."},

@@ -2,13 +2,14 @@ from django.db.models import Count, Q
 
 from estoques.models import Estoque
 from importacoes.models import Importacao
+from importacoes.report_types import REPORT_TYPE_INVENTORY
 from medicamentos.models import Medicamento
 
 from .models import Competencia, Ups
 
 
 class CompetenciaService:
-    TIPO_RELATORIO_INVENTARIO = "inventario"
+    TIPO_RELATORIO_INVENTARIO = REPORT_TYPE_INVENTORY
     STATUS_IMPORTACAO_VALIDOS = (
         Importacao.Status.CONCLUIDA,
         Importacao.Status.CONCLUIDA_COM_ALERTAS,

@@ -1,0 +1,1 @@
+REPORT_TYPE_INVENTORY = "inventario"

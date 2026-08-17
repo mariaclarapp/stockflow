@@ -6,9 +6,17 @@ from decimal import Decimal, InvalidOperation
 from io import StringIO
 from pathlib import Path
 
+from .report_types import REPORT_TYPE_INVENTORY
+
 
 ENCODINGS = ("utf-8", "cp1252", "latin-1")
 DELIMITERS = (",", ";", "\t")
+INVENTORY_REQUIRED_HEADERS = {
+    "Material / Apresentação",
+    "Unidade",
+    "Lote / Validade",
+    "Qtde Virt.",
+}
 
 FILTERS_RE = re.compile(
     r"Competência:\s*(?P<competencia>\d{6})\.\s*"
@@ -23,6 +31,45 @@ SUBGRUPO_RE = re.compile(r"^(?P<nome>.+?)\s*\((?P<codigo>\d+)\)\s*$")
 LOTE_VALIDADE_RE = re.compile(
     r"^(?P<lote>.+?)\s*/\s*(?P<validade>\d{2}/\d{2}/\d{4})$"
 )
+
+
+class UnknownReportTypeError(ValueError):
+    pass
+
+
+def detect_report_type(source):
+    raw_bytes = _read_source(source)
+    text, _ = _decode(raw_bytes)
+    delimiter = _detect_delimiter(text)
+    rows = list(csv.reader(StringIO(text), delimiter=delimiter))
+
+    has_title = False
+    has_filters = False
+    has_unit = False
+    has_required_headers = False
+
+    for row in rows:
+        values = [value.strip() for value in row]
+        has_title = has_title or any(
+            value.casefold() == "inventário".casefold() for value in values
+        )
+        has_filters = has_filters or any(FILTERS_RE.search(value) for value in values)
+        has_unit = has_unit or any(UNIDADE_RE.search(value) for value in values)
+        has_required_headers = has_required_headers or INVENTORY_REQUIRED_HEADERS.issubset(
+            set(values)
+        )
+
+    if has_title and has_filters and has_unit and has_required_headers:
+        return REPORT_TYPE_INVENTORY
+
+    raise UnknownReportTypeError("Tipo de relatório não reconhecido.")
+
+
+def parse_report_csv(source):
+    raw_bytes = _read_source(source)
+    report_type = detect_report_type(raw_bytes)
+    parsers = {REPORT_TYPE_INVENTORY: parse_inventory_csv}
+    return parsers[report_type](raw_bytes)
 
 
 def parse_inventory_csv(source):
@@ -224,7 +271,7 @@ def parse_inventory_csv(source):
     _validate_ups_metadata(metadata, inconsistencies)
 
     return {
-        "tipo_relatorio": "inventario",
+        "tipo_relatorio": REPORT_TYPE_INVENTORY,
         "hash_arquivo": hashlib.sha256(raw_bytes).hexdigest(),
         "metadata": metadata,
         "records": records,
