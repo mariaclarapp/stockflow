@@ -221,6 +221,60 @@ competencias incompletas sera misturado ao resumo.
 O endpoint nao calcula consumo medio, cobertura, giro, necessidade de compra ou os
 indicadores RF15-RF19.
 
+### Acompanhamento administrativo de competencias
+
+```text
+GET /api/competencias/acompanhamento/
+```
+
+Exige usuario administrativo com `is_staff=True`. O endpoint retorna todas as
+competencias, da mais recente para a mais antiga, e explicita a situacao de cada UPS
+configurada com `participa_competencia=True`:
+
+```json
+{
+  "competencia_completa_mais_recente": {
+    "id": 8,
+    "ano": 2026,
+    "mes": 8
+  },
+  "competencias": [
+    {
+      "id": 8,
+      "ano": 2026,
+      "mes": 8,
+      "completa": true,
+      "ups": {
+        "esperadas": 3,
+        "importadas_validas": 3,
+        "situacoes": [
+          {
+            "id": 2,
+            "codigo_gmus": "2780046",
+            "id_unidade_gmus": "9",
+            "nome": "UPS EXEMPLO",
+            "importada": true,
+            "status": "concluida",
+            "data_importacao": "2026-08-17T10:00:00-03:00",
+            "registros_estoque": 100
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+Somente importacoes de inventario `concluida` ou `concluida_com_alertas` contam em
+`importadas_validas` e podem completar a competencia. Uma importacao
+`concluida_parcial` e exibida com seu status, mas nao conta como valida. Quando uma UPS
+participante ainda nao possui importacao, `importada` e `false` e os campos `status`,
+`data_importacao` e `registros_estoque` sao `null`.
+
+O contrato inclui competencias incompletas e informa separadamente a competencia
+completa mais recente. A resposta e montada com quantidade constante de consultas e
+nao exige uma chamada adicional por competencia ou UPS.
+
 ### Pesquisa de medicamentos
 
 O endpoint administrativo de medicamentos aceita o parametro opcional `search`:

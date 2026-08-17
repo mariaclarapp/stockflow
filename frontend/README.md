@@ -88,6 +88,15 @@ completa mais recente e o historico mensal. A tela consulta em paralelo
 `GET /api/medicamentos/{id}/` e `GET /api/medicamentos/{id}/historico/`; consolidacao,
 completude e totais por UPS permanecem sob responsabilidade do backend.
 
-Nesta etapa, Login, protecao de rotas, a estrutura inicial da Visao geral, Importacoes e
-a consulta de Medicamentos estao implementados. Os demais itens da sidebar continuam
-desabilitados.
+## Acompanhamento de competencias
+
+A rota `/admin/competencias` consulta `GET /api/competencias/acompanhamento/` uma unica
+vez e apresenta competencias completas e incompletas, da mais recente para a mais
+antiga. Os filtros de ano e situacao sao aplicados localmente. Cada item pode ser
+expandido para mostrar o inventario de todas as UPS participantes, incluindo as que
+ainda estao pendentes, e oferece acesso direto a `/admin/importacoes` quando a
+competencia esta incompleta.
+
+Nesta etapa, Login, protecao de rotas, Visao geral, Importacoes, consulta de Medicamentos
+e acompanhamento de Competencias estao implementados. Analises e Configuracoes
+continuam desabilitadas.

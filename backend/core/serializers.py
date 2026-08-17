@@ -58,3 +58,41 @@ class DashboardResumoSerializer(serializers.Serializer):
     ups = DashboardUpsTotaisSerializer()
     importacoes = DashboardImportacaoSerializer(many=True)
     totais = DashboardTotaisSerializer()
+
+
+class CompetenciaUpsSituacaoSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    codigo_gmus = serializers.CharField()
+    id_unidade_gmus = serializers.CharField()
+    nome = serializers.CharField()
+    importada = serializers.BooleanField()
+    status = serializers.CharField(allow_null=True)
+    data_importacao = serializers.DateTimeField(allow_null=True)
+    registros_estoque = serializers.IntegerField(allow_null=True)
+
+
+class CompetenciaUpsResumoSerializer(serializers.Serializer):
+    esperadas = serializers.IntegerField()
+    importadas_validas = serializers.IntegerField()
+    situacoes = CompetenciaUpsSituacaoSerializer(many=True)
+
+
+class CompetenciaAcompanhamentoSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    ano = serializers.IntegerField()
+    mes = serializers.IntegerField()
+    completa = serializers.BooleanField()
+    ups = CompetenciaUpsResumoSerializer()
+
+
+class CompetenciaMaisRecenteSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    ano = serializers.IntegerField()
+    mes = serializers.IntegerField()
+
+
+class CompetenciasAcompanhamentoSerializer(serializers.Serializer):
+    competencia_completa_mais_recente = CompetenciaMaisRecenteSerializer(
+        allow_null=True
+    )
+    competencias = CompetenciaAcompanhamentoSerializer(many=True)

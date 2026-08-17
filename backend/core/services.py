@@ -15,14 +15,7 @@ class CompetenciaService:
     )
 
     @classmethod
-    def competencias_completas(cls, total_ups_participantes=None):
-        if total_ups_participantes is None:
-            total_ups_participantes = Ups.objects.filter(
-                participa_competencia=True
-            ).count()
-        if total_ups_participantes == 0:
-            return Competencia.objects.none()
-
+    def competencias_com_totais(cls):
         return Competencia.objects.annotate(
             total_ups_importadas=Count(
                 "importacoes__ups",
@@ -33,7 +26,20 @@ class CompetenciaService:
                 ),
                 distinct=True,
             )
-        ).filter(total_ups_importadas=total_ups_participantes)
+        )
+
+    @classmethod
+    def competencias_completas(cls, total_ups_participantes=None):
+        if total_ups_participantes is None:
+            total_ups_participantes = Ups.objects.filter(
+                participa_competencia=True
+            ).count()
+        if total_ups_participantes == 0:
+            return Competencia.objects.none()
+
+        return cls.competencias_com_totais().filter(
+            total_ups_importadas=total_ups_participantes
+        )
 
     @classmethod
     def identificar_competencia_completa(cls, total_ups_participantes=None):
@@ -113,4 +119,86 @@ class DashboardResumoService:
                     competencia=competencia
                 ).count(),
             },
+        }
+
+
+class CompetenciasAcompanhamentoService:
+    @classmethod
+    def construir(cls):
+        ups_participantes = list(
+            Ups.objects.filter(participa_competencia=True).order_by("nome", "id")
+        )
+        total_esperadas = len(ups_participantes)
+        competencias = list(
+            CompetenciaService.competencias_com_totais().order_by("-ano", "-mes")
+        )
+        competencia_ids = [competencia.pk for competencia in competencias]
+
+        importacoes_por_chave = {}
+        if competencia_ids:
+            importacoes = (
+                Importacao.objects.filter(
+                    competencia_id__in=competencia_ids,
+                    tipo_relatorio=CompetenciaService.TIPO_RELATORIO_INVENTARIO,
+                    ups__participa_competencia=True,
+                )
+                .select_related("ups")
+                .annotate(registros_estoque=Count("estoques"))
+            )
+            importacoes_por_chave = {
+                (importacao.competencia_id, importacao.ups_id): importacao
+                for importacao in importacoes
+            }
+
+        resultado = []
+        competencia_completa_mais_recente = None
+        for competencia in competencias:
+            completa = (
+                total_esperadas > 0
+                and competencia.total_ups_importadas == total_esperadas
+            )
+            if completa and competencia_completa_mais_recente is None:
+                competencia_completa_mais_recente = {
+                    "id": competencia.pk,
+                    "ano": competencia.ano,
+                    "mes": competencia.mes,
+                }
+
+            situacoes = []
+            for ups in ups_participantes:
+                importacao = importacoes_por_chave.get((competencia.pk, ups.pk))
+                situacoes.append(
+                    {
+                        "id": ups.pk,
+                        "codigo_gmus": ups.codigo_gmus,
+                        "id_unidade_gmus": ups.id_unidade_gmus,
+                        "nome": ups.nome,
+                        "importada": importacao is not None,
+                        "status": importacao.status if importacao else None,
+                        "data_importacao": (
+                            importacao.data_importacao if importacao else None
+                        ),
+                        "registros_estoque": (
+                            importacao.registros_estoque if importacao else None
+                        ),
+                    }
+                )
+
+            resultado.append(
+                {
+                    "id": competencia.pk,
+                    "ano": competencia.ano,
+                    "mes": competencia.mes,
+                    "completa": completa,
+                    "ups": {
+                        "esperadas": total_esperadas,
+                        "importadas_validas": competencia.total_ups_importadas,
+                        "situacoes": situacoes,
+                    },
+                }
+            )
+
+        return {
+            "competencia_completa_mais_recente": competencia_completa_mais_recente,
+            "competencias": resultado,
         }

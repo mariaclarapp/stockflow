@@ -7,7 +7,12 @@ from core.auth_views import (
     LoginAPIView,
     LogoutAPIView,
 )
-from core.views import CompetenciaViewSet, DashboardResumoAPIView, UpsViewSet
+from core.views import (
+    CompetenciaViewSet,
+    CompetenciasAcompanhamentoAPIView,
+    DashboardResumoAPIView,
+    UpsViewSet,
+)
 from estoques.views import HistoricoMedicamentoAPIView, EstoqueViewSet, LoteViewSet
 from importacoes.views import InventoryUploadAPIView
 from medicamentos.views import (
@@ -38,6 +43,11 @@ urlpatterns = [
         "dashboard/resumo/",
         DashboardResumoAPIView.as_view(),
         name="dashboard-resumo",
+    ),
+    path(
+        "competencias/acompanhamento/",
+        CompetenciasAcompanhamentoAPIView.as_view(),
+        name="competencias-acompanhamento",
     ),
     path(
         "publico/medicamentos/",
