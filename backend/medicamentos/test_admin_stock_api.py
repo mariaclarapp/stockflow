@@ -9,7 +9,7 @@ from core.models import Competencia, Ups
 from estoques.models import Estoque, Lote
 from importacoes.models import Importacao
 
-from .models import Classificacao, Medicamento
+from .models import Classificacao, Medicamento, SubgrupoGmus
 
 
 class AdministrativeMedicationStockApiTests(APITestCase):
@@ -186,6 +186,152 @@ class AdministrativeMedicationStockApiTests(APITestCase):
             [item["codigo_gmus"] for item in response.data],
             [self.medicamento.codigo_gmus],
         )
+
+    def test_ids_filter_returns_one_medication(self):
+        response = self.client.get(self.url, {"ids": str(self.medicamento.pk)})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["id"] for item in response.data],
+            [self.medicamento.pk],
+        )
+
+    def test_ids_filter_preserves_requested_order_for_multiple_medications(self):
+        response = self.client.get(
+            self.url,
+            {"ids": f"{self.sem_estoque.pk},{self.medicamento.pk}"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["id"] for item in response.data],
+            [self.sem_estoque.pk, self.medicamento.pk],
+        )
+
+    def test_ids_filter_removes_repeated_ids(self):
+        response = self.client.get(
+            self.url,
+            {"ids": f"{self.medicamento.pk},{self.medicamento.pk}"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["id"], self.medicamento.pk)
+
+    def test_ids_filter_ignores_nonexistent_id(self):
+        response = self.client.get(
+            self.url,
+            {"ids": f"999999,{self.medicamento.pk}"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["id"] for item in response.data],
+            [self.medicamento.pk],
+        )
+
+    def test_ids_filter_rejects_invalid_format(self):
+        response = self.client.get(self.url, {"ids": f"{self.medicamento.pk},abc"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("ids", response.data)
+
+    def test_ids_filter_rejects_more_than_fifty_unique_ids(self):
+        ids = [self.medicamento.pk, self.sem_estoque.pk]
+        ids.extend(
+            Medicamento.objects.create(
+                codigo_gmus=f"SELECAO-{indice}",
+                descricao=f"MEDICAMENTO SELECAO {indice}",
+            ).pk
+            for indice in range(49)
+        )
+
+        response = self.client.get(
+            self.url,
+            {"ids": ",".join(str(item) for item in ids)},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("ids", response.data)
+
+    def test_ids_filter_requires_staff_user(self):
+        self.client.force_authenticate(user=None)
+
+        response = self.client.get(self.url, {"ids": str(self.medicamento.pk)})
+
+        self.assertIn(
+            response.status_code,
+            [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN],
+        )
+
+    def test_ids_filter_rejects_authenticated_non_staff_user(self):
+        user = get_user_model().objects.create_user(
+            username="usuario_sem_acesso_a_selecao",
+            password="senha-ficticia",
+            is_staff=False,
+        )
+        self.client.force_authenticate(user=user)
+
+        response = self.client.get(self.url, {"ids": str(self.medicamento.pk)})
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_ids_filter_combines_with_search_and_classification(self):
+        categoria = Classificacao.objects.create(nome="CATEGORIA COMBINADA")
+        self.medicamento.classificacoes.add(categoria)
+
+        response = self.client.get(
+            self.url,
+            {
+                "ids": f"{self.sem_estoque.pk},{self.medicamento.pk}",
+                "search": "COM SALDO",
+                "classificacao": categoria.pk,
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["id"] for item in response.data],
+            [self.medicamento.pk],
+        )
+
+    def test_ids_filter_keeps_serializer_relations_and_total_stock(self):
+        subgrupo = SubgrupoGmus.objects.create(codigo_gmus=91, nome="SUBGRUPO TESTE")
+        classificacao = Classificacao.objects.create(nome="CLASSIFICACAO SELECAO")
+        self.medicamento.subgrupo_gmus = subgrupo
+        self.medicamento.save(update_fields=["subgrupo_gmus"])
+        self.medicamento.classificacoes.add(classificacao)
+        self.criar_estoque(self.ups_convencional_a, "8.500", "LOTE-SELECAO")
+
+        response = self.client.get(self.url, {"ids": str(self.medicamento.pk)})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]["subgrupo_gmus"]["id"], subgrupo.pk)
+        self.assertEqual(response.data[0]["classificacoes"][0]["id"], classificacao.pk)
+        self.assertEqual(response.data[0]["quantidade_estoque_total"], "8.500")
+
+    def test_ids_filter_query_count_is_constant(self):
+        extras = [
+            Medicamento.objects.create(
+                codigo_gmus=f"IDS-QUERY-{indice}",
+                descricao=f"MEDICAMENTO IDS QUERY {indice}",
+            )
+            for indice in range(8)
+        ]
+        ids = [
+            self.medicamento.pk,
+            self.sem_estoque.pk,
+            *[item.pk for item in extras],
+        ]
+
+        with self.assertNumQueries(5):
+            response = self.client.get(
+                self.url,
+                {"ids": ",".join(str(item) for item in ids)},
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 10)
 
     def test_public_api_does_not_expose_administrative_quantity(self):
         response = self.client.get(reverse("public-medicamento-list"))

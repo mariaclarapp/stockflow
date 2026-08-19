@@ -17,6 +17,11 @@ function CategorySelect({ value, subgroups, classifications, isLoading, onChange
     (item) => item.ativo && item.nome?.toUpperCase() === "MANIPULADO",
   );
   const options = [
+    {
+      value: "sem_categoria",
+      label: "Sem categoria",
+      group: "Situação cadastral",
+    },
     ...subgroups.map((subgroup) => ({
       value: `subgrupo:${subgroup.id}`,
       label: subgroupLabel(subgroup),

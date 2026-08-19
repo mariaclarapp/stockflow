@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from .domain import CLASSIFICACAO_MANIPULADO, nome_classificacao_manipulado
 from .models import Classificacao, Medicamento, PrincipioAtivo, SubgrupoGmus
+from .services import MAX_MEDICAMENTOS_COMPARACAO
 
 
 class SubgrupoGmusSerializer(serializers.ModelSerializer):
@@ -74,6 +75,18 @@ class MedicamentoClassificacaoSerializer(serializers.Serializer):
     classificacao_id = serializers.IntegerField(min_value=1)
 
 
+class MedicamentoClassificacaoLoteSerializer(serializers.Serializer):
+    medicamento_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+        max_length=MAX_MEDICAMENTOS_COMPARACAO,
+    )
+    classificacao_id = serializers.IntegerField(min_value=1)
+
+    def validate_medicamento_ids(self, value):
+        return list(dict.fromkeys(value))
+
+
 class MedicamentoSerializer(serializers.ModelSerializer):
     subgrupo_gmus = SubgrupoGmusSerializer(read_only=True)
     principios_ativos = PrincipioAtivoSerializer(many=True, read_only=True)
@@ -96,6 +109,49 @@ class MedicamentoSerializer(serializers.ModelSerializer):
             "principios_ativos",
             "classificacoes",
             "quantidade_estoque_total",
+        ]
+
+
+class MedicamentoComparacaoSerializer(serializers.ModelSerializer):
+    subgrupo_gmus = SubgrupoGmusSerializer(read_only=True)
+    classificacoes = ClassificacaoSerializer(many=True, read_only=True)
+    quantidade_estoque_total = serializers.SerializerMethodField()
+    estoque_por_ups = serializers.SerializerMethodField()
+
+    def get_quantidade_estoque_total(self, medicamento):
+        if not self.context["competencia_disponivel"]:
+            return None
+        total = sum(
+            (
+                self.context["quantidades"].get((medicamento.pk, ups.pk), 0)
+                for ups in self.context["ups"]
+            ),
+            start=0,
+        )
+        return f"{total:.3f}"
+
+    def get_estoque_por_ups(self, medicamento):
+        if not self.context["competencia_disponivel"]:
+            return []
+        return [
+            {
+                "ups_id": ups.pk,
+                "quantidade": f"{self.context['quantidades'].get((medicamento.pk, ups.pk), 0):.3f}",
+            }
+            for ups in self.context["ups"]
+        ]
+
+    class Meta:
+        model = Medicamento
+        fields = [
+            "id",
+            "codigo_gmus",
+            "descricao",
+            "unidade",
+            "subgrupo_gmus",
+            "classificacoes",
+            "quantidade_estoque_total",
+            "estoque_por_ups",
         ]
 
 

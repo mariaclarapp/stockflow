@@ -97,6 +97,25 @@ API. Os badges interativos da listagem também aplicam o filtro correspondente. 
 consolidado informado pelo backend, somando todas as UPS participantes. Sem competência completa, exibe
 `Não informado` em vez de assumir saldo zero.
 
+A listagem permite selecionar até 50 medicamentos visíveis por checkboxes no desktop e
+no mobile. A seleção é limpa quando a busca ou a Categoria muda. A ação `Visualizar
+selecionados` abre `/admin/medicamentos/comparar?ids=1,2,3`, permitindo recarregar a
+página sem perder a composição. A comparação usa uma única chamada a
+`GET /api/medicamentos/comparacao/?ids=...` e mostra somente os IDs informados, com
+código G-MUS, descrição, unidade, badges, estoque total e distribuição agregada por UPS
+participante. Não carrega lotes, histórico combinado ou indicadores.
+
+Com itens selecionados, a barra compacta também oferece `Classificar`. O modal resume
+quantos medicamentos serão classificados, quantos possuem subgrupo e quantos já têm
+categoria manual. Apenas classificações comuns ativas são oferecidas; `MANIPULADO` não
+participa desse fluxo. A confirmação faz uma única requisição a
+`POST /api/medicamentos/classificacoes/lote/`, recarrega os badges, limpa a seleção e
+exibe o total classificado.
+
+O seletor de Categoria oferece `Sem categoria`, traduzido para
+`GET /api/medicamentos/?sem_categoria=true`. A condição inclui medicamentos sem
+subgrupo e sem categoria manual comum; a tag `MANIPULADO`, sozinha, não os exclui.
+
 A rota `/admin/medicamentos/:id` apresenta os dados cadastrais, o estoque da competencia
 completa mais recente e o historico mensal. A tela consulta em paralelo
 `GET /api/medicamentos/{id}/` e `GET /api/medicamentos/{id}/historico/`; consolidacao,

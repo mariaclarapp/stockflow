@@ -213,6 +213,36 @@ Content-Type: application/json
 A operação é idempotente e retorna HTTP `200` com a representação administrativa
 atualizada do medicamento. Classificações inativas são rejeitadas.
 
+Classificação manual em lote:
+
+```text
+POST /api/medicamentos/classificacoes/lote/
+Content-Type: application/json
+
+{
+  "medicamento_ids": [12, 25, 48],
+  "classificacao_id": 7
+}
+```
+
+O endpoint exige `is_staff=True`, aceita no máximo 50 IDs e remove repetições. A
+classificação precisa estar ativa e não pode ser `MANIPULADO`. A operação transacional
+associa a categoria somente a medicamentos sem subgrupo G-MUS e sem categoria manual
+comum preexistente. Itens com subgrupo, já classificados ou inexistentes são ignorados
+de forma explícita, sem impedir o processamento dos elegíveis:
+
+```json
+{
+  "selecionados": 4,
+  "classificados": 2,
+  "ignorados_subgrupo": 1,
+  "ignorados_ja_classificados": 1,
+  "ignorados_inexistentes": 0
+}
+```
+
+O fluxo é idempotente e não altera associações da tag especial `MANIPULADO`.
+
 Remoção de uma associação:
 
 ```text
@@ -350,6 +380,32 @@ Cada apresentacao permanece como um medicamento separado na resposta, preservand
 codigo G-MUS, descricao e unidade. Uma consulta sem `search` continua retornando a
 listagem administrativa normal.
 
+Para filtros administrativos em lote, o endpoint de listagem aceita `ids` com até 50
+IDs inteiros positivos separados por vírgula:
+
+```text
+GET /api/medicamentos/?ids=42,18,73
+```
+
+IDs repetidos são removidos e a resposta preserva a ordem informada. IDs inexistentes
+são omitidos de forma controlada. Formato inválido ou mais de 50 IDs únicos retornam
+HTTP `400`. O filtro exige usuário `is_staff=True`, não adiciona consultas por
+medicamento e pode ser combinado com `search`, `subgrupo` e `classificacao`.
+
+A visualização conjunta usa um contrato específico, também limitado a 50 IDs:
+
+```text
+GET /api/medicamentos/comparacao/?ids=42,18,73
+```
+
+A resposta contém `competencia`, a lista das UPS participantes e somente os medicamentos
+solicitados que existem. Cada medicamento inclui seus dados cadastrais, badges,
+`quantidade_estoque_total` e `estoque_por_ups`. A distribuição agrega todos os lotes por
+medicamento e UPS na competência completa mais recente e preenche `"0.000"` quando não
+há registro em uma UPS participante. Sem competência completa, `competencia` é `null`,
+`ups` e `estoque_por_ups` são vazios e o total é `null`. O endpoint não retorna lotes,
+histórico ou importações e executa quantidade constante de consultas.
+
 ### Filtros administrativos
 
 Os filtros usam igualdade exata e podem ser combinados na mesma consulta.
@@ -360,6 +416,9 @@ ambiguos.
 
 Medicamentos:
 
+- `ids`: até 50 IDs de `Medicamento`, separados por vírgula;
+- `sem_categoria`: booleano; quando `true`, exige subgrupo nulo e ausência de categoria
+  manual comum. A tag `MANIPULADO` não descaracteriza essa condição;
 - `subgrupo`: ID de `SubgrupoGmus`.
 - `classificacao`: ID de `Classificacao`, incluindo a tag `MANIPULADO`.
 
@@ -377,11 +436,16 @@ GET /api/medicamentos/?subgrupo=10
 GET /api/medicamentos/?search=dipirona&subgrupo=10
 GET /api/medicamentos/?classificacao=4
 GET /api/medicamentos/?search=duloxetina&classificacao=2
+GET /api/medicamentos/?sem_categoria=true
+GET /api/medicamentos/?sem_categoria=true&search=duloxetina
 GET /api/estoques/?ups=1
 GET /api/estoques/?medicamento=42
 GET /api/estoques/?competencia=8
 GET /api/estoques/?ups=1&competencia=8&subgrupo=10
 ```
+
+`sem_categoria=true` é incompatível com `subgrupo` e `classificacao`; essas combinações
+retornam HTTP `400` em vez de aplicar precedência silenciosa.
 
 ### Historico administrativo de medicamento
 

@@ -194,6 +194,12 @@ a medicamentos sem subgrupo; quando houver subgrupo oficial, somente `MANIPULADO
 oferecida como nova tag. Associações comuns preexistentes permanecem preservadas e a API
 não cria uma restrição estrutural adicional nesta etapa.
 
+Na classificação manual em lote, somente medicamentos sem subgrupo G-MUS e sem outra
+categoria manual comum poderão receber a categoria escolhida. Medicamentos com subgrupo
+ou já classificados serão informados como ignorados, sem bloquear os demais itens da
+seleção. A operação não substituirá categorias, não adicionará múltiplas categorias
+manuais paralelas e não oferecerá `MANIPULADO`, que permanece uma tag especial.
+
 ## RN14 — Lotes
 
 Um medicamento poderá possuir vários lotes simultaneamente.
@@ -361,6 +367,18 @@ O usuário administrativo poderá selecionar múltiplos medicamentos para exibi�
 
 A funcionalidade deverá ser adequada ao volume de centenas de medicamentos cadastrados, permitindo seleção e filtragem sem exigir consulta individual de cada item.
 
+A visualização conjunta aceitará no máximo 50 medicamentos. A seleção será limpa quando
+a busca ou o filtro de categoria da listagem mudar, evitando manter itens que deixaram de
+estar visíveis na consulta atual. Essa seleção é transitória e não será persistida no banco.
+
+A visualização conjunta administrativa poderá apresentar o estoque total e sua
+distribuição agregada por UPS participante na competência completa mais recente, sem
+carregar histórico ou lotes individualmente para cada medicamento.
+
+A seleção múltipla também poderá iniciar a classificação manual em lote. O backend
+revalidará a elegibilidade de até 50 IDs em operação transacional e retornará as
+quantidades classificadas e ignoradas, sem executar uma chamada por medicamento.
+
 ## RN28 — Filtros administrativos
 
 A interface administrativa deverá permitir filtros que auxiliem a análise de grandes quantidades de medicamentos.
@@ -373,6 +391,10 @@ Os filtros poderão considerar, conforme os dados disponíveis:
 - disponibilidade;
 - medicamento/descrição;
 - apresentação.
+
+O filtro `Sem categoria` considera medicamentos sem subgrupo G-MUS e sem categoria
+manual comum. A classificação especial `MANIPULADO` é uma tag e, isoladamente, não faz o
+medicamento deixar de ser considerado sem categoria.
 
 ## RN29 — Indicador visual de estoque
 

@@ -19,14 +19,29 @@ export async function getMedications({
   search = "",
   subgroupId = "",
   classificationId = "",
+  uncategorized = false,
+  ids = [],
 } = {}) {
   const query = new URLSearchParams();
   if (search) query.set("search", search);
   if (subgroupId) query.set("subgrupo", subgroupId);
   if (classificationId) query.set("classificacao", classificationId);
+  if (uncategorized) query.set("sem_categoria", "true");
+  if (ids.length) query.set("ids", ids.join(","));
 
   const suffix = query.size ? `?${query.toString()}` : "";
   return ensureList(await apiRequest(`/api/medicamentos/${suffix}`));
+}
+
+export async function getMedicationComparison(ids) {
+  const query = new URLSearchParams({ ids: ids.join(",") });
+  const data = ensureObject(
+    await apiRequest(`/api/medicamentos/comparacao/?${query.toString()}`),
+  );
+  if (!Array.isArray(data.ups) || !Array.isArray(data.medicamentos)) {
+    throw new ApiError("A API retornou uma resposta inesperada.", 200);
+  }
+  return data;
 }
 
 export async function getMedicationSubgroups() {
@@ -101,5 +116,18 @@ export async function removeMedicationClassification(medicationId, classificatio
   await classificationRequest(
     `/api/medicamentos/${medicationId}/classificacoes/${classificationId}/`,
     "DELETE",
+  );
+}
+
+export async function classifyMedications(ids, classificationId) {
+  return ensureObject(
+    await classificationRequest(
+      "/api/medicamentos/classificacoes/lote/",
+      "POST",
+      {
+        medicamento_ids: ids,
+        classificacao_id: classificationId,
+      },
+    ),
   );
 }

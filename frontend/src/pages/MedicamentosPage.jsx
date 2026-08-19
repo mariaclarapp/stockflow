@@ -1,14 +1,19 @@
-import { AlertCircle, LoaderCircle, Pill } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, LoaderCircle, Pill, Tag, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { ApiError } from "../api/client";
 import {
   getClassifications,
+  classifyMedications,
   getMedications,
   getMedicationSubgroups,
 } from "../api/medications";
 import MedicationFilters from "../components/medications/MedicationFilters";
 import MedicationList from "../components/medications/MedicationList";
+import BulkClassificationModal from "../components/medications/BulkClassificationModal";
+
+const MAX_SELECTED_MEDICATIONS = 50;
 
 function requestErrorMessage(error) {
   if (!(error instanceof ApiError)) {
@@ -27,6 +32,7 @@ function requestErrorMessage(error) {
 }
 
 function MedicamentosPage() {
+  const navigate = useNavigate();
   const [medications, setMedications] = useState([]);
   const [subgroups, setSubgroups] = useState([]);
   const [classifications, setClassifications] = useState([]);
@@ -37,6 +43,14 @@ function MedicamentosPage() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [error, setError] = useState("");
   const [categoryError, setCategoryError] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectionMessage, setSelectionMessage] = useState("");
+  const [operationFeedback, setOperationFeedback] = useState("");
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+  const [isClassifying, setIsClassifying] = useState(false);
+  const [classificationError, setClassificationError] = useState("");
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const selectionLimit = MAX_SELECTED_MEDICATIONS;
 
   useEffect(() => {
     let isCurrent = true;
@@ -81,6 +95,7 @@ function MedicamentosPage() {
           search: appliedSearch,
           subgroupId: categoryType === "subgrupo" ? categoryId : "",
           classificationId: categoryType === "classificacao" ? categoryId : "",
+          uncategorized: categoryValue === "sem_categoria",
         });
         if (isCurrent) setMedications(data);
       } catch (requestError) {
@@ -97,22 +112,109 @@ function MedicamentosPage() {
     return () => {
       isCurrent = false;
     };
-  }, [appliedSearch, categoryValue]);
+  }, [appliedSearch, categoryValue, reloadVersion]);
 
   function handleSearch(event) {
     event.preventDefault();
+    clearSelection();
     setAppliedSearch(searchInput.trim());
   }
 
   function clearSearch() {
+    clearSelection();
     setSearchInput("");
     setAppliedSearch("");
   }
 
   function clearFilters() {
+    clearSelection();
     setSearchInput("");
     setAppliedSearch("");
     setCategoryValue("");
+  }
+
+  function changeCategory(value) {
+    clearSelection();
+    setCategoryValue(value);
+  }
+
+  function toggleMedication(id) {
+    setSelectionMessage("");
+    setSelectedIds((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= selectionLimit) {
+        setSelectionMessage(
+          `É possível selecionar no máximo ${selectionLimit} medicamentos.`,
+        );
+        return current;
+      }
+      if (current.length + 1 === selectionLimit) {
+        setSelectionMessage(`Limite de ${selectionLimit} medicamentos atingido.`);
+      }
+      return [...current, id];
+    });
+  }
+
+  function toggleAllVisible() {
+    const visibleIds = medications.map((item) => item.id);
+    const allVisibleSelected = visibleIds.every((id) => selectedIds.includes(id));
+    setSelectionMessage("");
+
+    if (allVisibleSelected) {
+      setSelectedIds((current) => current.filter((id) => !visibleIds.includes(id)));
+      return;
+    }
+
+    const missingIds = visibleIds.filter((id) => !selectedIds.includes(id));
+    const availableSlots = selectionLimit - selectedIds.length;
+    setSelectedIds((current) => [...current, ...missingIds.slice(0, availableSlots)]);
+    if (missingIds.length > availableSlots) {
+      setSelectionMessage(
+        `Foram selecionados os primeiros ${selectionLimit} medicamentos visíveis. Esse é o limite da comparação.`,
+      );
+    } else if (selectedIds.length + missingIds.length === selectionLimit) {
+      setSelectionMessage(`Limite de ${selectionLimit} medicamentos atingido.`);
+    }
+  }
+
+  function clearSelection() {
+    setSelectedIds([]);
+    setSelectionMessage("");
+  }
+
+  function compareSelected() {
+    navigate(`/admin/medicamentos/comparar?ids=${selectedIds.join(",")}`);
+  }
+
+  function openBulkClassification() {
+    setClassificationError("");
+    setOperationFeedback("");
+    setIsBulkModalOpen(true);
+  }
+
+  function closeBulkClassification() {
+    if (!isClassifying) {
+      setIsBulkModalOpen(false);
+      setClassificationError("");
+    }
+  }
+
+  async function applyBulkClassification(classificationId) {
+    setIsClassifying(true);
+    setClassificationError("");
+    try {
+      const result = await classifyMedications(selectedIds, classificationId);
+      setIsBulkModalOpen(false);
+      clearSelection();
+      setOperationFeedback(
+        `${result.classificados} ${result.classificados === 1 ? "medicamento classificado" : "medicamentos classificados"} com sucesso.`,
+      );
+      setReloadVersion((current) => current + 1);
+    } catch (requestError) {
+      setClassificationError(requestErrorMessage(requestError));
+    } finally {
+      setIsClassifying(false);
+    }
   }
 
   return (
@@ -139,7 +241,7 @@ function MedicamentosPage() {
           isLoadingCategories={isLoadingCategories}
           onSearchInputChange={setSearchInput}
           onSearch={handleSearch}
-          onCategoryChange={setCategoryValue}
+          onCategoryChange={changeCategory}
           onClearSearch={clearSearch}
           onClearFilters={clearFilters}
         />
@@ -165,6 +267,57 @@ function MedicamentosPage() {
           )}
         </div>
 
+        {selectedIds.length > 0 && (
+          <div className="medication-selection-bar" aria-label="Ações da seleção">
+            <strong>
+              <CheckCircle2 size={14} />
+              {selectedIds.length} {selectedIds.length === 1 ? "selecionado" : "selecionados"}
+            </strong>
+            <div className="medication-selection-bar__actions">
+              <button
+                className="secondary-button medication-selection-classify"
+                type="button"
+                onClick={openBulkClassification}
+              >
+                <Tag size={15} />
+                Classificar
+              </button>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={compareSelected}
+                aria-label="Visualizar medicamentos selecionados"
+              >
+                <Eye size={16} />
+                Visualizar
+              </button>
+              <button
+                className="medication-selection-clear"
+                type="button"
+                onClick={clearSelection}
+                aria-label="Limpar seleção de medicamentos"
+              >
+                <X size={15} />
+                Limpar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {selectionMessage && (
+          <p className="medication-selection-message" role="status">
+            <AlertCircle size={16} />
+            {selectionMessage}
+          </p>
+        )}
+
+        {operationFeedback && (
+          <p className="medication-operation-feedback" role="status">
+            <CheckCircle2 size={16} />
+            {operationFeedback}
+          </p>
+        )}
+
         <div aria-live="polite" aria-atomic="true">
           {isLoading ? (
             <div className="medication-loading-state">
@@ -182,11 +335,26 @@ function MedicamentosPage() {
           ) : (
             <MedicationList
               medications={medications}
-              onCategorySelect={setCategoryValue}
+              onCategorySelect={changeCategory}
+              onToggleAll={toggleAllVisible}
+              onToggleMedication={toggleMedication}
+              selectedIds={selectedIds}
+              selectionLimit={selectionLimit}
             />
           )}
         </div>
       </section>
+
+      {isBulkModalOpen && (
+        <BulkClassificationModal
+          classifications={classifications}
+          medications={medications.filter((item) => selectedIds.includes(item.id))}
+          error={classificationError}
+          isSubmitting={isClassifying}
+          onApply={applyBulkClassification}
+          onClose={closeBulkClassification}
+        />
+      )}
     </main>
   );
 }

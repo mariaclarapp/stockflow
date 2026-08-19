@@ -1,7 +1,9 @@
 import { ArrowRight, CircleSlash2, Layers3, PackageSearch, Pill, Tag } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 
 import { classificationStyle } from "./classificationPresentation";
+import { stockQuantityText } from "./medicationPresentation";
 
 function subgroupText(subgroup) {
   if (!subgroup) return "Não informado";
@@ -9,14 +11,6 @@ function subgroupText(subgroup) {
     return `${subgroup.codigo_gmus} - ${subgroup.nome}`;
   }
   return subgroup.nome || String(subgroup.codigo_gmus || "Não informado");
-}
-
-function stockQuantityText(quantity) {
-  if (quantity === null || quantity === undefined) return "Não informado";
-  return new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 3,
-  }).format(Number(quantity));
 }
 
 function CategoryBadge({ children, filterValue, icon: Icon, onSelect, style, type }) {
@@ -44,8 +38,7 @@ function CategoryBadge({ children, filterValue, icon: Icon, onSelect, style, typ
   );
 }
 
-function MedicationDetails({ medication, onCategorySelect }) {
-  const principles = medication.principios_ativos || [];
+export function MedicationCategoryBadges({ medication, onCategorySelect }) {
   const classifications = medication.classificacoes || [];
   const manipulated = classifications.filter(
     (item) => item.nome?.toUpperCase() === "MANIPULADO",
@@ -56,8 +49,7 @@ function MedicationDetails({ medication, onCategorySelect }) {
   const hasOfficialCategory = Boolean(medication.subgrupo_gmus);
 
   return (
-    <div className="medication-details">
-      <span className="medication-category-badges">
+    <span className="medication-category-badges">
         {hasOfficialCategory ? (
           <CategoryBadge
             filterValue={`subgrupo:${medication.subgrupo_gmus.id}`}
@@ -83,7 +75,12 @@ function MedicationDetails({ medication, onCategorySelect }) {
             </CategoryBadge>
           ))
         ) : (
-          <CategoryBadge icon={CircleSlash2} type="unclassified">
+          <CategoryBadge
+            filterValue="sem_categoria"
+            icon={CircleSlash2}
+            onSelect={onCategorySelect}
+            type="unclassified"
+          >
             Não classificado
           </CategoryBadge>
         )}
@@ -102,7 +99,19 @@ function MedicationDetails({ medication, onCategorySelect }) {
             {classification.nome}
           </CategoryBadge>
         ))}
-      </span>
+    </span>
+  );
+}
+
+function MedicationDetails({ medication, onCategorySelect }) {
+  const principles = medication.principios_ativos || [];
+
+  return (
+    <div className="medication-details">
+      <MedicationCategoryBadges
+        medication={medication}
+        onCategorySelect={onCategorySelect}
+      />
       {principles.length > 0 && (
         <span className="medication-principles">
           {principles.map((principle) => principle.nome).join(", ")}
@@ -112,7 +121,40 @@ function MedicationDetails({ medication, onCategorySelect }) {
   );
 }
 
-function MedicationList({ medications, onCategorySelect }) {
+function SelectionCheckbox({ checked, disabled, medication, onChange }) {
+  return (
+    <label className="medication-selection-checkbox">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={onChange}
+        aria-label={`Selecionar ${medication.descricao}`}
+      />
+      <span aria-hidden="true" />
+    </label>
+  );
+}
+
+function MedicationList({
+  medications,
+  onCategorySelect,
+  onToggleAll,
+  onToggleMedication,
+  selectedIds,
+  selectionLimit,
+}) {
+  const selectAllRef = useRef(null);
+  const selectedSet = new Set(selectedIds);
+  const allVisibleSelected = medications.every((item) => selectedSet.has(item.id));
+  const someVisibleSelected = medications.some((item) => selectedSet.has(item.id));
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someVisibleSelected && !allVisibleSelected;
+    }
+  }, [allVisibleSelected, someVisibleSelected]);
+
   if (!medications.length) {
     return (
       <div className="medication-empty-state">
@@ -133,6 +175,18 @@ function MedicationList({ medications, onCategorySelect }) {
         <table className="medication-table">
           <thead>
             <tr>
+              <th className="medication-table__selection" scope="col">
+                <label className="medication-selection-checkbox">
+                  <input
+                    ref={selectAllRef}
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={onToggleAll}
+                    aria-label="Selecionar todos os medicamentos visíveis"
+                  />
+                  <span aria-hidden="true" />
+                </label>
+              </th>
               <th scope="col">Código</th>
               <th scope="col">Medicamento / Categoria</th>
               <th scope="col">Unidade</th>
@@ -143,6 +197,14 @@ function MedicationList({ medications, onCategorySelect }) {
           <tbody>
             {medications.map((medication) => (
               <tr key={medication.id}>
+                <td className="medication-table__selection">
+                  <SelectionCheckbox
+                    checked={selectedSet.has(medication.id)}
+                    disabled={selectedIds.length >= selectionLimit && !selectedSet.has(medication.id)}
+                    medication={medication}
+                    onChange={() => onToggleMedication(medication.id)}
+                  />
+                </td>
                 <td>
                   <span className="gmus-code">{medication.codigo_gmus}</span>
                 </td>
@@ -177,6 +239,12 @@ function MedicationList({ medications, onCategorySelect }) {
         {medications.map((medication) => (
           <article className="medication-card" key={medication.id}>
             <header>
+              <SelectionCheckbox
+                checked={selectedSet.has(medication.id)}
+                disabled={selectedIds.length >= selectionLimit && !selectedSet.has(medication.id)}
+                medication={medication}
+                onChange={() => onToggleMedication(medication.id)}
+              />
               <span className="medication-card__icon" aria-hidden="true">
                 <Pill size={18} />
               </span>
