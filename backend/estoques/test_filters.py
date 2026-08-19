@@ -8,7 +8,7 @@ from rest_framework.test import APITestCase
 
 from core.models import Competencia, Ups
 from importacoes.models import Importacao
-from medicamentos.models import Medicamento, SubgrupoGmus
+from medicamentos.models import Classificacao, Medicamento, SubgrupoGmus
 
 from .models import Estoque
 
@@ -53,6 +53,16 @@ class AdminStructuredFiltersApiTests(APITestCase):
             unidade="COMPR",
             subgrupo_gmus=cls.subgrupo_a,
         )
+        cls.categoria_manual = Classificacao.objects.create(
+            nome="USO CONTINUO",
+            cor="#0B8178",
+        )
+        cls.manipulado = Classificacao.objects.create(
+            nome="MANIPULADO",
+            cor="#8B5A2B",
+        )
+        cls.dipirona_comprimido.classificacoes.add(cls.categoria_manual)
+        cls.dipirona_gotas.classificacoes.add(cls.manipulado)
         cls.ups_a = Ups.objects.create(
             codigo_gmus="2780046", id_unidade_gmus="9", nome="UPS A"
         )
@@ -185,6 +195,34 @@ class AdminStructuredFiltersApiTests(APITestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["codigo_gmus"], "115.1")
 
+    def test_filters_medicines_by_classification(self):
+        self.authenticate()
+
+        response = self.client.get(
+            self.medicamentos_url,
+            {"classificacao": self.manipulado.pk},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["codigo_gmus"] for item in response.data],
+            ["115.2"],
+        )
+
+    def test_combines_search_with_classification_filter(self):
+        self.authenticate()
+
+        response = self.client.get(
+            self.medicamentos_url,
+            {"search": "dipirona", "classificacao": self.categoria_manual.pk},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["codigo_gmus"] for item in response.data],
+            ["115.1"],
+        )
+
     def test_combined_filters_can_return_no_results(self):
         self.authenticate()
 
@@ -203,6 +241,10 @@ class AdminStructuredFiltersApiTests(APITestCase):
         requests = [
             (self.estoques_url, {"ups": self.ups_a.pk}),
             (self.medicamentos_url, {"subgrupo": self.subgrupo_a.pk}),
+            (
+                self.medicamentos_url,
+                {"classificacao": self.categoria_manual.pk},
+            ),
         ]
 
         for url, params in requests:

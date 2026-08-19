@@ -15,10 +15,15 @@ function ensureObject(data) {
   return data;
 }
 
-export async function getMedications({ search = "", subgroupId = "" } = {}) {
+export async function getMedications({
+  search = "",
+  subgroupId = "",
+  classificationId = "",
+} = {}) {
   const query = new URLSearchParams();
   if (search) query.set("search", search);
   if (subgroupId) query.set("subgrupo", subgroupId);
+  if (classificationId) query.set("classificacao", classificationId);
 
   const suffix = query.size ? `?${query.toString()}` : "";
   return ensureList(await apiRequest(`/api/medicamentos/${suffix}`));

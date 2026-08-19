@@ -1,4 +1,4 @@
-import { AlertCircle, LoaderCircle, Plus, Settings2, Tag, X } from "lucide-react";
+import { AlertCircle, Layers3, LoaderCircle, Plus, Settings2, Tag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -48,7 +48,12 @@ function MedicationClassificationsSection({ medication, onMedicationChange }) {
   const associated = medication.classificacoes || [];
   const associatedIds = new Set(associated.map((item) => item.id));
   const available = classifications.filter(
-    (item) => item.ativo && !associatedIds.has(item.id),
+    (item) => item.ativo
+      && !associatedIds.has(item.id)
+      && (
+        !medication.subgrupo_gmus
+        || item.nome?.toUpperCase() === "MANIPULADO"
+      ),
   );
 
   async function handleAssociation() {
@@ -136,8 +141,8 @@ function MedicationClassificationsSection({ medication, onMedicationChange }) {
       <div className="detail-section__heading">
         <div>
           <span className="eyebrow">Organização interna</span>
-          <h2 id="classifications-title">Classificações</h2>
-          <p>Associe etiquetas administrativas a esta apresentação.</p>
+          <h2 id="classifications-title">Categorias e tags</h2>
+          <p>Organize a apresentação sem alterar os dados oficiais do G-MUS.</p>
         </div>
         <button
           type="button"
@@ -154,7 +159,16 @@ function MedicationClassificationsSection({ medication, onMedicationChange }) {
 
       <div className="classification-association-tool">
         <div className="classification-associated-list">
-          {associated.length ? associated.map((classification) => (
+          {medication.subgrupo_gmus && (
+            <span className="medication-category-badge medication-category-badge--subgroup">
+              <Layers3 size={12} aria-hidden="true" />
+              {medication.subgrupo_gmus.codigo_gmus && (
+                <>{medication.subgrupo_gmus.codigo_gmus} - </>
+              )}
+              {medication.subgrupo_gmus.nome}
+            </span>
+          )}
+          {associated.map((classification) => (
             <span
               className="detail-classification-badge"
               key={classification.id}
@@ -175,10 +189,18 @@ function MedicationClassificationsSection({ medication, onMedicationChange }) {
                 <X size={13} />
               </button>
             </span>
-          )) : (
+          ))}
+          {!medication.subgrupo_gmus && !associated.length && (
             <p className="classification-empty">Nenhuma classificação associada.</p>
           )}
         </div>
+
+        {medication.subgrupo_gmus && (
+          <p className="classification-category-guidance">
+            Este medicamento já possui categoria oficial do G-MUS. Apenas a tag
+            MANIPULADO pode ser adicionada como informação independente.
+          </p>
+        )}
 
         <div className="classification-association-controls">
           <FilterSelect

@@ -1,20 +1,21 @@
 import { Search, X } from "lucide-react";
 
-import SubgroupSelect from "./SubgroupSelect";
+import CategorySelect from "./CategorySelect";
 
 function MedicationFilters({
   searchInput,
-  subgroupId,
+  categoryValue,
+  classifications,
   subgroups,
   isLoading,
-  isLoadingSubgroups,
+  isLoadingCategories,
   onSearchInputChange,
   onSearch,
-  onSubgroupChange,
+  onCategoryChange,
   onClearSearch,
   onClearFilters,
 }) {
-  const hasFilters = Boolean(searchInput || subgroupId);
+  const hasFilters = Boolean(searchInput || categoryValue);
 
   return (
     <form className="medication-filters" onSubmit={onSearch}>
@@ -44,11 +45,12 @@ function MedicationFilters({
         </div>
       </div>
 
-      <SubgroupSelect
-        value={subgroupId}
+      <CategorySelect
+        value={categoryValue}
         subgroups={subgroups}
-        isLoading={isLoadingSubgroups}
-        onChange={onSubgroupChange}
+        classifications={classifications}
+        isLoading={isLoadingCategories}
+        onChange={onCategoryChange}
       />
 
       <button

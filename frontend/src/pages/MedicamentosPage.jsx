@@ -2,7 +2,11 @@ import { AlertCircle, LoaderCircle, Pill } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ApiError } from "../api/client";
-import { getMedications, getMedicationSubgroups } from "../api/medications";
+import {
+  getClassifications,
+  getMedications,
+  getMedicationSubgroups,
+} from "../api/medications";
 import MedicationFilters from "../components/medications/MedicationFilters";
 import MedicationList from "../components/medications/MedicationList";
 
@@ -25,29 +29,41 @@ function requestErrorMessage(error) {
 function MedicamentosPage() {
   const [medications, setMedications] = useState([]);
   const [subgroups, setSubgroups] = useState([]);
+  const [classifications, setClassifications] = useState([]);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
-  const [subgroupId, setSubgroupId] = useState("");
+  const [categoryValue, setCategoryValue] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingSubgroups, setIsLoadingSubgroups] = useState(true);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [error, setError] = useState("");
-  const [subgroupError, setSubgroupError] = useState("");
+  const [categoryError, setCategoryError] = useState("");
 
   useEffect(() => {
     let isCurrent = true;
 
-    async function loadSubgroups() {
-      try {
-        const data = await getMedicationSubgroups();
-        if (isCurrent) setSubgroups(data);
-      } catch (requestError) {
-        if (isCurrent) setSubgroupError(requestErrorMessage(requestError));
-      } finally {
-        if (isCurrent) setIsLoadingSubgroups(false);
+    async function loadCategories() {
+      const [subgroupResult, classificationResult] = await Promise.allSettled([
+        getMedicationSubgroups(),
+        getClassifications(),
+      ]);
+      if (!isCurrent) return;
+
+      if (subgroupResult.status === "fulfilled") {
+        setSubgroups(subgroupResult.value);
       }
+      if (classificationResult.status === "fulfilled") {
+        setClassifications(classificationResult.value);
+      }
+      if (
+        subgroupResult.status === "rejected"
+        || classificationResult.status === "rejected"
+      ) {
+        setCategoryError("Não foi possível carregar todas as categorias.");
+      }
+      setIsLoadingCategories(false);
     }
 
-    loadSubgroups();
+    loadCategories();
     return () => {
       isCurrent = false;
     };
@@ -60,9 +76,11 @@ function MedicamentosPage() {
       setIsLoading(true);
       setError("");
       try {
+        const [categoryType, categoryId] = categoryValue.split(":");
         const data = await getMedications({
           search: appliedSearch,
-          subgroupId,
+          subgroupId: categoryType === "subgrupo" ? categoryId : "",
+          classificationId: categoryType === "classificacao" ? categoryId : "",
         });
         if (isCurrent) setMedications(data);
       } catch (requestError) {
@@ -79,7 +97,7 @@ function MedicamentosPage() {
     return () => {
       isCurrent = false;
     };
-  }, [appliedSearch, subgroupId]);
+  }, [appliedSearch, categoryValue]);
 
   function handleSearch(event) {
     event.preventDefault();
@@ -94,7 +112,7 @@ function MedicamentosPage() {
   function clearFilters() {
     setSearchInput("");
     setAppliedSearch("");
-    setSubgroupId("");
+    setCategoryValue("");
   }
 
   return (
@@ -114,21 +132,22 @@ function MedicamentosPage() {
       <section className="medication-panel" aria-labelledby="medication-list-title">
         <MedicationFilters
           searchInput={searchInput}
-          subgroupId={subgroupId}
+          categoryValue={categoryValue}
+          classifications={classifications}
           subgroups={subgroups}
           isLoading={isLoading}
-          isLoadingSubgroups={isLoadingSubgroups}
+          isLoadingCategories={isLoadingCategories}
           onSearchInputChange={setSearchInput}
           onSearch={handleSearch}
-          onSubgroupChange={setSubgroupId}
+          onCategoryChange={setCategoryValue}
           onClearSearch={clearSearch}
           onClearFilters={clearFilters}
         />
 
-        {subgroupError && (
+        {categoryError && (
           <div className="medication-inline-warning" role="status">
             <AlertCircle size={17} />
-            <p>Não foi possível carregar os subgrupos. A busca textual continua disponível.</p>
+            <p>{categoryError} A busca textual continua disponível.</p>
           </div>
         )}
 
@@ -141,7 +160,7 @@ function MedicamentosPage() {
               </p>
             )}
           </div>
-          {(appliedSearch || subgroupId) && !isLoading && (
+          {(appliedSearch || categoryValue) && !isLoading && (
             <span>Filtros aplicados</span>
           )}
         </div>
@@ -161,7 +180,10 @@ function MedicamentosPage() {
               </div>
             </div>
           ) : (
-            <MedicationList medications={medications} />
+            <MedicationList
+              medications={medications}
+              onCategorySelect={setCategoryValue}
+            />
           )}
         </div>
       </section>

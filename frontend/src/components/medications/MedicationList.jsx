@@ -1,4 +1,4 @@
-import { ArrowRight, PackageSearch, Pill } from "lucide-react";
+import { ArrowRight, CircleSlash2, Layers3, PackageSearch, Pill, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { classificationStyle } from "./classificationPresentation";
@@ -19,38 +19,100 @@ function stockQuantityText(quantity) {
   }).format(Number(quantity));
 }
 
-function MedicationDetails({ medication }) {
+function CategoryBadge({ children, filterValue, icon: Icon, onSelect, style, type }) {
+  const className = `medication-category-badge medication-category-badge--${type}`;
+  if (!filterValue || !onSelect) {
+    return (
+      <span className={className} style={style}>
+        <Icon size={12} aria-hidden="true" />
+        {children}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={`${className} medication-category-badge--interactive`}
+      style={style}
+      onClick={() => onSelect(filterValue)}
+      aria-label={`Filtrar por ${children}`}
+      title={`Filtrar por ${children}`}
+    >
+      <Icon size={12} aria-hidden="true" />
+      {children}
+    </button>
+  );
+}
+
+function MedicationDetails({ medication, onCategorySelect }) {
   const principles = medication.principios_ativos || [];
   const classifications = medication.classificacoes || [];
-
-  if (!principles.length && !classifications.length) return null;
+  const manipulated = classifications.filter(
+    (item) => item.nome?.toUpperCase() === "MANIPULADO",
+  );
+  const manualCategories = classifications.filter(
+    (item) => item.nome?.toUpperCase() !== "MANIPULADO",
+  );
+  const hasOfficialCategory = Boolean(medication.subgrupo_gmus);
 
   return (
     <div className="medication-details">
+      <span className="medication-category-badges">
+        {hasOfficialCategory ? (
+          <CategoryBadge
+            filterValue={`subgrupo:${medication.subgrupo_gmus.id}`}
+            icon={Layers3}
+            onSelect={onCategorySelect}
+            type="subgroup"
+          >
+            {subgroupText(medication.subgrupo_gmus)}
+          </CategoryBadge>
+        ) : manualCategories.length ? (
+          manualCategories.map((classification) => (
+            <CategoryBadge
+              key={classification.id}
+              filterValue={classification.ativo
+                ? `classificacao:${classification.id}`
+                : ""}
+              icon={Tag}
+              onSelect={onCategorySelect}
+              style={classificationStyle(classification.cor)}
+              type="manual"
+            >
+              {classification.nome}
+            </CategoryBadge>
+          ))
+        ) : (
+          <CategoryBadge icon={CircleSlash2} type="unclassified">
+            Não classificado
+          </CategoryBadge>
+        )}
+
+        {manipulated.map((classification) => (
+          <CategoryBadge
+            key={classification.id}
+            filterValue={classification.ativo
+              ? `classificacao:${classification.id}`
+              : ""}
+            icon={Tag}
+            onSelect={onCategorySelect}
+            style={classificationStyle(classification.cor)}
+            type="manipulated"
+          >
+            {classification.nome}
+          </CategoryBadge>
+        ))}
+      </span>
       {principles.length > 0 && (
         <span className="medication-principles">
           {principles.map((principle) => principle.nome).join(", ")}
-        </span>
-      )}
-      {classifications.length > 0 && (
-        <span className="medication-classifications">
-          {classifications.map((classification) => (
-            <span
-              key={classification.id}
-              className="medication-classification"
-              style={classificationStyle(classification.cor)}
-            >
-              <span className="classification-badge-dot" aria-hidden="true" />
-              {classification.nome}
-            </span>
-          ))}
         </span>
       )}
     </div>
   );
 }
 
-function MedicationList({ medications }) {
+function MedicationList({ medications, onCategorySelect }) {
   if (!medications.length) {
     return (
       <div className="medication-empty-state">
@@ -72,9 +134,8 @@ function MedicationList({ medications }) {
           <thead>
             <tr>
               <th scope="col">Código</th>
-              <th scope="col">Medicamento / Apresentação</th>
+              <th scope="col">Medicamento / Categoria</th>
               <th scope="col">Unidade</th>
-              <th scope="col">Subgrupo G-MUS</th>
               <th scope="col">Estoque total</th>
               <th scope="col"><span className="visually-hidden">Ação</span></th>
             </tr>
@@ -87,10 +148,12 @@ function MedicationList({ medications }) {
                 </td>
                 <td>
                   <strong className="medication-name">{medication.descricao}</strong>
-                  <MedicationDetails medication={medication} />
+                  <MedicationDetails
+                    medication={medication}
+                    onCategorySelect={onCategorySelect}
+                  />
                 </td>
                 <td>{medication.unidade || "Não informada"}</td>
-                <td>{subgroupText(medication.subgrupo_gmus)}</td>
                 <td className="medication-stock-quantity">
                   {stockQuantityText(medication.quantidade_estoque_total)}
                 </td>
@@ -121,11 +184,11 @@ function MedicationList({ medications }) {
               <span className="medication-unit">{medication.unidade || "Sem unidade"}</span>
             </header>
             <h3>{medication.descricao}</h3>
+            <MedicationDetails
+              medication={medication}
+              onCategorySelect={onCategorySelect}
+            />
             <dl>
-              <div>
-                <dt>Subgrupo G-MUS</dt>
-                <dd>{subgroupText(medication.subgrupo_gmus)}</dd>
-              </div>
               <div>
                 <dt>Estoque total</dt>
                 <dd className="medication-stock-quantity">
@@ -133,7 +196,6 @@ function MedicationList({ medications }) {
                 </dd>
               </div>
             </dl>
-            <MedicationDetails medication={medication} />
             <Link
               className="medication-card__detail-link"
               to={`/admin/medicamentos/${medication.id}`}

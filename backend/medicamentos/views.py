@@ -61,6 +61,10 @@ class ClassificacaoViewSet(ModelViewSet):
 
 class MedicamentoFilter(django_filters.FilterSet):
     subgrupo = django_filters.NumberFilter(field_name="subgrupo_gmus_id")
+    classificacao = django_filters.NumberFilter(
+        field_name="classificacoes__id",
+        distinct=True,
+    )
 
     class Meta:
         model = Medicamento

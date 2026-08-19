@@ -181,6 +181,19 @@ As classificações poderão ser utilizadas para organização e filtragem da in
 
 A interface poderá apresentar uma legenda visual associando cores às classificações cadastradas.
 
+Na listagem administrativa, o subgrupo oficial do G-MUS será apresentado como categoria
+quando estiver preenchido. Quando `subgrupo_gmus` estiver ausente, classificações comuns
+associadas poderão funcionar como categorias manuais do StockFlow. Na ausência de ambos,
+o medicamento será identificado visualmente como não classificado. Essa unificação é
+somente visual: `SubgrupoGmus` e `Classificacao` permanecem estruturas distintas.
+
+`MANIPULADO` é uma tag adicional e não substitui subgrupo ou categoria manual. Ela será
+exibida ao lado da categoria aplicável e poderá ser usada como filtro administrativo.
+No detalhe, a interface oferecerá novas associações de categorias manuais principalmente
+a medicamentos sem subgrupo; quando houver subgrupo oficial, somente `MANIPULADO` será
+oferecida como nova tag. Associações comuns preexistentes permanecem preservadas e a API
+não cria uma restrição estrutural adicional nesta etapa.
+
 ## RN14 — Lotes
 
 Um medicamento poderá possuir vários lotes simultaneamente.

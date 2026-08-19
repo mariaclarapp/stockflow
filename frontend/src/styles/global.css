@@ -2066,6 +2066,16 @@ th {
   overflow-wrap: anywhere;
 }
 
+.filter-select__group {
+  display: block;
+  margin: 7px 8px 3px;
+  color: #71807c;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
 .filter-select__check {
   display: grid;
   color: var(--primary-700);
@@ -2177,26 +2187,22 @@ th {
 }
 
 .medication-table th:nth-child(1) {
-  width: 10%;
+  width: 11%;
 }
 
 .medication-table th:nth-child(2) {
-  width: 34%;
+  width: 51%;
 }
 
 .medication-table th:nth-child(3) {
-  width: 10%;
+  width: 12%;
 }
 
 .medication-table th:nth-child(4) {
-  width: 21%;
+  width: 14%;
 }
 
 .medication-table th:nth-child(5) {
-  width: 13%;
-}
-
-.medication-table th:nth-child(6) {
   width: 12%;
 }
 
@@ -2281,6 +2287,63 @@ th {
   align-items: center;
   gap: 7px 10px;
   margin-top: 6px;
+}
+
+.medication-category-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.medication-category-badge {
+  display: inline-flex;
+  min-height: 23px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border: 1px solid #a8c5c0;
+  border-radius: 999px;
+  color: #34433f;
+  background: #edf6f4;
+  font: inherit;
+  font-size: 0.59rem;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.medication-category-badge--subgroup {
+  border-color: #9dbab5;
+  color: #245b54;
+  background: #e7f2f0;
+}
+
+.medication-category-badge--manual,
+.medication-category-badge--manipulated {
+  border-color: var(--classification-color, #7da9a2);
+}
+
+.medication-category-badge--manipulated {
+  box-shadow: inset 3px 0 0 var(--classification-color, #5e958c);
+}
+
+.medication-category-badge--unclassified {
+  border-style: dashed;
+  color: #687672;
+  background: #f6f8f7;
+}
+
+.medication-category-badge--interactive {
+  cursor: pointer;
+}
+
+.medication-category-badge--interactive:hover {
+  filter: brightness(0.96);
+  box-shadow: 0 0 0 2px rgba(11, 129, 120, 0.1);
+}
+
+.medication-category-badge--interactive:focus-visible {
+  outline: 3px solid rgba(11, 129, 120, 0.2);
+  outline-offset: 2px;
 }
 
 .medication-principles {
@@ -2533,6 +2596,16 @@ th {
   margin: 0;
   color: var(--muted);
   font-size: 0.74rem;
+}
+
+.classification-category-guidance {
+  margin: 12px 0 0;
+  padding: 9px 10px;
+  border-left: 3px solid #8fb7b0;
+  color: #52635f;
+  background: #f3f8f7;
+  font-size: 0.68rem;
+  line-height: 1.45;
 }
 
 .detail-classification-badge button {

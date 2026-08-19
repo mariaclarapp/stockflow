@@ -171,6 +171,22 @@ class AdministrativeMedicationStockApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 12)
 
+    def test_classification_filter_keeps_query_count_constant(self):
+        categoria = Classificacao.objects.create(nome="CATEGORIA TESTE")
+        self.medicamento.classificacoes.add(categoria)
+
+        with self.assertNumQueries(5):
+            response = self.client.get(
+                self.url,
+                {"classificacao": categoria.pk},
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["codigo_gmus"] for item in response.data],
+            [self.medicamento.codigo_gmus],
+        )
+
     def test_public_api_does_not_expose_administrative_quantity(self):
         response = self.client.get(reverse("public-medicamento-list"))
 

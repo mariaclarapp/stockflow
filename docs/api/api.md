@@ -361,6 +361,7 @@ ambiguos.
 Medicamentos:
 
 - `subgrupo`: ID de `SubgrupoGmus`.
+- `classificacao`: ID de `Classificacao`, incluindo a tag `MANIPULADO`.
 
 Estoques:
 
@@ -374,6 +375,8 @@ Exemplos:
 ```text
 GET /api/medicamentos/?subgrupo=10
 GET /api/medicamentos/?search=dipirona&subgrupo=10
+GET /api/medicamentos/?classificacao=4
+GET /api/medicamentos/?search=duloxetina&classificacao=2
 GET /api/estoques/?ups=1
 GET /api/estoques/?medicamento=42
 GET /api/estoques/?competencia=8

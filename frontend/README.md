@@ -90,8 +90,10 @@ processados novamente. Historico de versoes de importacao nao faz parte deste fl
 
 A rota `/admin/medicamentos` consulta `GET /api/medicamentos/` e preserva cada codigo
 G-MUS como uma apresentacao independente. A tela oferece busca textual por descricao ou
-codigo (`search`) e filtro pelos subgrupos reais fornecidos por
-`GET /api/subgrupos-gmus/` (`subgrupo`). A listagem também apresenta o estoque total
+codigo (`search`) e um filtro visual único de Categoria. O seletor agrupa subgrupos
+oficiais de `GET /api/subgrupos-gmus/` e classificações ativas de
+`GET /api/classificacoes/`, traduzindo a seleção para `subgrupo` ou `classificacao` na
+API. Os badges interativos da listagem também aplicam o filtro correspondente. A listagem apresenta o estoque total
 consolidado informado pelo backend, somando todas as UPS participantes. Sem competência completa, exibe
 `Não informado` em vez de assumir saldo zero.
 
@@ -109,7 +111,9 @@ geral de Configurações para esse fluxo. A classificação canônica `MANIPULAD
 nome e o estado ativo protegidos; sua associação também não pode ser removida enquanto
 a descrição do medicamento contiver `(MANIPULADO)`. Classificações comuns podem ser
 excluídas após confirmação somente quando não possuem associações; `MANIPULADO` não
-oferece essa ação.
+oferece essa ação. Quando o medicamento já possui subgrupo oficial, a interface de
+associação oferece apenas `MANIPULADO`; categorias manuais comuns continuam disponíveis
+para medicamentos sem subgrupo.
 
 ## Consulta publica de medicamentos
 

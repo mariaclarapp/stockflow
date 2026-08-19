@@ -1,5 +1,5 @@
 import { Check, ChevronDown, SlidersHorizontal } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 function FilterSelect({
   id,
@@ -129,24 +129,32 @@ function FilterSelect({
 
           {options.map((option, index) => {
             const isSelected = String(option.value) === String(value);
+            const showGroup = option.group
+              && option.group !== options[index - 1]?.group;
             return (
-              <button
-                key={option.value}
-                ref={(element) => {
-                  optionRefs.current[index + 1] = element;
-                }}
-                type="button"
-                role="option"
-                aria-selected={isSelected}
-                className={`filter-select__option${isSelected ? " filter-select__option--selected" : ""}`}
-                onClick={() => selectOption(String(option.value))}
-                onKeyDown={(event) => handleOptionKeyDown(event, index + 1)}
-              >
-                <span className="filter-select__check">
-                  {isSelected && <Check size={15} />}
-                </span>
-                <span>{option.label}</span>
-              </button>
+              <Fragment key={option.value}>
+                {showGroup && (
+                  <span className="filter-select__group" aria-hidden="true">
+                    {option.group}
+                  </span>
+                )}
+                <button
+                  ref={(element) => {
+                    optionRefs.current[index + 1] = element;
+                  }}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`filter-select__option${isSelected ? " filter-select__option--selected" : ""}`}
+                  onClick={() => selectOption(String(option.value))}
+                  onKeyDown={(event) => handleOptionKeyDown(event, index + 1)}
+                >
+                  <span className="filter-select__check">
+                    {isSelected && <Check size={15} />}
+                  </span>
+                  <span>{option.label}</span>
+                </button>
+              </Fragment>
             );
           })}
         </div>
