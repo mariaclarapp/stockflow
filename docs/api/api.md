@@ -162,7 +162,9 @@ Exemplo de item publico:
 
 ## Endpoints administrativos de leitura
 
-Os endpoints atuais usam `ReadOnlyModelViewSet`, permitindo consulta por lista e detalhe.
+Os endpoints administrativos de medicamentos, subgrupos, princípios ativos, UPS,
+competências, lotes e estoques permanecem somente leitura. Classificações possuem as
+operações administrativas específicas descritas abaixo.
 
 Rotas disponiveis:
 
@@ -174,6 +176,52 @@ Rotas disponiveis:
 - `/api/competencias/`
 - `/api/lotes/`
 - `/api/estoques/`
+
+### Gerenciamento administrativo de classificacoes
+
+```text
+GET /api/classificacoes/
+POST /api/classificacoes/
+GET /api/classificacoes/{id}/
+PATCH /api/classificacoes/{id}/
+DELETE /api/classificacoes/{id}/
+```
+
+Todos exigem usuário ativo com `is_staff=True`. Os campos aceitos são `nome`, `cor`,
+`descricao` e `ativo`. `nome` permanece único sem diferenciar maiúsculas de minúsculas;
+`cor` aceita valor hexadecimal CSS (`#RGB`, `#RGBA`, `#RRGGBB` ou `#RRGGBBAA`) ou vazio.
+Não há `PUT`. A desativação usa `PATCH` com `ativo=false`.
+
+Uma classificação comum sem associações pode ser excluída e retorna HTTP `204`. Se
+existirem medicamentos associados, a API retorna HTTP `409` e preserva a classificação
+e todas as associações. A classificação canônica `MANIPULADO` também retorna HTTP `409`
+e nunca pode ser excluída.
+
+A classificação canônica `MANIPULADO` não pode ser renomeada ou desativada, e uma
+segunda classificação com esse nome não pode ser criada. Sua cor e descrição podem ser
+editadas.
+
+Associação de uma classificação ativa ao medicamento:
+
+```text
+POST /api/medicamentos/{id}/classificacoes/
+Content-Type: application/json
+
+{"classificacao_id": 12}
+```
+
+A operação é idempotente e retorna HTTP `200` com a representação administrativa
+atualizada do medicamento. Classificações inativas são rejeitadas.
+
+Remoção de uma associação:
+
+```text
+DELETE /api/medicamentos/{id}/classificacoes/{classificacao_id}/
+```
+
+O sucesso retorna HTTP `204`. A associação canônica `MANIPULADO` é protegida enquanto
+a descrição do medicamento contiver o marcador explícito `(MANIPULADO)`. Esses
+endpoints não alteram o contrato da API pública.
 
 ### Resumo administrativo do Dashboard
 
@@ -291,6 +339,13 @@ GET /api/medicamentos/?search=dipirona
 A pesquisa e parcial e nao diferencia maiusculas de minusculas. Os campos pesquisados
 sao `Medicamento.descricao` e `Medicamento.codigo_gmus`.
 
+As representações administrativas de medicamento incluem
+`quantidade_estoque_total`. O valor é uma string decimal com três casas e corresponde à
+competência completa mais recente, somando todos os lotes de todas as UPS participantes,
+inclusive a UPS de manipulação. Com competência completa e medicamento sem registro, o campo é
+`"0.000"`; quando não existe competência completa, ele é `null`. O campo não integra a
+API pública. A flag `compoe_estoque_convencional` não limita esse total administrativo.
+
 Cada apresentacao permanece como um medicamento separado na resposta, preservando seu
 codigo G-MUS, descricao e unidade. Uma consulta sem `search` continua retornando a
 listagem administrativa normal.
@@ -339,6 +394,14 @@ incompletas podem aparecer em `historico` com `completa=false`; importacoes
 `quantidade_consolidada_convencional` soma todas as linhas e lotes somente das UPS com
 `compoe_estoque_convencional=True`. UPS nao convencionais permanecem visiveis no
 detalhamento administrativo. As quantidades sao representadas como strings decimais.
+Esse campo do histórico mantém sua semântica convencional e é independente de
+`quantidade_estoque_total` da listagem.
+
+No detalhe administrativo, o destaque de estoque atual utiliza
+`quantidade_estoque_total` retornado pela representação do medicamento. O campo
+`quantidade_consolidada_convencional` permanece no contrato de histórico para os usos
+explicitamente convencionais, e `por_ups` continua preservando a distribuição, os lotes
+e as quantidades de cada unidade.
 
 Formato resumido:
 
@@ -501,21 +564,24 @@ Respostas de erro:
 
 ## Metodos permitidos
 
-Os endpoints administrativos de consulta sao somente leitura. A unica operacao de
-escrita exposta nesta etapa e o `POST /api/importacoes/inventario/`.
+Os endpoints administrativos de consulta permanecem somente leitura, exceto pelas
+operações explícitas de classificação e associação descritas acima. O upload de
+inventário continua disponível por `POST /api/importacoes/inventario/`.
 
 Permitidos:
 
 - `GET`
 - `HEAD`
 - `OPTIONS`
+- `POST` para upload, criação de classificação e associação;
+- `PATCH` para edição ou ativação/desativação de classificação;
+- `DELETE` para remover uma associação entre medicamento e classificação ou excluir
+  uma classificação comum sem associações.
 
-Nao permitidos:
+Não permitidos para os recursos administrativos:
 
-- `POST`
 - `PUT`
-- `PATCH`
-- `DELETE`
+- escrita nos demais viewsets de consulta.
 
 ## Serializers existentes
 

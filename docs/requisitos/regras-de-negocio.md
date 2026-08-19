@@ -167,6 +167,14 @@ Uma classificação poderá possuir, entre outras informações:
 
 Um medicamento poderá possuir mais de uma classificação.
 
+Classificações administrativas poderão ser criadas, editadas, ativadas e desativadas.
+Somente classificações ativas poderão receber novas associações com medicamentos;
+associações existentes com classificações posteriormente desativadas permanecerão
+visíveis administrativamente. Uma classificação comum poderá ser excluída fisicamente
+somente quando não possuir associação com medicamento. A exclusão não removerá
+associações automaticamente, e a classificação canônica `MANIPULADO` nunca poderá ser
+excluída.
+
 ## RN13 — Uso das classificações
 
 As classificações poderão ser utilizadas para organização e filtragem da interface administrativa.
@@ -238,6 +246,14 @@ atual também preservará os registros e lotes individuais, inclusive lote ausen
 Se não existir competência completa, o estoque atual administrativo não será informado.
 Se existir competência completa e o medicamento não possuir registro nela, seu saldo
 convencional será representado como zero, sem que isso seja tratado como erro.
+Na listagem administrativa, o estoque total será consolidado por medicamento, somando
+todos os lotes de todas as UPS com `participa_competencia=True`, inclusive a UPS de
+manipulação. A flag `compoe_estoque_convencional` continuará limitando apenas os campos e
+cálculos explicitamente definidos como convencionais, como a disponibilidade pública
+convencional e `quantidade_consolidada_convencional` no histórico administrativo.
+O destaque de estoque atual no detalhe administrativo também exibirá esse total de todas
+as UPS participantes, enquanto a distribuição abaixo continuará preservando cada UPS e
+seus lotes separadamente.
 
 ## RN19 — Registros com quantidade zero
 
@@ -470,6 +486,13 @@ StockFlow deverá associar automaticamente ao medicamento a classificação can�
 `MANIPULADO`. A associação deverá ser idempotente e não deverá depender da UPS, do saldo,
 do lote ou do nome da unidade. A ausência posterior do marcador não autoriza a remoção
 automática da classificação sem uma regra de negócio específica para essa operação.
+
+Para preservar essa regra, a classificação canônica `MANIPULADO` não poderá ser
+renomeada nem desativada pela gestão administrativa, embora sua cor e descrição possam
+ser editadas. Também não poderá existir uma segunda classificação com esse nome. A
+associação não poderá ser removida manualmente enquanto a descrição do medicamento
+contiver o marcador explícito `(MANIPULADO)`; sem o marcador, a associação manual poderá
+ser removida.
 
 A ordem de decisão da disponibilidade pública é:
 

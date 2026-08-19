@@ -138,7 +138,6 @@ class AdminReadOnlyApiTests(APITestCase):
         list_endpoints = [
             "subgrupo-gmus-list",
             "principio-ativo-list",
-            "classificacao-list",
             "medicamento-list",
             "ups-list",
             "competencia-list",
@@ -148,7 +147,6 @@ class AdminReadOnlyApiTests(APITestCase):
         detail_endpoints = [
             ("subgrupo-gmus-detail", self.subgrupo.id),
             ("principio-ativo-detail", self.principio_ativo.id),
-            ("classificacao-detail", self.classificacao.id),
             ("medicamento-detail", self.medicamento.id),
             ("ups-detail", self.ups.id),
             ("competencia-detail", self.competencia.id),

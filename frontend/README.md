@@ -91,12 +91,25 @@ processados novamente. Historico de versoes de importacao nao faz parte deste fl
 A rota `/admin/medicamentos` consulta `GET /api/medicamentos/` e preserva cada codigo
 G-MUS como uma apresentacao independente. A tela oferece busca textual por descricao ou
 codigo (`search`) e filtro pelos subgrupos reais fornecidos por
-`GET /api/subgrupos-gmus/` (`subgrupo`).
+`GET /api/subgrupos-gmus/` (`subgrupo`). A listagem também apresenta o estoque total
+consolidado informado pelo backend, somando todas as UPS participantes. Sem competência completa, exibe
+`Não informado` em vez de assumir saldo zero.
 
 A rota `/admin/medicamentos/:id` apresenta os dados cadastrais, o estoque da competencia
 completa mais recente e o historico mensal. A tela consulta em paralelo
 `GET /api/medicamentos/{id}/` e `GET /api/medicamentos/{id}/historico/`; consolidacao,
-completude e totais por UPS permanecem sob responsabilidade do backend.
+completude e totais por UPS permanecem sob responsabilidade do backend. O destaque de
+estoque atual usa `quantidade_estoque_total`, considerando todas as UPS participantes; o
+histórico preserva a distribuição por UPS e seu consolidado especificamente convencional.
+
+O detalhe também possui uma área administrativa de classificações. Nela, o usuário pode
+associar classificações ativas, remover associações permitidas e abrir um modal compacto
+para listar, criar, editar, ativar ou desativar classificações. Não existe uma página
+geral de Configurações para esse fluxo. A classificação canônica `MANIPULADO` mantém o
+nome e o estado ativo protegidos; sua associação também não pode ser removida enquanto
+a descrição do medicamento contiver `(MANIPULADO)`. Classificações comuns podem ser
+excluídas após confirmação somente quando não possuem associações; `MANIPULADO` não
+oferece essa ação.
 
 ## Consulta publica de medicamentos
 

@@ -11,7 +11,7 @@ function Quantity({ value, unit }) {
   );
 }
 
-function CurrentStockSection({ stock, unit }) {
+function CurrentStockSection({ stock, totalQuantity, unit }) {
   if (!stock) {
     return (
       <section className="detail-section" aria-labelledby="current-stock-title">
@@ -50,8 +50,8 @@ function CurrentStockSection({ stock, unit }) {
       <div className="current-stock-total">
         <span aria-hidden="true"><Boxes size={23} /></span>
         <div>
-          <small>Quantidade convencional consolidada</small>
-          <strong><Quantity value={stock.quantidade_consolidada_convencional} unit={unit} /></strong>
+          <small>Quantidade total em estoque</small>
+          <strong><Quantity value={totalQuantity} unit={unit} /></strong>
         </div>
       </div>
 

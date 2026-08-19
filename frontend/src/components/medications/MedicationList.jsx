@@ -1,12 +1,22 @@
 import { ArrowRight, PackageSearch, Pill } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import { classificationStyle } from "./classificationPresentation";
+
 function subgroupText(subgroup) {
   if (!subgroup) return "Não informado";
   if (subgroup.codigo_gmus && subgroup.nome) {
     return `${subgroup.codigo_gmus} - ${subgroup.nome}`;
   }
   return subgroup.nome || String(subgroup.codigo_gmus || "Não informado");
+}
+
+function stockQuantityText(quantity) {
+  if (quantity === null || quantity === undefined) return "Não informado";
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 3,
+  }).format(Number(quantity));
 }
 
 function MedicationDetails({ medication }) {
@@ -28,8 +38,9 @@ function MedicationDetails({ medication }) {
             <span
               key={classification.id}
               className="medication-classification"
-              style={classification.cor ? { borderColor: classification.cor } : undefined}
+              style={classificationStyle(classification.cor)}
             >
+              <span className="classification-badge-dot" aria-hidden="true" />
               {classification.nome}
             </span>
           ))}
@@ -64,6 +75,7 @@ function MedicationList({ medications }) {
               <th scope="col">Medicamento / Apresentação</th>
               <th scope="col">Unidade</th>
               <th scope="col">Subgrupo G-MUS</th>
+              <th scope="col">Estoque total</th>
               <th scope="col"><span className="visually-hidden">Ação</span></th>
             </tr>
           </thead>
@@ -79,6 +91,9 @@ function MedicationList({ medications }) {
                 </td>
                 <td>{medication.unidade || "Não informada"}</td>
                 <td>{subgroupText(medication.subgrupo_gmus)}</td>
+                <td className="medication-stock-quantity">
+                  {stockQuantityText(medication.quantidade_estoque_total)}
+                </td>
                 <td className="medication-table__action">
                   <Link
                     className="medication-detail-link"
@@ -110,6 +125,12 @@ function MedicationList({ medications }) {
               <div>
                 <dt>Subgrupo G-MUS</dt>
                 <dd>{subgroupText(medication.subgrupo_gmus)}</dd>
+              </div>
+              <div>
+                <dt>Estoque total</dt>
+                <dd className="medication-stock-quantity">
+                  {stockQuantityText(medication.quantidade_estoque_total)}
+                </dd>
               </div>
             </dl>
             <MedicationDetails medication={medication} />

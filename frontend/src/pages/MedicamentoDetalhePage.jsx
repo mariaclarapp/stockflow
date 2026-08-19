@@ -6,6 +6,7 @@ import { ApiError } from "../api/client";
 import { getMedicationDetail } from "../api/medications";
 import CurrentStockSection from "../components/medications/CurrentStockSection";
 import HistorySection from "../components/medications/HistorySection";
+import MedicationClassificationsSection from "../components/medications/MedicationClassificationsSection";
 import MedicationDetailHeader from "../components/medications/MedicationDetailHeader";
 
 function requestErrorMessage(error) {
@@ -117,7 +118,15 @@ function MedicamentoDetalhePage() {
   return (
     <main className="medication-detail-page">
       <MedicationDetailHeader medication={medication} />
-      <CurrentStockSection stock={history.estoque_atual} unit={medication.unidade} />
+      <MedicationClassificationsSection
+        medication={medication}
+        onMedicationChange={setMedication}
+      />
+      <CurrentStockSection
+        stock={history.estoque_atual}
+        totalQuantity={medication.quantidade_estoque_total}
+        unit={medication.unidade}
+      />
       <HistorySection history={history.historico} unit={medication.unidade} />
     </main>
   );

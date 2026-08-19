@@ -20,6 +20,35 @@ from .domain import CLASSIFICACAO_MANIPULADO
 from .models import Classificacao
 
 
+class EstoqueTotalAdministrativoService:
+    @classmethod
+    def anotar_quantidade(cls, queryset):
+        competencia = CompetenciaService.identificar_competencia_completa()
+        campo_quantidade = DecimalField(max_digits=14, decimal_places=3)
+
+        if competencia is None:
+            return queryset.annotate(
+                quantidade_estoque_total=Value(None, output_field=campo_quantidade)
+            )
+
+        estoque_total = (
+            Estoque.objects.filter(
+                medicamento_id=OuterRef("pk"),
+                competencia=competencia,
+                ups__participa_competencia=True,
+            )
+            .values("medicamento_id")
+            .annotate(total=Sum("quantidade"))
+            .values("total")[:1]
+        )
+        return queryset.annotate(
+            quantidade_estoque_total=Coalesce(
+                Subquery(estoque_total, output_field=campo_quantidade),
+                Value(Decimal("0.000"), output_field=campo_quantidade),
+            )
+        )
+
+
 class DisponibilidadePublicaService:
     DISPONIVEL_MANIPULADO = (
         "Disponível sob manipulação, confirmar disponibilidade"

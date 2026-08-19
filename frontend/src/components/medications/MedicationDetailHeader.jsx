@@ -1,15 +1,8 @@
 import { ArrowLeft, FlaskConical, Layers3, Pill } from "lucide-react";
 import { Link } from "react-router-dom";
 
-function safeClassificationStyle(color) {
-  return /^#[0-9a-f]{3,8}$/i.test(color || "")
-    ? { borderColor: color }
-    : undefined;
-}
-
 function MedicationDetailHeader({ medication }) {
   const principles = medication.principios_ativos || [];
-  const classifications = medication.classificacoes || [];
 
   return (
     <>
@@ -30,7 +23,7 @@ function MedicationDetailHeader({ medication }) {
           )}
         </div>
 
-        {(medication.subgrupo_gmus || principles.length > 0 || classifications.length > 0) && (
+        {(medication.subgrupo_gmus || principles.length > 0) && (
           <div className="medication-registration-summary">
             {medication.subgrupo_gmus && (
               <div className="medication-registration-summary__item">
@@ -54,24 +47,6 @@ function MedicationDetailHeader({ medication }) {
                   <small>Princípios ativos</small>
                   <strong>{principles.map((item) => item.nome).join(", ")}</strong>
                 </span>
-              </div>
-            )}
-
-            {classifications.length > 0 && (
-              <div className="medication-registration-summary__classifications">
-                <small>Classificações</small>
-                <div>
-                  {classifications.map((classification) => (
-                    <span
-                      className="detail-classification-badge"
-                      key={classification.id}
-                      style={safeClassificationStyle(classification.cor)}
-                    >
-                      {classification.nome}
-                      {!classification.ativo && <em>Inativa</em>}
-                    </span>
-                  ))}
-                </div>
               </div>
             )}
           </div>

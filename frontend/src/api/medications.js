@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from "./client";
+import { getCsrfToken } from "./csrf";
 
 function ensureList(data) {
   if (!Array.isArray(data)) {
@@ -47,4 +48,53 @@ export async function getMedicationDetail(id) {
     getMedicationHistory(id),
   ]);
   return { medication, history };
+}
+
+async function classificationRequest(path, method, body) {
+  const csrfToken = await getCsrfToken();
+  return apiRequest(path, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+}
+
+export async function getClassifications() {
+  return ensureList(await apiRequest("/api/classificacoes/"));
+}
+
+export async function createClassification(data) {
+  return ensureObject(
+    await classificationRequest("/api/classificacoes/", "POST", data),
+  );
+}
+
+export async function updateClassification(id, data) {
+  return ensureObject(
+    await classificationRequest(`/api/classificacoes/${id}/`, "PATCH", data),
+  );
+}
+
+export async function deleteClassification(id) {
+  await classificationRequest(`/api/classificacoes/${id}/`, "DELETE");
+}
+
+export async function associateMedicationClassification(medicationId, classificationId) {
+  return ensureObject(
+    await classificationRequest(
+      `/api/medicamentos/${medicationId}/classificacoes/`,
+      "POST",
+      { classificacao_id: classificationId },
+    ),
+  );
+}
+
+export async function removeMedicationClassification(medicationId, classificationId) {
+  await classificationRequest(
+    `/api/medicamentos/${medicationId}/classificacoes/${classificationId}/`,
+    "DELETE",
+  );
 }
