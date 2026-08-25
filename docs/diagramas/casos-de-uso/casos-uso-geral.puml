@@ -3,6 +3,7 @@
 left to right direction
 
 actor "Usuário Administrativo" as Admin
+actor "Administrador do Sistema" as SystemAdmin
 actor "Cidadão" as Cidadao
 
 rectangle "StockFlow" {
@@ -21,6 +22,8 @@ rectangle "StockFlow" {
     usecase "Gerenciar classificações" as UC09
     usecase "Visualizar dashboard" as UC10
 
+    usecase "Gerenciar usuários\nadministrativos\n(via Django Admin)" as UC13
+
     usecase "Consultar medicamento" as UC11
     usecase "Consultar disponibilidade" as UC12
 }
@@ -31,6 +34,9 @@ Admin --> UC03
 Admin --> UC05
 Admin --> UC09
 Admin --> UC10
+
+SystemAdmin --|> Admin
+SystemAdmin --> UC13
 
 Cidadao --> UC11
 

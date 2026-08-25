@@ -30,6 +30,10 @@ para acessar o modulo administrativo.
 O fluxo administrativo usa sessao e cookies nativos do Django. Nao sao utilizados
 JWT, tokens proprios ou senhas fora do mecanismo de autenticacao do framework.
 
+Nao existe API CRUD de usuarios. O gerenciamento das contas administrativas ocorre pelo
+Django Admin e e restrito a superusers; usuarios staff comuns continuam autorizados a
+operar os endpoints administrativos do StockFlow sem precisar de `is_superuser`.
+
 ## Autenticacao administrativa por sessao
 
 O frontend deve enviar requisicoes com credenciais, por exemplo usando

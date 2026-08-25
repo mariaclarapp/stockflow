@@ -41,6 +41,16 @@ A documentação técnica está organizada em `docs/`, incluindo:
 
 Destinado aos usuários autorizados da farmácia para importação dos relatórios, gerenciamento e consulta dos estoques.
 
+Usuários Django ativos com `is_staff=True` podem operar esse módulo sem precisar de
+`is_superuser`. O gerenciamento das contas administrativas é realizado separadamente
+pelo Django Admin, em `http://127.0.0.1:8000/admin/` no ambiente local, e é restrito a
+superusers. A criação controlada do primeiro superuser utiliza `python manage.py
+createsuperuser`; credenciais não devem ser incluídas em arquivos versionados.
+
+O frontend React também utiliza rotas iniciadas por `/admin`, porém em outra origem no
+ambiente local. Uma implantação futura deverá manter o roteamento do frontend e do
+Django Admin sem colisões.
+
 ### Público
 
 Destinado à consulta pública de medicamentos, sem necessidade de autenticação.

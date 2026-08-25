@@ -30,6 +30,9 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
 ## Observações
 
 - O módulo administrativo exige autenticação.
+- O RF02 é atendido pelo gerenciamento dos usuários Django no Django Admin. Somente
+  superusers realizam essa gestão; usuários staff comuns operam o módulo administrativo
+  do StockFlow, mas não administram contas.
 - O módulo público não exige autenticação.
 - A seleção de múltiplos medicamentos é destinada ao módulo administrativo.
 - No módulo público, a consulta será individual por medicamento.

@@ -62,6 +62,11 @@ A consulta publica nao depende de sessao e envia suas requisicoes sem credenciai
 Somente sessoes de usuarios Django ativos com `is_staff=True` sao aceitas pela area
 administrativa. `is_superuser` nao e necessario.
 
+O gerenciamento de contas nao possui tela React e ocorre oficialmente no Django Admin,
+por superusers. Usuarios staff comuns operam o StockFlow, mas nao recebem permissoes de
+administracao de `User` ou `Group`. A opcao Configuracoes permanece desabilitada e nao
+oferece link para o Django Admin nesta etapa.
+
 ## Comandos
 
 ```bash

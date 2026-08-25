@@ -169,6 +169,15 @@ Nao existem models proprios `Usuario` ou `Sessao`.
 
 `Importacao.usuario` referencia `settings.AUTH_USER_MODEL`.
 
+As contas administrativas sao gerenciadas pelo `UserAdmin` nativo do Django Admin.
+Somente superusers realizam essa gestao; usuarios staff comuns nao recebem permissoes de
+`User` ou `Group`. `is_staff=True` continua suficiente para operar o modulo
+administrativo do StockFlow, sem exigir `is_superuser`.
+
+Como `Importacao.usuario` utiliza `on_delete=PROTECT`, um usuario com historico de
+importacao deve ser desativado com `is_active=False`, e nao excluido. Essa protecao
+preserva a identificacao do responsavel pelas importacoes existentes.
+
 ## Restricoes implementadas
 
 - `SubgrupoGmus.codigo_gmus` e unico quando informado.

@@ -307,6 +307,15 @@ administrativo quando possuir simultaneamente `is_active=True` e `is_staff=True`
 `is_superuser` não será requisito de acesso. Não serão criados grupos, perfis ou um
 sistema próprio de permissões para representar essa autorização.
 
+O gerenciamento dos usuários administrativos será realizado pelo Django Admin e ficará
+restrito a superusers. Usuários staff comuns não deverão receber permissões de
+visualização, criação, alteração ou exclusão de `User` ou `Group`. Superusers continuarão
+sendo criados por procedimento administrativo controlado com `createsuperuser`.
+
+Usuários vinculados ao histórico de importações deverão ser desativados por meio de
+`is_active=False`, e não excluídos. A relação protegida entre `Importacao` e o usuário
+responsável preservará a rastreabilidade das operações realizadas.
+
 ## RN22 — Sessões administrativas
 
 O sistema deverá controlar sessões dos usuários administrativos.
