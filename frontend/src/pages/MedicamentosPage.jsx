@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Eye, LoaderCircle, Pill, Tag, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Eye, LoaderCircle, Pill, Tag, Tags, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -8,12 +8,23 @@ import {
   classifyMedications,
   getMedications,
   getMedicationSubgroups,
+  unclassifyMedications,
 } from "../api/medications";
 import MedicationFilters from "../components/medications/MedicationFilters";
 import MedicationList from "../components/medications/MedicationList";
 import BulkClassificationModal from "../components/medications/BulkClassificationModal";
 
 const MAX_SELECTED_MEDICATIONS = 50;
+
+function medicationFilters(appliedSearch, categoryValue) {
+  const [categoryType, categoryId] = categoryValue.split(":");
+  return {
+    search: appliedSearch,
+    subgroupId: categoryType === "subgrupo" ? categoryId : "",
+    classificationId: categoryType === "classificacao" ? categoryId : "",
+    uncategorized: categoryValue === "sem_categoria",
+  };
+}
 
 function requestErrorMessage(error) {
   if (!(error instanceof ApiError)) {
@@ -47,9 +58,9 @@ function MedicamentosPage() {
   const [selectionMessage, setSelectionMessage] = useState("");
   const [operationFeedback, setOperationFeedback] = useState("");
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
-  const [isClassifying, setIsClassifying] = useState(false);
-  const [classificationError, setClassificationError] = useState("");
-  const [reloadVersion, setReloadVersion] = useState(0);
+  const [bulkMode, setBulkMode] = useState("classify");
+  const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+  const [bulkError, setBulkError] = useState("");
   const selectionLimit = MAX_SELECTED_MEDICATIONS;
 
   useEffect(() => {
@@ -90,13 +101,9 @@ function MedicamentosPage() {
       setIsLoading(true);
       setError("");
       try {
-        const [categoryType, categoryId] = categoryValue.split(":");
-        const data = await getMedications({
-          search: appliedSearch,
-          subgroupId: categoryType === "subgrupo" ? categoryId : "",
-          classificationId: categoryType === "classificacao" ? categoryId : "",
-          uncategorized: categoryValue === "sem_categoria",
-        });
+        const data = await getMedications(
+          medicationFilters(appliedSearch, categoryValue),
+        );
         if (isCurrent) setMedications(data);
       } catch (requestError) {
         if (isCurrent) {
@@ -112,7 +119,7 @@ function MedicamentosPage() {
     return () => {
       isCurrent = false;
     };
-  }, [appliedSearch, categoryValue, reloadVersion]);
+  }, [appliedSearch, categoryValue]);
 
   function handleSearch(event) {
     event.preventDefault();
@@ -187,33 +194,72 @@ function MedicamentosPage() {
   }
 
   function openBulkClassification() {
-    setClassificationError("");
+    setBulkMode("classify");
+    setBulkError("");
+    setOperationFeedback("");
+    setIsBulkModalOpen(true);
+  }
+
+  function openBulkDeclassification() {
+    setBulkMode("remove");
+    setBulkError("");
     setOperationFeedback("");
     setIsBulkModalOpen(true);
   }
 
   function closeBulkClassification() {
-    if (!isClassifying) {
+    if (!isBulkSubmitting) {
       setIsBulkModalOpen(false);
-      setClassificationError("");
+      setBulkError("");
+    }
+  }
+
+  async function refreshMedicationsAfterBulkOperation() {
+    try {
+      const updatedMedications = await getMedications(
+        medicationFilters(appliedSearch, categoryValue),
+      );
+      setMedications(updatedMedications);
+      setError("");
+    } catch (requestError) {
+      setMedications([]);
+      setError(requestErrorMessage(requestError));
     }
   }
 
   async function applyBulkClassification(classificationId) {
-    setIsClassifying(true);
-    setClassificationError("");
+    setIsBulkSubmitting(true);
+    setBulkError("");
     try {
       const result = await classifyMedications(selectedIds, classificationId);
+      await refreshMedicationsAfterBulkOperation();
       setIsBulkModalOpen(false);
       clearSelection();
       setOperationFeedback(
         `${result.classificados} ${result.classificados === 1 ? "medicamento classificado" : "medicamentos classificados"} com sucesso.`,
       );
-      setReloadVersion((current) => current + 1);
     } catch (requestError) {
-      setClassificationError(requestErrorMessage(requestError));
+      setBulkError(requestErrorMessage(requestError));
     } finally {
-      setIsClassifying(false);
+      setIsBulkSubmitting(false);
+    }
+  }
+
+  async function applyBulkDeclassification(classificationId) {
+    setIsBulkSubmitting(true);
+    setBulkError("");
+    try {
+      const result = await unclassifyMedications(selectedIds, classificationId);
+      await refreshMedicationsAfterBulkOperation();
+      setIsBulkModalOpen(false);
+      clearSelection();
+      setOperationFeedback(
+        `${result.desclassificados} ${result.desclassificados === 1 ? "medicamento desclassificado" : "medicamentos desclassificados"} com sucesso.`,
+      );
+    } catch (requestError) {
+      setBulkError(requestErrorMessage(requestError));
+    } finally {
+      setIsBulkSubmitting(false);
     }
   }
 
@@ -283,7 +329,15 @@ function MedicamentosPage() {
                 Classificar
               </button>
               <button
-                className="primary-button"
+                className="secondary-button medication-selection-unclassify"
+                type="button"
+                onClick={openBulkDeclassification}
+              >
+                <Tags size={15} />
+                Desclassificar
+              </button>
+              <button
+                className="primary-button medication-selection-view"
                 type="button"
                 onClick={compareSelected}
                 aria-label="Visualizar medicamentos selecionados"
@@ -349,9 +403,12 @@ function MedicamentosPage() {
         <BulkClassificationModal
           classifications={classifications}
           medications={medications.filter((item) => selectedIds.includes(item.id))}
-          error={classificationError}
-          isSubmitting={isClassifying}
-          onApply={applyBulkClassification}
+          mode={bulkMode}
+          error={bulkError}
+          isSubmitting={isBulkSubmitting}
+          onApply={bulkMode === "remove"
+            ? applyBulkDeclassification
+            : applyBulkClassification}
           onClose={closeBulkClassification}
         />
       )}

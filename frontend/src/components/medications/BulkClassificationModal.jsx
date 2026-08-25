@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Layers3, Tag, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Layers3, Tag, Tags, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import FilterSelect from "../filters/FilterSelect";
@@ -12,14 +12,34 @@ function hasCommonCategory(medication) {
 function BulkClassificationModal({
   classifications,
   medications,
+  mode = "classify",
   error,
   isSubmitting,
   onApply,
   onClose,
 }) {
   const [classificationId, setClassificationId] = useState("");
+  const isRemoving = mode === "remove";
   const summary = useMemo(() => {
     const withSubgroup = medications.filter((item) => item.subgrupo_gmus).length;
+    if (isRemoving) {
+      const selectedClassificationId = Number(classificationId);
+      const eligible = medications.filter(
+        (item) => !item.subgrupo_gmus && (
+          classificationId
+            ? (item.classificacoes || []).some(
+              (classification) => classification.id === selectedClassificationId,
+            )
+            : hasCommonCategory(item)
+        ),
+      ).length;
+      return {
+        selected: medications.length,
+        eligible,
+        withSubgroup,
+        withoutCategory: medications.length - withSubgroup - eligible,
+      };
+    }
     const alreadyClassified = medications.filter(
       (item) => !item.subgrupo_gmus && hasCommonCategory(item),
     ).length;
@@ -29,10 +49,18 @@ function BulkClassificationModal({
       withSubgroup,
       alreadyClassified,
     };
-  }, [medications]);
+  }, [classificationId, isRemoving, medications]);
+  const associatedClassificationIds = new Set(
+    medications.flatMap((item) =>
+      item.subgrupo_gmus
+        ? []
+        : (item.classificacoes || []).map((classification) => classification.id),
+    ),
+  );
   const options = classifications
     .filter(
-      (item) => item.ativo && item.nome?.toUpperCase() !== "MANIPULADO",
+      (item) => item.nome?.toUpperCase() !== "MANIPULADO"
+        && (isRemoving ? associatedClassificationIds.has(item.id) : item.ativo),
     )
     .map((item) => ({
       value: String(item.id),
@@ -54,6 +82,8 @@ function BulkClassificationModal({
     }
   }
 
+  const ActionIcon = isRemoving ? Tags : Tag;
+
   return (
     <div className="bulk-classification-overlay">
       <section
@@ -65,14 +95,16 @@ function BulkClassificationModal({
         <header>
           <div>
             <span className="eyebrow">Ação em lote</span>
-            <h2 id="bulk-classification-title">Classificar medicamentos</h2>
+            <h2 id="bulk-classification-title">
+              {isRemoving ? "Desclassificar medicamentos" : "Classificar medicamentos"}
+            </h2>
           </div>
           <button
             className="classification-icon-button"
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            aria-label="Fechar classificação em lote"
+            aria-label={`Fechar ${isRemoving ? "desclassificação" : "classificação"} em lote`}
           >
             <X size={18} />
           </button>
@@ -85,31 +117,52 @@ function BulkClassificationModal({
               <span><strong>{summary.selected}</strong> selecionados</span>
             </p>
             <p className="bulk-classification-summary__eligible">
-              <Tag size={16} />
-              <span><strong>{summary.eligible}</strong> serão classificados</span>
+              <ActionIcon size={16} />
+              <span>
+                <strong>{summary.eligible}</strong>{" "}
+                {isRemoving
+                  ? (classificationId ? "serão desclassificados" : "podem ser desclassificados")
+                  : "serão classificados"}
+              </span>
             </p>
             <p>
               <Layers3 size={16} />
               <span><strong>{summary.withSubgroup}</strong> ignorados por possuírem subgrupo</span>
             </p>
-            <p>
-              <AlertCircle size={16} />
-              <span><strong>{summary.alreadyClassified}</strong> ignorados por já possuírem categoria</span>
-            </p>
+            {isRemoving ? (
+              <p>
+                <AlertCircle size={16} />
+                <span>
+                  <strong>{summary.withoutCategory}</strong>{" "}
+                  {classificationId
+                    ? "ignorados por não possuírem a categoria escolhida"
+                    : "sem categoria manual para remover"}
+                </span>
+              </p>
+            ) : (
+              <p>
+                <AlertCircle size={16} />
+                <span><strong>{summary.alreadyClassified}</strong> ignorados por já possuírem categoria</span>
+              </p>
+            )}
           </div>
 
           <div className="bulk-classification-field">
             <FilterSelect
               id="bulk-medication-category"
-              label="Categoria"
+              label={isRemoving ? "Categoria a remover" : "Categoria"}
               value={classificationId}
               options={options}
-              placeholder="Selecione uma categoria"
-              icon={Tag}
+              placeholder={isRemoving ? "Selecione a categoria a remover" : "Selecione uma categoria"}
+              icon={ActionIcon}
               onChange={setClassificationId}
             />
             {!options.length && (
-              <p>Nenhuma categoria manual ativa está disponível.</p>
+              <p>
+                {isRemoving
+                  ? "Nenhuma categoria manual está associada aos medicamentos selecionados."
+                  : "Nenhuma categoria manual ativa está disponível."}
+              </p>
             )}
           </div>
 
@@ -134,8 +187,10 @@ function BulkClassificationModal({
               type="submit"
               disabled={!classificationId || summary.eligible === 0 || isSubmitting}
             >
-              <Tag size={16} />
-              {isSubmitting ? "Aplicando..." : "Aplicar categoria"}
+              <ActionIcon size={16} />
+              {isSubmitting
+                ? (isRemoving ? "Removendo..." : "Aplicando...")
+                : (isRemoving ? "Remover categoria" : "Aplicar categoria")}
             </button>
           </footer>
         </form>

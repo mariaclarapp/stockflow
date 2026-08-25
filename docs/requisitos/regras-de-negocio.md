@@ -379,6 +379,13 @@ A seleção múltipla também poderá iniciar a classificação manual em lote. 
 revalidará a elegibilidade de até 50 IDs em operação transacional e retornará as
 quantidades classificadas e ignoradas, sem executar uma chamada por medicamento.
 
+A seleção também poderá iniciar a desclassificação em lote de uma categoria manual
+comum escolhida explicitamente. A operação removerá somente essa associação dos
+medicamentos sem subgrupo G-MUS que a possuam, preservando outras classificações e a tag
+`MANIPULADO`. Medicamentos com subgrupo, sem a associação escolhida ou inexistentes serão
+ignorados de forma informada, sem impedir a remoção dos elegíveis. A operação aceitará
+até 50 IDs e será transacional, sem executar uma chamada por medicamento.
+
 ## RN28 — Filtros administrativos
 
 A interface administrativa deverá permitir filtros que auxiliem a análise de grandes quantidades de medicamentos.

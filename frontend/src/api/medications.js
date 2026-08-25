@@ -131,3 +131,16 @@ export async function classifyMedications(ids, classificationId) {
     ),
   );
 }
+
+export async function unclassifyMedications(ids, classificationId) {
+  return ensureObject(
+    await classificationRequest(
+      "/api/medicamentos/classificacoes/lote/remover/",
+      "POST",
+      {
+        medicamento_ids: ids,
+        classificacao_id: classificationId,
+      },
+    ),
+  );
+}

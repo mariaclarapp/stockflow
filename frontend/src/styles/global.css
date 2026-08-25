@@ -2207,6 +2207,25 @@ th {
   gap: 6px;
 }
 
+.medication-selection-bar__actions button {
+  display: inline-flex;
+  height: 32px;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.medication-selection-bar__actions button svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
 .medication-selection-bar .primary-button,
 .medication-selection-bar .secondary-button {
   min-height: 32px;
@@ -2219,23 +2238,35 @@ th {
   background: rgba(255, 255, 255, 0.78);
 }
 
+.medication-selection-unclassify {
+  border-color: #bfd2ce;
+  color: #365a54;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.medication-selection-view {
+  box-shadow: 0 1px 2px rgba(10, 83, 75, 0.16);
+}
+
 .medication-selection-clear {
   display: inline-flex;
   min-height: 32px;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0 7px;
-  border: 0;
-  color: #52635f;
-  background: transparent;
+  padding: 0 9px;
+  border: 1px solid #c6d8d4;
+  border-radius: 6px;
+  color: #38534e;
+  background: rgba(255, 255, 255, 0.58);
   font-size: 0.68rem;
   font-weight: 750;
 }
 
 .medication-selection-clear:hover {
   color: var(--primary-900);
-  background: rgba(255, 255, 255, 0.58);
+  border-color: #9dbdb7;
+  background: #ffffff;
 }
 
 .medication-selection-message,
@@ -2375,6 +2406,27 @@ th {
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+
+.bulk-classification-modal footer .primary-button,
+.bulk-classification-modal footer .secondary-button {
+  display: inline-flex;
+  height: 38px;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  line-height: 1;
+}
+
+.bulk-classification-modal footer button svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
 }
 
 .medication-table-wrapper {
@@ -4157,10 +4209,12 @@ th {
   .medication-selection-bar__actions {
     display: flex;
     width: 100%;
+    flex-wrap: wrap;
   }
 
   .medication-selection-bar__actions > * {
-    flex: 1;
+    min-width: min(132px, 100%);
+    flex: 1 1 auto;
   }
 
   .medication-selection-message {

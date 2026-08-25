@@ -27,6 +27,7 @@ from .serializers import (
     SubgrupoGmusSerializer,
 )
 from .services import (
+    DesclassificacaoMedicamentosLoteService,
     DisponibilidadePublicaService,
     EstoqueTotalAdministrativoService,
     MedicamentoComparacaoService,
@@ -212,6 +213,33 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
             )
 
         resumo = ClassificacaoMedicamentosLoteService.aplicar(
+            entrada.validated_data["medicamento_ids"],
+            classificacao,
+        )
+        return Response(resumo)
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="classificacoes/lote/remover",
+    )
+    def desclassificar_lote(self, request):
+        entrada = MedicamentoClassificacaoLoteSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        classificacao = get_object_or_404(
+            Classificacao,
+            pk=entrada.validated_data["classificacao_id"],
+        )
+        if nome_classificacao_manipulado(classificacao.nome):
+            raise ValidationError(
+                {
+                    "classificacao_id": (
+                        "MANIPULADO não pode ser removida como categoria em lote."
+                    )
+                }
+            )
+
+        resumo = DesclassificacaoMedicamentosLoteService.remover(
             entrada.validated_data["medicamento_ids"],
             classificacao,
         )

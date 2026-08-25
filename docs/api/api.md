@@ -243,6 +243,41 @@ de forma explícita, sem impedir o processamento dos elegíveis:
 
 O fluxo é idempotente e não altera associações da tag especial `MANIPULADO`.
 
+Desclassificação manual em lote:
+
+```text
+POST /api/medicamentos/classificacoes/lote/remover/
+Content-Type: application/json
+
+{
+  "medicamento_ids": [12, 25, 48],
+  "classificacao_id": 7
+}
+```
+
+O endpoint também exige `is_staff=True`, aceita no máximo 50 IDs e remove repetições.
+A classificação escolhida pode estar inativa, para permitir a remoção de associações
+anteriores, mas não pode ser `MANIPULADO`. A operação transacional remove somente essa
+associação muitos-para-muitos dos medicamentos sem subgrupo G-MUS que a possuam. Outras
+classificações, a tag `MANIPULADO`, o subgrupo e o próprio cadastro da classificação
+permanecem inalterados:
+
+```json
+{
+  "selecionados": 4,
+  "desclassificados": 1,
+  "ignorados_subgrupo": 1,
+  "ignorados_sem_classificacao": 1,
+  "ignorados_inexistentes": 1
+}
+```
+
+Como um medicamento pode possuir mais de uma classificação comum, o cliente deve
+informar explicitamente qual associação será removida. Itens inelegíveis não bloqueiam
+o processamento dos demais. Depois da remoção da última categoria comum, um medicamento
+sem subgrupo volta a atender ao filtro `sem_categoria=true`; a presença isolada de
+`MANIPULADO` não altera esse comportamento.
+
 Remoção de uma associação:
 
 ```text

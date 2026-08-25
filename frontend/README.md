@@ -112,6 +112,13 @@ participa desse fluxo. A confirmação faz uma única requisição a
 `POST /api/medicamentos/classificacoes/lote/`, recarrega os badges, limpa a seleção e
 exibe o total classificado.
 
+A mesma barra oferece `Desclassificar`. Nesse modo, o usuário escolhe explicitamente
+qual categoria manual associada será removida, pois o modelo admite múltiplas
+classificações comuns. O modal informa os itens elegíveis e os ignorados, e envia uma
+única requisição a `POST /api/medicamentos/classificacoes/lote/remover/`. Subgrupos e a
+tag `MANIPULADO` são preservados; após o sucesso, a listagem e os badges são atualizados
+e a seleção é limpa.
+
 O seletor de Categoria oferece `Sem categoria`, traduzido para
 `GET /api/medicamentos/?sem_categoria=true`. A condição inclui medicamentos sem
 subgrupo e sem categoria manual comum; a tag `MANIPULADO`, sozinha, não os exclui.

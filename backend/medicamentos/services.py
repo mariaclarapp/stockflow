@@ -173,6 +173,55 @@ class ClassificacaoMedicamentosLoteService:
         )
 
 
+class DesclassificacaoMedicamentosLoteService:
+    @classmethod
+    @transaction.atomic
+    def remover(cls, medicamento_ids, classificacao):
+        medicamentos = list(
+            Medicamento.objects.select_for_update()
+            .filter(pk__in=medicamento_ids)
+            .prefetch_related("classificacoes")
+        )
+        medicamentos_por_id = {item.pk: item for item in medicamentos}
+        ignorados_subgrupo = []
+        ignorados_sem_classificacao = []
+        elegiveis = []
+
+        for medicamento_id in medicamento_ids:
+            medicamento = medicamentos_por_id.get(medicamento_id)
+            if medicamento is None:
+                continue
+            if medicamento.subgrupo_gmus_id is not None:
+                ignorados_subgrupo.append(medicamento_id)
+                continue
+            classificacao_ids = {
+                item.pk for item in medicamento.classificacoes.all()
+            }
+            if classificacao.pk not in classificacao_ids:
+                ignorados_sem_classificacao.append(medicamento_id)
+                continue
+            elegiveis.append(medicamento_id)
+
+        cls._remover_associacoes(elegiveis, classificacao.pk)
+        inexistentes = [
+            item for item in medicamento_ids if item not in medicamentos_por_id
+        ]
+        return {
+            "selecionados": len(medicamento_ids),
+            "desclassificados": len(elegiveis),
+            "ignorados_subgrupo": len(ignorados_subgrupo),
+            "ignorados_sem_classificacao": len(ignorados_sem_classificacao),
+            "ignorados_inexistentes": len(inexistentes),
+        }
+
+    @staticmethod
+    def _remover_associacoes(medicamento_ids, classificacao_id):
+        Medicamento.classificacoes.through.objects.filter(
+            medicamento_id__in=medicamento_ids,
+            classificacao_id=classificacao_id,
+        ).delete()
+
+
 class DisponibilidadePublicaService:
     DISPONIVEL_MANIPULADO = (
         "Disponível sob manipulação, confirmar disponibilidade"
