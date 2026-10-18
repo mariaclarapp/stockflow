@@ -340,8 +340,9 @@ a competencia completa selecionada. Se nao houver competencia completa,
 `competencia_atual` sera `null`, `importacoes` sera uma lista vazia e nenhum estoque de
 competencias incompletas sera misturado ao resumo.
 
-O endpoint nao calcula consumo medio, cobertura, giro, necessidade de compra ou os
-indicadores RF15-RF19.
+O endpoint fornece os indicadores operacionais previstos no RF19. Ele nao calcula
+consumo medio, comparacao de consumo, cobertura, giro ou necessidade de compra previstos
+nos RF15-RF18, pois esses calculos dependem de uma fonte de consumo ainda nao disponivel.
 
 ### Acompanhamento administrativo de competencias
 
@@ -739,17 +740,23 @@ A importacao aninhada inclui:
 - competencia;
 - UPS.
 
-## Ainda nao implementado
+## Fora do escopo implementado atual
 
-Nao foram implementados nesta etapa:
+Os contratos documentados acima ja incluem filtros administrativos, calculos e
+agregacoes de estoque, comparacao de medicamentos, escrita de classificacoes e
+classificacao/desclassificacao em lote.
 
-- filtros administrativos adicionais;
+Permanecem fora do escopo implementado atual:
+
 - paginacao customizada;
 - versionamento ou historico de versoes de uma importacao;
 - limpeza automatica de lotes sem estoque apos reimportacao;
-- calculos de estoque;
-- indicadores administrativos RF15-RF19;
-- outros endpoints de escrita.
+- consumo medio e comparacao de consumo;
+- cobertura, giro e necessidade de compra;
+- endpoints e tela especificos de analises baseados em consumo.
+
+Os itens relacionados a consumo e compra dependem de dados e regras ainda nao
+disponiveis; nao devem ser inferidos pela diferenca entre inventarios mensais.
 
 ## Separacao futura
 

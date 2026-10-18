@@ -412,55 +412,71 @@ O filtro `Sem categoria` considera medicamentos sem subgrupo G-MUS e sem categor
 manual comum. A classificação especial `MANIPULADO` é uma tag e, isoladamente, não faz o
 medicamento deixar de ser considerado sem categoria.
 
-## RN29 — Indicador visual de estoque
+## RN29 — Indicadores operacionais de estoque e importações
 
-A situação do estoque deverá possuir representação visual simplificada em três níveis:
+A situação operacional deverá ser apresentada a partir de informações efetivamente
+disponíveis no StockFlow, incluindo:
 
-- verde;
-- amarelo;
-- vermelho.
+- competência completa mais recente;
+- UPS esperadas e importadas;
+- status e quantidade de registros das importações;
+- quantidade de medicamentos cadastrados;
+- registros de estoque da competência;
+- estoque total e distribuição por UPS na consulta administrativa;
+- disponibilidade e histórico, em seus respectivos contextos.
 
-Os limites utilizados para cada nível deverão ser definidos como parâmetros do sistema e não permanecer fixos diretamente no código-fonte.
+Esses indicadores não equivalem a níveis de cobertura, giro ou consumo. Não serão
+utilizadas faixas verde, amarela e vermelha enquanto não existirem fonte de consumo,
+critérios e limites validados para esse tipo de classificação.
 
 ## RN30 — Parâmetros de cálculo
 
-Os cálculos utilizados para apoio à gestão deverão ser configuráveis.
-
-Os valores atualmente utilizados pela farmacêutica servirão como valores iniciais do sistema, mas poderão ser alterados posteriormente por usuários autorizados.
+Caso os cálculos de consumo, cobertura ou compra sejam implementados após a validação
+de suas fontes e regras, seus parâmetros administrativos deverão ser configuráveis e
+não permanecer fixos diretamente no código-fonte.
 
 ## RN31 — Margem de segurança
 
-O cálculo de necessidade de compra deverá permitir a utilização de uma margem de segurança configurável.
-
-A margem não deverá ser fixada permanentemente em um único percentual.
+Como evolução futura, o cálculo de necessidade de compra deverá considerar uma margem
+de segurança configurável. O valor e a forma de aplicação dessa margem ainda dependem
+de validação administrativa e não fazem parte do fluxo atualmente implementado.
 
 ## RN32 — Cobertura de estoque
 
-O sistema deverá permitir estimar por quanto tempo o estoque disponível poderá atender ao consumo esperado.
-
-Essa estimativa será baseada nos valores de estoque e nas regras de média de consumo definidas para o StockFlow.
+O estoque atual já é conhecido pelo StockFlow, mas a estimativa de sua duração depende
+de uma taxa de consumo confiável. Enquanto essa fonte não existir, a cobertura não será
+calculada nem inferida pela redução do saldo entre competências.
 
 ## RN33 — Média de consumo
 
-A média de consumo deverá considerar os meses anteriores disponíveis do ano corrente.
+A média de consumo somente poderá ser calculada a partir de valores mensais de consumo
+obtidos de fonte confiável e validada. Os inventários atuais não fornecem essa
+informação.
 
-Quando não houver histórico suficiente no ano atual, poderão ser utilizados dados do ano anterior conforme a regra definida para o cálculo.
-
-Meses com consumo igual a zero deverão participar do cálculo da média.
+O período considerado, o tratamento de meses sem movimento e eventual uso de dados de
+anos anteriores deverão ser confirmados com a área responsável antes da implementação
+de uma fórmula definitiva.
 
 ## RN34 — Comparação entre períodos
 
-O sistema deverá permitir comparação entre o comportamento de consumo do período atual e períodos anteriores.
-
-Essa funcionalidade poderá ser utilizada pela farmacêutica para identificar alterações relevantes no consumo e efeitos de sazonalidade.
+A comparação entre períodos depende diretamente da média prevista no RF15 e exige
+consumo válido em mais de um período. Não será criada uma visualização ou regra de
+comparação enquanto essa base não estiver disponível.
 
 ## RN35 — Fonte definitiva para consumo
 
-A regra técnica definitiva para obtenção dos valores de consumo mensal ainda deverá ser validada durante o desenvolvimento.
+A regra técnica definitiva para obtenção dos valores de consumo mensal ainda depende da
+disponibilização e validação de uma fonte adequada do G-MUS ou de outro processo oficial.
 
 O relatório de inventário será utilizado como fonte principal para estoque mensal, lotes, validade, UPS de origem e demais informações disponíveis.
 
 Não deverá ser calculado consumo real apenas pela diferença entre dois estoques mensais quando existirem entradas ou outras movimentações que possam alterar o saldo.
+
+O StockFlow não possui atualmente registros de entradas, saídas, dispensações,
+transferências, perdas, devoluções ou outras movimentações mensais. Por esse motivo,
+RF15, RF16 e RF17 permanecem condicionados à fonte de consumo, e o RF18 é tratado como
+evolução futura. Essa dependência de dados não limita os fluxos implementados de
+inventário, estoque, consolidação, histórico e consulta pública.
 
 ## RN36 — Disponibilidade pública
 

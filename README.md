@@ -55,6 +55,14 @@ Django Admin sem colisões.
 
 Destinado à consulta pública de medicamentos, sem necessidade de autenticação.
 
+## Escopo de análises
+
+O Dashboard apresenta indicadores operacionais reais de competência, UPS, importações,
+medicamentos e registros de estoque. O inventário mensal é uma fotografia do saldo e
+não fornece consumo ou movimentações. Por isso, médias de consumo, comparação de
+períodos, cobertura e necessidade de compra permanecem condicionadas a uma fonte de
+consumo confiável; não são inferidas pela diferença entre inventários.
+
 ## Status
 
 Em desenvolvimento.

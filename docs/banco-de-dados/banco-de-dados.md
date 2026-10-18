@@ -77,7 +77,7 @@ representar funcionalidade futura obrigatoria.
 - `Ups.id_unidade_gmus` preserva o identificador especifico da unidade no G-MUS.
 - `Ups.participa_competencia` configura se a unidade precisa de inventario valido para
   completar uma competencia.
-- `Ups.compoe_estoque_convencional` configura se seus estoques participam da futura
+- `Ups.compoe_estoque_convencional` configura se seus estoques participam da
   consolidacao convencional.
 
 ## Classificacao MANIPULADO
@@ -200,6 +200,17 @@ preserva a identificacao do responsavel pelas importacoes existentes.
 - `Qtde Virt.` negativa e um erro de linha e nao gera estoque valido.
 - `Qtde R.` nao e utilizada pelo StockFlow, nao integra o registro normalizado e nao e persistida.
 
+## Reimportacao de inventario
+
+A reimportacao explicita reutiliza a mesma `Importacao` identificada pela combinacao de
+competencia, UPS e tipo de relatorio. Os registros de `Estoque` vinculados a ela sao
+substituidos e seus metadados de arquivo, hash, data, status e usuario sao atualizados.
+
+A substituicao utiliza `transaction.atomic()`. Uma falha reverte os estoques e
+metadados anteriores integralmente. Um arquivo com o mesmo SHA-256 ja processado e
+bloqueado e nao provoca nova substituicao. Medicamentos, lotes e classificacoes
+compartilhados nao sao removidos pela reimportacao.
+
 ## Competencia completa e consolidacao publica
 
 Uma competencia sera completa quando houver importacao de inventario `concluida` ou
@@ -226,5 +237,4 @@ Ainda nao foram fechadas:
 
 - unicidade definitiva de `Lote`;
 - restricao composta definitiva de `Estoque`;
-- estrategia definitiva de reimportacao;
 - fonte definitiva para consumo mensal.

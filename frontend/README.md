@@ -168,4 +168,7 @@ competencia esta incompleta.
 
 Nesta etapa, consulta publica, Login, protecao de rotas, Visao geral, Importacoes,
 consulta administrativa de Medicamentos e acompanhamento de Competencias estao
-implementados. Analises e Configuracoes continuam desabilitadas.
+implementados. A Visao geral apresenta indicadores operacionais de competencia, UPS,
+importacoes, medicamentos e registros de estoque. Analises baseadas em consumo,
+cobertura, giro ou necessidade de compra continuam desabilitadas e condicionadas a uma
+fonte de consumo validada. Configuracoes continua desabilitada.

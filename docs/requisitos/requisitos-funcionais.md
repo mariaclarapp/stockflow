@@ -22,7 +22,7 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
 | RF16 | Comparar médias de consumo de diferentes períodos | Administrativo |
 | RF17 | Calcular a estimativa de duração do estoque | Administrativo |
 | RF18 | Calcular a quantidade necessária para compra | Administrativo |
-| RF19 | Exibir indicadores de situação do estoque | Administrativo |
+| RF19 | Exibir indicadores operacionais da situação do estoque e das importações | Administrativo |
 | RF20 | Consultar medicamentos | Público |
 | RF21 | Consultar disponibilidade dos medicamentos | Público |
 | RF22 | Exibir o medicamento conforme identificado pelo G-MUS, sua apresentação/dosagem, unidade e disponibilidade | Público |
@@ -37,4 +37,14 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
 - A seleção de múltiplos medicamentos é destinada ao módulo administrativo.
 - No módulo público, a consulta será individual por medicamento.
 - O processamento dos relatórios deverá preservar competência, UPS, lote, validade e demais informações disponíveis no arquivo importado. No inventário, a UPS representa a localização/origem do estoque.
-- Alguns requisitos relacionados aos cálculos de consumo dependem da definição definitiva da fonte utilizada para obtenção do consumo mensal.
+- O RF15 depende de uma fonte confiável e validada de consumo mensal. Os inventários
+  atualmente importados são fotografias do saldo de estoque e não fornecem consumo.
+- O RF16 depende diretamente do RF15 e de consumo válido em múltiplos períodos.
+- O RF17 já dispõe do estoque atual, mas permanece condicionado à taxa de consumo
+  confiável necessária para estimar a duração do saldo.
+- O RF18 é preservado para rastreabilidade do planejamento original, mas fica definido
+  como evolução futura. Seu cálculo depende de consumo válido, regra de cobertura e
+  parâmetros administrativos ainda não definidos.
+- O RF19 corresponde aos indicadores operacionais já disponíveis sobre competência,
+  UPS esperadas e importadas, status das importações, medicamentos e registros de
+  estoque. Não representa níveis de cobertura, giro ou consumo.
