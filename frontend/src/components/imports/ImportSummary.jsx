@@ -2,7 +2,6 @@ import {
   Boxes,
   CalendarDays,
   FileCheck2,
-  PackageCheck,
   Pill,
   RotateCcw,
   Warehouse,
@@ -17,10 +16,13 @@ function formatCompetence(competence) {
 }
 
 function reportTypeLabel(reportType) {
-  return reportType === "inventario" ? "Inventário" : reportType;
+  if (reportType === "inventario") return "Inventário";
+  if (reportType === "estoque") return "Consulta de Estoque";
+  if (reportType === "movimentacao") return "Movimentações de Estoque";
+  return reportType;
 }
 
-function ImportSummary({ result, fileName }) {
+function ImportSummary({ result, fileName, onDelete, isDeleting }) {
   const stats = [
     { label: "Processados", value: result.registros_processados, icon: FileCheck2 },
     { label: "Ignorados", value: result.registros_ignorados, icon: Boxes },
@@ -30,13 +32,14 @@ function ImportSummary({ result, fileName }) {
       value: result.medicamentos_reutilizados,
       icon: RotateCcw,
     },
-    { label: "Lotes criados", value: result.lotes_criados, icon: PackageCheck },
-    {
-      label: "Lotes reutilizados",
-      value: result.lotes_reutilizados,
-      icon: RotateCcw,
-    },
     { label: "Estoques criados", value: result.estoques_criados, icon: Warehouse },
+    ...(result.quantidade_nao_associada
+      ? [{
+          label: "Quantidade sem código",
+          value: result.quantidade_nao_associada,
+          icon: Boxes,
+        }]
+      : []),
   ];
 
   return (
@@ -97,6 +100,12 @@ function ImportSummary({ result, fileName }) {
         <IssuesList kind="divergences" issues={result.divergencias} />
         <IssuesList kind="warnings" issues={result.warnings} />
         <IssuesList kind="errors" issues={result.erros} />
+      </div>
+
+      <div className="import-result__actions">
+        <button className="secondary-button secondary-button--danger" type="button" onClick={onDelete} disabled={isDeleting}>
+          {isDeleting ? "Excluindo..." : "Excluir esta importação"}
+        </button>
       </div>
     </section>
   );

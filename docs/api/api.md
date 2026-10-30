@@ -1,5 +1,13 @@
 # API - StockFlow
 
+O contrato da analise administrativa esta detalhado em `analise-consumo.md`.
+
+## Escopo ativo de importacao
+
+As APIs ativas de importacao sao `POST /api/importacoes/estoque/` e
+`POST /api/importacoes/movimentacoes/`. O inventario detalhado nao faz parte do
+contrato ativo. A validacao usa somente estoque e movimentacoes.
+
 Este documento registra o estado atual implementado da API do StockFlow.
 
 ## Tecnologia
@@ -180,6 +188,30 @@ Rotas disponiveis:
 - `/api/competencias/`
 - `/api/lotes/`
 - `/api/estoques/`
+- `/api/saldos-estoque/`
+- `/api/movimentacoes/`
+- `/api/estoques/comparacao/`
+- `/api/estoques/validacao-movimentacoes/`
+
+## Importacao de relatorios
+
+Os uploads administrativos exigem sessão de usuário `is_staff` e proteção CSRF:
+
+- `POST /api/importacoes/inventario/` — inventário detalhado;
+- `POST /api/importacoes/estoque/` — saldo total da Consulta de Estoque;
+- `POST /api/importacoes/movimentacoes/` — movimentações sintéticas mensais;
+- `DELETE /api/importacoes/{id}/` — exclui a importação e seus registros derivados.
+
+Todos recebem `multipart/form-data` no campo `arquivo`. O campo opcional
+`reimportar=true` substitui a importação existente da mesma competência, UPS e tipo.
+
+`GET /api/estoques/comparacao/?competencia={id}&ups={id}` compara a Consulta de Estoque
+com a soma do inventário detalhado. `GET /api/estoques/validacao-movimentacoes/` usa os
+mesmos parâmetros e calcula o saldo esperado a partir do estoque anterior e das
+entradas e saídas importadas.
+
+A exclusão é transacional e não remove medicamentos, lotes ou classificações
+compartilhados. Ela pode deixar uma competência incompleta, exigindo nova importação.
 
 ### Gerenciamento administrativo de classificacoes
 
@@ -420,6 +452,24 @@ Cada apresentacao permanece como um medicamento separado na resposta, preservand
 codigo G-MUS, descricao e unidade. Uma consulta sem `search` continua retornando a
 listagem administrativa normal.
 
+A listagem tambem aceita uma competencia e uma UPS especificas. O saldo retornado passa
+a representar exatamente esse recorte e inclui `competencia_estoque`,
+`estoque_por_ups`, `situacao_estoque` e `situacao_validacao`. As situacoes de estoque possiveis sao `disponivel`,
+`sem_estoque` e `sem_dados`; esta ultima e usada quando a combinacao de competencia e
+UPS nao possui relatorio de estoque, sem confundir ausencia de dados com saldo zero.
+O indicador de validacao usa `validado`, `divergente` ou `nao_validado` e agrega o
+resultado da conferencia mensal das UPS selecionadas.
+
+As opcoes da tela administrativa podem ser obtidas em:
+
+```text
+GET /api/medicamentos/opcoes/
+```
+
+O contrato retorna competencias, UPS participantes, unidades cadastradas e o ID da
+competencia padrao. A listagem aceita ainda `unidade`, `situacao` e `ordenacao`. Os
+valores de ordenacao sao `descricao`, `codigo`, `maior_estoque` e `menor_estoque`.
+
 Para filtros administrativos em lote, o endpoint de listagem aceita `ids` com até 50
 IDs inteiros positivos separados por vírgula:
 
@@ -460,7 +510,12 @@ Medicamentos:
 - `sem_categoria`: booleano; quando `true`, exige subgrupo nulo e ausência de categoria
   manual comum. A tag `MANIPULADO` não descaracteriza essa condição;
 - `subgrupo`: ID de `SubgrupoGmus`.
-- `classificacao`: ID de `Classificacao`, incluindo a tag `MANIPULADO`.
+- `classificacao`: ID de `Classificacao`, incluindo a tag `MANIPULADO`;
+- `competencia`: ID da competencia usada para calcular o saldo;
+- `ups`: ID da UPS; quando omitido, soma todas as UPS participantes;
+- `unidade`: unidade de apresentacao do medicamento;
+- `situacao`: `disponivel`, `sem_estoque` ou `sem_dados`;
+- `ordenacao`: `descricao`, `codigo`, `maior_estoque` ou `menor_estoque`.
 
 Estoques:
 
@@ -478,6 +533,8 @@ GET /api/medicamentos/?classificacao=4
 GET /api/medicamentos/?search=duloxetina&classificacao=2
 GET /api/medicamentos/?sem_categoria=true
 GET /api/medicamentos/?sem_categoria=true&search=duloxetina
+GET /api/medicamentos/?competencia=8&ups=1&situacao=disponivel
+GET /api/medicamentos/?competencia=8&unidade=COMPR&ordenacao=maior_estoque
 GET /api/estoques/?ups=1
 GET /api/estoques/?medicamento=42
 GET /api/estoques/?competencia=8

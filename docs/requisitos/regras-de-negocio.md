@@ -2,7 +2,15 @@
 
 Este documento reúne as principais regras de negócio definidas para o sistema StockFlow. As regras descritas aqui orientam a modelagem, a implementação e os testes da aplicação.
 
-## RN01 — Origem dos dados
+## Decisao de escopo vigente
+
+O fluxo ativo utiliza exclusivamente a Consulta de Estoque como fonte do saldo
+mensal e o relatorio sintetico de movimentacoes para validar a evolucao mensal.
+O inventario detalhado nao participa mais das telas, APIs ou calculos ativos.
+Estruturas legadas podem permanecer no banco para preservar dados antigos, mas
+nao sao usadas para considerar uma competencia valida.
+
+## RN01 - Origem dos dados
 
 O StockFlow não terá acesso direto ao banco de dados do sistema G-MUS.
 
@@ -45,6 +53,26 @@ Durante a importação, o sistema deverá identificar as informações disponív
 - lote;
 - validade;
 - quantidade.
+
+O StockFlow reconhece dois relatórios de estoque distintos:
+
+- `Inventário`: relatório detalhado, com lote, validade e quantidade por registro;
+- `Consulta de Estoque`: relatório sintético, com o saldo total por medicamento.
+
+O formato é identificado pela estrutura do CSV. O saldo sintético é armazenado
+separadamente do inventário detalhado para evitar duplicidade na consolidação do estoque.
+Quando ambos os relatórios da mesma competência e UPS forem importados, a conferência
+administrativa poderá comparar o saldo da `Consulta de Estoque` com a soma do inventário
+detalhado por medicamento. Essa comparação não altera automaticamente nenhum dos dois
+relatórios e aponta divergências para análise.
+
+O relatório `Movimentação de Estoque - Sintético` representa as movimentações de um
+único mês e UPS. Suas entradas e saídas são armazenadas por medicamento, sem substituir
+o saldo observado. A validação mensal calcula `estoque anterior + entradas - saídas` e
+compara o resultado com o saldo final importado. Quando um medicamento existe nos dois
+estoques e não possui linha no relatório sintético, suas entradas e saídas são zero.
+Quando um medicamento novo aparece no estoque final e nas movimentações, o saldo anterior
+é zero. Sem saldo final correspondente, o item fica como não comparável.
 
 No relatório de inventário, a UPS/unidade identificada nos metadados representa a localização e a origem de todos os registros do arquivo.
 

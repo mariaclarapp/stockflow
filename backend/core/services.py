@@ -1,18 +1,21 @@
 from django.db.models import Count, Q
 
-from estoques.models import Estoque
+from estoques.models import SaldoEstoque
 from importacoes.models import Importacao
-from importacoes.report_types import REPORT_TYPE_INVENTORY
+from importacoes.report_types import REPORT_TYPE_STOCK
 from medicamentos.models import Medicamento
 
 from .models import Competencia, Ups
 
 
 class CompetenciaService:
-    TIPO_RELATORIO_INVENTARIO = REPORT_TYPE_INVENTORY
+    TIPOS_RELATORIO_ESTOQUE = (REPORT_TYPE_STOCK,)
     STATUS_IMPORTACAO_VALIDOS = (
         Importacao.Status.CONCLUIDA,
         Importacao.Status.CONCLUIDA_COM_ALERTAS,
+    )
+    STATUS_IMPORTACAO_DISPONIVEIS = STATUS_IMPORTACAO_VALIDOS + (
+        Importacao.Status.CONCLUIDA_PARCIAL,
     )
 
     @classmethod
@@ -21,7 +24,7 @@ class CompetenciaService:
             total_ups_importadas=Count(
                 "importacoes__ups",
                 filter=Q(
-                    importacoes__tipo_relatorio=cls.TIPO_RELATORIO_INVENTARIO,
+                    importacoes__tipo_relatorio__in=cls.TIPOS_RELATORIO_ESTOQUE,
                     importacoes__status__in=cls.STATUS_IMPORTACAO_VALIDOS,
                     importacoes__ups__participa_competencia=True,
                 ),
@@ -47,6 +50,18 @@ class CompetenciaService:
         return cls.competencias_completas(
             total_ups_participantes=total_ups_participantes
         ).order_by("-ano", "-mes").first()
+
+    @classmethod
+    def identificar_competencia_disponivel(cls):
+        return (
+            cls.competencias_com_totais()
+            .filter(
+                importacoes__tipo_relatorio__in=cls.TIPOS_RELATORIO_ESTOQUE,
+                importacoes__status__in=cls.STATUS_IMPORTACAO_DISPONIVEIS,
+            )
+            .order_by("-ano", "-mes")
+            .first()
+        )
 
 
 class DashboardResumoService:
@@ -77,11 +92,13 @@ class DashboardResumoService:
         importacoes = list(
             Importacao.objects.filter(
                 competencia=competencia,
-                tipo_relatorio=CompetenciaService.TIPO_RELATORIO_INVENTARIO,
+                tipo_relatorio__in=CompetenciaService.TIPOS_RELATORIO_ESTOQUE,
                 ups__participa_competencia=True,
             )
             .select_related("ups")
-            .annotate(registros_estoque=Count("estoques"))
+            .annotate(
+                registros_estoque=Count("saldos_estoque")
+            )
             .order_by("ups__nome", "ups_id")
         )
         status_validos = CompetenciaService.STATUS_IMPORTACAO_VALIDOS
@@ -116,7 +133,7 @@ class DashboardResumoService:
             ],
             "totais": {
                 "medicamentos": total_medicamentos,
-                "estoques": Estoque.objects.filter(
+                "estoques": SaldoEstoque.objects.filter(
                     competencia=competencia
                 ).count(),
             },
@@ -140,16 +157,17 @@ class CompetenciasAcompanhamentoService:
             importacoes = (
                 Importacao.objects.filter(
                     competencia_id__in=competencia_ids,
-                    tipo_relatorio=CompetenciaService.TIPO_RELATORIO_INVENTARIO,
+                    tipo_relatorio__in=CompetenciaService.TIPOS_RELATORIO_ESTOQUE,
                     ups__participa_competencia=True,
                 )
                 .select_related("ups")
-                .annotate(registros_estoque=Count("estoques"))
+                .annotate(
+                    registros_estoque=Count("saldos_estoque")
+                )
             )
-            importacoes_por_chave = {
-                (importacao.competencia_id, importacao.ups_id): importacao
-                for importacao in importacoes
-            }
+            for importacao in importacoes:
+                chave = (importacao.competencia_id, importacao.ups_id)
+                importacoes_por_chave[chave] = importacao
 
         resultado = []
         competencia_completa_mais_recente = None

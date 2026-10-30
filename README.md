@@ -1,5 +1,8 @@
 # StockFlow
 
+A analise administrativa de consumo usa exclusivamente o campo `saida` das
+movimentacoes. Consulte `docs/requisitos/analise-consumo.md`.
+
 Sistema web desenvolvido como Trabalho de Graduação do curso de Análise e Desenvolvimento de Sistemas da Fatec Ourinhos.
 
 O StockFlow tem como objetivo auxiliar a gestão de estoque de medicamentos da Farmácia Municipal de Ribeirão Claro, automatizando a importação, organização e consolidação dos relatórios exportados pelo sistema G-MUS, além de disponibilizar um módulo público para consulta de medicamentos.

@@ -8,6 +8,7 @@ import {
   LogOut,
   Menu,
   Pill,
+  SearchCheck,
   Settings,
   X,
 } from "lucide-react";
@@ -20,8 +21,9 @@ const navItems = [
   { label: "Visão geral", icon: LayoutDashboard, to: "/admin", end: true },
   { label: "Importações", icon: FileUp, to: "/admin/importacoes" },
   { label: "Medicamentos", icon: Pill, to: "/admin/medicamentos" },
+  { label: "Análise", icon: BarChart3, to: "/admin/analises" },
   { label: "Competências", icon: CalendarDays, to: "/admin/competencias" },
-  { label: "Análises", icon: BarChart3 },
+  { label: "Validação", icon: SearchCheck, to: "/admin/validacao" },
   { label: "Configurações", icon: Settings },
 ];
 

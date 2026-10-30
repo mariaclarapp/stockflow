@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from core.serializers import CompetenciaSerializer, UpsSerializer
 
-from .models import Importacao
+from .models import Importacao, MovimentacaoEstoque
 
 
 class InventoryUploadSerializer(serializers.Serializer):
@@ -33,7 +33,24 @@ class ImportacaoSerializer(serializers.ModelSerializer):
             "tipo_relatorio",
             "data_importacao",
             "status",
+            "quantidade_nao_associada",
             "usuario",
             "competencia",
             "ups",
+        ]
+
+
+class MovimentacaoEstoqueSerializer(serializers.ModelSerializer):
+    medicamento = serializers.StringRelatedField(read_only=True)
+    ups = UpsSerializer(read_only=True)
+    competencia = CompetenciaSerializer(read_only=True)
+    importacao = ImportacaoSerializer(read_only=True)
+
+    class Meta:
+        model = MovimentacaoEstoque
+        fields = [
+            "id", "medicamento", "ups", "competencia", "importacao",
+            "data_inicial", "data_final", "saida", "devolucao_saida",
+            "compra", "transferencia_devolucao", "transferencia_entrada",
+            "transferencia_saida", "acerto_entrada", "acerto_saida", "saldo_atual",
         ]

@@ -57,3 +57,39 @@ class Estoque(models.Model):
 
     def __str__(self):
         return f"{self.medicamento} - {self.ups} - {self.competencia}"
+
+
+class SaldoEstoque(models.Model):
+    medicamento = models.ForeignKey(
+        "medicamentos.Medicamento",
+        on_delete=models.PROTECT,
+        related_name="saldos_estoque",
+    )
+    ups = models.ForeignKey(
+        "core.Ups",
+        on_delete=models.PROTECT,
+        related_name="saldos_estoque",
+    )
+    competencia = models.ForeignKey(
+        "core.Competencia",
+        on_delete=models.PROTECT,
+        related_name="saldos_estoque",
+    )
+    importacao = models.ForeignKey(
+        "importacoes.Importacao",
+        on_delete=models.PROTECT,
+        related_name="saldos_estoque",
+    )
+    quantidade = models.DecimalField(max_digits=14, decimal_places=3)
+
+    class Meta:
+        ordering = ["medicamento__descricao", "competencia", "ups"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["medicamento", "ups", "competencia", "importacao"],
+                name="unique_saldo_estoque_importacao_medicamento",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.medicamento} - {self.ups} - {self.competencia}"

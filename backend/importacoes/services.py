@@ -1,15 +1,20 @@
+from datetime import date
+import re
+import unicodedata
+
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from core.models import Competencia, Ups
-from estoques.models import Estoque, Lote
+from estoques.models import Estoque, Lote, SaldoEstoque
 from medicamentos.domain import (
     CLASSIFICACAO_MANIPULADO,
     descricao_possui_marcador_manipulado,
 )
 from medicamentos.models import Classificacao, Medicamento, SubgrupoGmus
 
-from .models import Importacao
+from .models import Importacao, MovimentacaoEstoque
+from .report_types import REPORT_TYPE_INVENTORY, REPORT_TYPE_STOCK
 
 
 class InventoryPersistenceError(ValueError):
@@ -32,6 +37,22 @@ class ReimportationTargetNotFoundError(InventoryImportConflictError):
     pass
 
 
+def delete_importacao(*, importacao_id):
+    """Delete one import and only the records that belong to it."""
+    with transaction.atomic():
+        importacao = Importacao.objects.select_for_update().get(pk=importacao_id)
+        counts = {
+            "estoques_excluidos": Estoque.objects.filter(importacao=importacao).count(),
+            "saldos_excluidos": SaldoEstoque.objects.filter(importacao=importacao).count(),
+            "movimentacoes_excluidas": MovimentacaoEstoque.objects.filter(importacao=importacao).count(),
+        }
+        Estoque.objects.filter(importacao=importacao).delete()
+        SaldoEstoque.objects.filter(importacao=importacao).delete()
+        MovimentacaoEstoque.objects.filter(importacao=importacao).delete()
+        importacao.delete()
+        return counts
+
+
 def persist_inventory_import(*, parsed_data, user, nome_arquivo, reimportar=False):
     """Persist a new inventory or atomically replace an existing one."""
     with transaction.atomic():
@@ -48,11 +69,7 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo, reimportar=Fals
             ano=competencia_data["ano"],
             mes=competencia_data["mes"],
         )
-        ups, ups_criada = Ups.objects.get_or_create(
-            codigo_gmus=ups_data["codigo_gmus"],
-            id_unidade_gmus=ups_data["id_unidade_gmus"],
-            defaults={"nome": ups_data["nome"]},
-        )
+        ups, ups_criada = _get_or_create_ups(ups_data)
         if not ups_criada and ups.nome != ups_data["nome"]:
             divergencias.append(
                 {
@@ -156,6 +173,11 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo, reimportar=Fals
                         "unidade": medicine_data["unidade"],
                         "subgrupo_gmus": subgroup,
                     },
+                )
+                _enrich_medicine_from_inventory(
+                    medicine=medicine,
+                    medicine_data=medicine_data,
+                    subgroup=subgroup,
                 )
                 _register_medicine_divergences(
                     medicine=medicine,
@@ -262,6 +284,318 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo, reimportar=Fals
         }
 
 
+def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
+    """Persist a Consulta de Estoque separately from lot-level inventory."""
+    with transaction.atomic():
+        _validate_import_context(parsed_data, user, nome_arquivo)
+        metadata = parsed_data["metadata"]
+        competencia_data = metadata["competencia"]
+        ups_data = metadata["ups"]
+        report_type = parsed_data["tipo_relatorio"]
+        file_hash = parsed_data["hash_arquivo"]
+        divergencias = []
+        competencia, competencia_criada = Competencia.objects.get_or_create(
+            ano=competencia_data["ano"], mes=competencia_data["mes"]
+        )
+        ups, ups_criada = _get_or_create_ups(ups_data)
+        if not ups_criada and ups.nome != ups_data["nome"]:
+            divergencias.append(
+                {
+                    "tipo": "ups_nome",
+                    "severity": "warning",
+                    "codigo_gmus": ups.codigo_gmus,
+                    "valor_cadastrado": ups.nome,
+                    "valor_relatorio": ups_data["nome"],
+                }
+            )
+
+        importacao = (
+            Importacao.objects.select_for_update()
+            .filter(competencia=competencia, ups=ups, tipo_relatorio=report_type)
+            .first()
+        )
+        reimportacao = importacao is not None
+        if importacao is not None and not reimportar:
+            raise DuplicateInventoryImportError(
+                "Ja existe uma importacao para esta competencia, UPS e tipo de relatorio."
+            )
+        if importacao is not None and importacao.hash_arquivo == file_hash:
+            raise SameInventoryFileError(
+                "Este mesmo arquivo ja foi processado para esta competencia e UPS."
+            )
+        if importacao is None and reimportar:
+            raise ReimportationTargetNotFoundError(
+                "Nao existe importacao para substituir com a competencia e UPS do arquivo."
+            )
+
+        if importacao is not None:
+            SaldoEstoque.objects.filter(importacao=importacao).delete()
+        else:
+            importacao = Importacao.objects.create(
+                nome_arquivo=nome_arquivo,
+                hash_arquivo=file_hash,
+                tipo_relatorio=report_type,
+                data_importacao=timezone.now(),
+                status=Importacao.Status.CONCLUIDA,
+                usuario=user,
+                competencia=competencia,
+                ups=ups,
+            )
+
+        parser_errors = list(parsed_data.get("inconsistencies", []))
+        records = list(parsed_data.get("records", []))
+        for issue in parser_errors:
+            if issue.get("type") != "invalid_material" or not issue.get("fallback"):
+                continue
+            fallback = issue["fallback"]
+            matches = _find_existing_medicine_matches(
+                descricao=fallback["descricao"], unidade=fallback["unidade"]
+            )
+            if len(matches) != 1:
+                continue
+            medicine = matches[0]
+            records.append({
+                "line": issue["line"],
+                "medicamento": {
+                    "codigo_gmus": medicine.codigo_gmus,
+                    "descricao": medicine.descricao,
+                    "descricao_original": medicine.descricao,
+                    "unidade": medicine.unidade,
+                    "subgrupo": None,
+                },
+                "quantidade": fallback["quantidade"],
+                "lote": None,
+                "raw": issue.get("raw"),
+            })
+            issue["severity"] = "warning"
+            issue["type"] = "material_reconciliado"
+            issue["message"] = "Material sem codigo foi associado a um medicamento cadastrado por correspondencia unica."
+            issue["codigo_gmus"] = medicine.codigo_gmus
+        for issue in parser_errors:
+            fallback = issue.get("fallback") or {}
+            if (
+                issue.get("severity", "error") == "error"
+                and fallback
+                and fallback.get("quantidade") == 0
+            ):
+                issue["severity"] = "warning"
+                issue["type"] = "material_sem_saldo"
+                issue["message"] = (
+                    "Material sem codigo foi ignorado porque a quantidade informada e zero."
+                )
+        quantidade_nao_associada = sum(
+            item.get("fallback", {}).get("quantidade", 0)
+            for item in parser_errors
+            if item.get("severity", "error") == "error" and item.get("fallback")
+        )
+        invalid_lines = {
+            item.get("line")
+            for item in parser_errors
+            if item.get("severity", "error") == "error" and item.get("line") is not None
+        }
+        service_errors = []
+        created_medicines = set()
+        reused_medicines = set()
+        reported_divergences = set()
+        saldo_count = 0
+        ignored_count = len(
+            invalid_lines
+            - {record.get("line") for record in records}
+        )
+
+        for record in records:
+            line = record.get("line")
+            if line in invalid_lines:
+                ignored_count += 1
+                continue
+            try:
+                medicine_data = _validate_record(record)
+                subgroup = _get_or_create_subgroup(medicine_data.get("subgrupo"))
+                if report_type == REPORT_TYPE_INVENTORY:
+                    _register_subgroup_divergence(
+                        subgroup=subgroup,
+                        subgroup_data=medicine_data.get("subgrupo"),
+                        line=line,
+                        divergences=divergencias,
+                        reported=reported_divergences,
+                    )
+                medicine, medicine_created = Medicamento.objects.get_or_create(
+                    codigo_gmus=medicine_data["codigo_gmus"],
+                    defaults={
+                        "descricao": medicine_data["descricao"],
+                        "unidade": medicine_data["unidade"],
+                        "subgrupo_gmus": subgroup,
+                    },
+                )
+                _register_medicine_divergences(
+                    medicine=medicine,
+                    medicine_data=medicine_data,
+                    subgroup=subgroup,
+                    line=line,
+                    divergences=divergencias,
+                    reported=reported_divergences,
+                )
+                _ensure_manipulated_classification(
+                    medicine=medicine,
+                    description=medicine_data["descricao"],
+                )
+            except InventoryPersistenceError as error:
+                service_errors.append(
+                    {
+                        "line": line,
+                        "type": "persistence_validation",
+                        "severity": "error",
+                        "message": str(error),
+                    }
+                )
+                ignored_count += 1
+                continue
+
+            if medicine_created:
+                created_medicines.add(medicine.pk)
+            elif medicine.pk not in created_medicines:
+                reused_medicines.add(medicine.pk)
+            SaldoEstoque.objects.create(
+                medicamento=medicine,
+                ups=ups,
+                competencia=competencia,
+                importacao=importacao,
+                quantidade=record["quantidade"],
+            )
+            saldo_count += 1
+
+        if reimportacao and saldo_count == 0:
+            raise InventoryPersistenceError(
+                "A reimportacao nao gerou registros de saldo validos."
+            )
+
+        has_warnings = any(
+            item.get("severity") == "warning" for item in parser_errors
+        )
+        import_status = Importacao.Status.CONCLUIDA
+        if invalid_lines or service_errors:
+            import_status = Importacao.Status.CONCLUIDA_PARCIAL
+        elif has_warnings or divergencias:
+            import_status = Importacao.Status.CONCLUIDA_COM_ALERTAS
+
+        importacao.nome_arquivo = nome_arquivo
+        importacao.hash_arquivo = file_hash
+        importacao.data_importacao = timezone.now()
+        importacao.status = import_status
+        importacao.quantidade_nao_associada = quantidade_nao_associada
+        importacao.usuario = user
+        importacao.save(
+            update_fields=[
+                "nome_arquivo",
+                "hash_arquivo",
+                "data_importacao",
+                "status",
+                "quantidade_nao_associada",
+                "usuario",
+            ]
+        )
+        return {
+            "importacao": importacao,
+            "importacao_criada": not reimportacao,
+            "reimportacao": reimportacao,
+            "competencia_criada": competencia_criada,
+            "ups_criada": ups_criada,
+            "registros_recebidos": len(records),
+            "registros_processados": saldo_count,
+            "registros_ignorados": ignored_count,
+            "medicamentos_criados": len(created_medicines),
+            "medicamentos_reutilizados": len(reused_medicines),
+            "lotes_criados": 0,
+            "lotes_reutilizados": 0,
+            "estoques_criados": saldo_count,
+            "saldos_criados": saldo_count,
+            "quantidade_nao_associada": quantidade_nao_associada,
+            "divergencias": divergencias,
+            "erros": parser_errors + service_errors,
+        }
+
+
+def persist_movement_import(*, parsed_data, user, nome_arquivo, reimportar=False):
+    """Persist one monthly synthetic movement report per medicine and UPS."""
+    with transaction.atomic():
+        _validate_import_context(parsed_data, user, nome_arquivo)
+        metadata = parsed_data["metadata"]
+        competencia_data = metadata["competencia"]
+        ups_data = metadata["ups"]
+        report_type = parsed_data["tipo_relatorio"]
+        file_hash = parsed_data["hash_arquivo"]
+        competencia, competencia_criada = Competencia.objects.get_or_create(
+            ano=competencia_data["ano"], mes=competencia_data["mes"]
+        )
+        ups, ups_criada = _get_or_create_ups(ups_data)
+        importacao = Importacao.objects.select_for_update().filter(
+            competencia=competencia, ups=ups, tipo_relatorio=report_type
+        ).first()
+        reimportacao = importacao is not None
+        if importacao is not None and not reimportar:
+            raise DuplicateInventoryImportError("Ja existe uma importacao para esta competencia, UPS e tipo de relatorio.")
+        if importacao is not None and importacao.hash_arquivo == file_hash:
+            raise SameInventoryFileError("Este mesmo arquivo ja foi processado para esta competencia e UPS.")
+        if importacao is None and reimportar:
+            raise ReimportationTargetNotFoundError("Nao existe importacao para substituir com a competencia e UPS do arquivo.")
+        if importacao is not None:
+            MovimentacaoEstoque.objects.filter(importacao=importacao).delete()
+        else:
+            importacao = Importacao.objects.create(
+                nome_arquivo=nome_arquivo, hash_arquivo=file_hash,
+                tipo_relatorio=report_type, data_importacao=timezone.now(),
+                status=Importacao.Status.CONCLUIDA, usuario=user,
+                competencia=competencia, ups=ups,
+            )
+
+        parser_errors = list(parsed_data.get("inconsistencies", []))
+        invalid_lines = {
+            item.get("line") for item in parser_errors
+            if item.get("severity", "error") == "error" and item.get("line") is not None
+        }
+        created_medicines = set()
+        reused_medicines = set()
+        count = 0
+        start_date = date.fromisoformat(metadata["data_inicial"])
+        end_date = date.fromisoformat(metadata["data_final"])
+        for record in parsed_data.get("records", []):
+            if record.get("line") in invalid_lines:
+                continue
+            medicine_data = _validate_record(record)
+            medicine, created = Medicamento.objects.get_or_create(
+                codigo_gmus=medicine_data["codigo_gmus"],
+                defaults={"descricao": medicine_data["descricao"], "unidade": medicine_data["unidade"]},
+            )
+            _ensure_manipulated_classification(medicine=medicine, description=medicine_data["descricao"])
+            if created:
+                created_medicines.add(medicine.pk)
+            else:
+                reused_medicines.add(medicine.pk)
+            MovimentacaoEstoque.objects.create(
+                importacao=importacao, medicamento=medicine, ups=ups,
+                competencia=competencia, data_inicial=start_date, data_final=end_date,
+                **record["movimentacoes"],
+            )
+            count += 1
+        if not count:
+            raise InventoryPersistenceError("A importacao nao gerou movimentacoes validas.")
+        importacao.nome_arquivo = nome_arquivo
+        importacao.hash_arquivo = file_hash
+        importacao.data_importacao = timezone.now()
+        importacao.status = Importacao.Status.CONCLUIDA_PARCIAL if invalid_lines else Importacao.Status.CONCLUIDA
+        importacao.usuario = user
+        importacao.save(update_fields=["nome_arquivo", "hash_arquivo", "data_importacao", "status", "usuario"])
+        return {
+            "importacao": importacao, "importacao_criada": not reimportacao,
+            "reimportacao": reimportacao, "competencia_criada": competencia_criada,
+            "ups_criada": ups_criada, "registros_recebidos": len(parsed_data.get("records", [])),
+            "registros_processados": count, "registros_ignorados": len(invalid_lines),
+            "medicamentos_criados": len(created_medicines), "medicamentos_reutilizados": len(reused_medicines),
+            "lotes_criados": 0, "lotes_reutilizados": 0, "estoques_criados": 0,
+            "saldos_criados": 0, "divergencias": [], "erros": parser_errors,
+        }
+
+
 def _validate_import_context(parsed_data, user, nome_arquivo):
     if not getattr(user, "is_authenticated", False):
         raise InventoryPersistenceError("Um usuario autenticado e obrigatorio.")
@@ -288,6 +622,50 @@ def _validate_import_context(parsed_data, user, nome_arquivo):
         int(file_hash, 16)
     except ValueError as error:
         raise InventoryPersistenceError("Hash SHA-256 do arquivo invalido.") from error
+
+
+def _find_existing_medicine_matches(*, descricao, unidade):
+    normalized_description = _normalize_match_text(descricao)
+    normalized_unit = _normalize_match_text(unidade)
+    exact_matches = []
+    prefix_matches = []
+    for medicine in Medicamento.objects.all().only("id", "codigo_gmus", "descricao", "unidade"):
+        normalized_medicine_description = _normalize_match_text(medicine.descricao)
+        if normalized_unit and _normalize_match_text(medicine.unidade) != normalized_unit:
+            continue
+        if normalized_medicine_description == normalized_description:
+            exact_matches.append(medicine)
+        elif (
+            normalized_medicine_description.startswith(normalized_description)
+            or normalized_description.startswith(normalized_medicine_description)
+        ):
+            prefix_matches.append(medicine)
+    if exact_matches:
+        return exact_matches
+    if len(prefix_matches) == 1:
+        return prefix_matches
+    return []
+
+
+def _get_or_create_ups(ups_data):
+    ups = (
+        Ups.objects.filter(id_unidade_gmus=ups_data["id_unidade_gmus"])
+        .order_by("id")
+        .first()
+    )
+    if ups is not None:
+        return ups, False
+    return Ups.objects.get_or_create(
+        codigo_gmus=ups_data["codigo_gmus"],
+        id_unidade_gmus=ups_data["id_unidade_gmus"],
+        defaults={"nome": ups_data["nome"]},
+    )
+
+
+def _normalize_match_text(value):
+    normalized = unicodedata.normalize("NFKD", value or "")
+    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+    return re.sub(r"[^a-z0-9]+", "", normalized.casefold())
 
 
 def _validate_record(record):
@@ -390,15 +768,22 @@ def _register_medicine_divergences(
     comparisons = [
         ("medicamento_descricao", medicine.descricao, medicine_data["descricao"]),
         ("medicamento_unidade", medicine.unidade, medicine_data["unidade"]),
-        (
-            "medicamento_subgrupo",
-            medicine.subgrupo_gmus_id,
-            subgroup.pk if subgroup else None,
-        ),
     ]
+    if subgroup is not None:
+        comparisons.append(
+            (
+                "medicamento_subgrupo",
+                medicine.subgrupo_gmus_id,
+                subgroup.pk,
+            )
+        )
     for divergence_type, stored_value, report_value in comparisons:
         key = (medicine.pk, divergence_type, str(report_value))
-        if stored_value == report_value or key in reported:
+        equivalent_text = (
+            divergence_type in {"medicamento_descricao", "medicamento_unidade"}
+            and _normalize_match_text(stored_value) == _normalize_match_text(report_value)
+        )
+        if stored_value == report_value or equivalent_text or key in reported:
             continue
         divergences.append(
             {
@@ -411,6 +796,21 @@ def _register_medicine_divergences(
             }
         )
         reported.add(key)
+
+
+def _enrich_medicine_from_inventory(*, medicine, medicine_data, subgroup):
+    updates = []
+    if not medicine.descricao and medicine_data.get("descricao"):
+        medicine.descricao = medicine_data["descricao"]
+        updates.append("descricao")
+    if not medicine.unidade and medicine_data.get("unidade"):
+        medicine.unidade = medicine_data["unidade"]
+        updates.append("unidade")
+    if medicine.subgrupo_gmus_id is None and subgroup is not None:
+        medicine.subgrupo_gmus = subgroup
+        updates.append("subgrupo_gmus")
+    if updates:
+        medicine.save(update_fields=updates)
 
 
 def _register_subgroup_divergence(

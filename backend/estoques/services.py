@@ -3,7 +3,57 @@ from decimal import Decimal
 
 from core.services import CompetenciaService
 
-from .models import Estoque
+from .models import SaldoEstoque
+
+
+def calcular_validacao_movimentacao(
+    *, medicamento, movimentacao, estoque_anterior, estoque_atual
+):
+    if estoque_atual is None or (
+        estoque_anterior is None and movimentacao is None
+    ):
+        return {
+            "medicamento": medicamento,
+            "situacao": "sem_base_completa",
+            "estoque_anterior": estoque_anterior,
+            "estoque_observado": estoque_atual,
+        }
+
+    estoque_anterior_inferido = estoque_anterior is None
+    movimentacao_ausente = movimentacao is None
+    estoque_anterior = estoque_anterior or Decimal("0.000")
+
+    if movimentacao is None:
+        entradas = Decimal("0.000")
+        saidas = Decimal("0.000")
+    else:
+        entradas = (
+            movimentacao.compra
+            + movimentacao.transferencia_devolucao
+            + movimentacao.transferencia_entrada
+            + movimentacao.acerto_entrada
+        )
+        saidas = (
+            movimentacao.saida
+            + movimentacao.devolucao_saida
+            + movimentacao.transferencia_saida
+            + movimentacao.acerto_saida
+        )
+
+    esperado = estoque_anterior + entradas - saidas
+    diferenca = estoque_atual - esperado
+    return {
+        "medicamento": medicamento,
+        "situacao": "conferido" if diferenca == 0 else "divergente",
+        "estoque_anterior": estoque_anterior,
+        "estoque_anterior_inferido": estoque_anterior_inferido,
+        "movimentacao_ausente": movimentacao_ausente,
+        "entradas": entradas,
+        "saidas": saidas,
+        "estoque_esperado": esperado,
+        "estoque_observado": estoque_atual,
+        "diferenca": diferenca,
+    }
 
 
 class HistoricoMedicamentoService:
@@ -18,8 +68,8 @@ class HistoricoMedicamentoService:
         competencia_atual = competencias_completas[0] if competencias_completas else None
 
         estoques = (
-            Estoque.objects.filter(medicamento_id=medicamento_id)
-            .select_related("competencia", "ups", "lote")
+            SaldoEstoque.objects.filter(medicamento_id=medicamento_id)
+            .select_related("competencia", "ups")
             .order_by(
                 "-competencia__ano",
                 "-competencia__mes",
@@ -84,15 +134,7 @@ class HistoricoMedicamentoService:
                 {
                     "estoque_id": estoque.pk,
                     "quantidade": estoque.quantidade,
-                    "lote": (
-                        {
-                            "id": estoque.lote.pk,
-                            "codigo_lote": estoque.lote.codigo_lote,
-                            "data_validade": estoque.lote.data_validade,
-                        }
-                        if estoque.lote
-                        else None
-                    ),
+                    "lote": None,
                 }
             )
             if ups.compoe_estoque_convencional:

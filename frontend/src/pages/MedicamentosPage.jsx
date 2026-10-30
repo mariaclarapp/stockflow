@@ -1,4 +1,15 @@
-import { AlertCircle, CheckCircle2, Eye, LoaderCircle, Pill, Tag, Tags, X } from "lucide-react";
+import {
+  AlertCircle,
+  CalendarDays,
+  CheckCircle2,
+  Eye,
+  LoaderCircle,
+  MapPin,
+  Pill,
+  Tag,
+  Tags,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -7,6 +18,7 @@ import {
   getClassifications,
   classifyMedications,
   getMedications,
+  getMedicationOptions,
   getMedicationSubgroups,
   unclassifyMedications,
 } from "../api/medications";
@@ -16,13 +28,26 @@ import BulkClassificationModal from "../components/medications/BulkClassificatio
 
 const MAX_SELECTED_MEDICATIONS = 50;
 
-function medicationFilters(appliedSearch, categoryValue) {
+function medicationFilters({
+  appliedSearch,
+  categoryValue,
+  competenceId,
+  upsId,
+  unit,
+  stockStatus,
+  ordering,
+}) {
   const [categoryType, categoryId] = categoryValue.split(":");
   return {
     search: appliedSearch,
     subgroupId: categoryType === "subgrupo" ? categoryId : "",
     classificationId: categoryType === "classificacao" ? categoryId : "",
     uncategorized: categoryValue === "sem_categoria",
+    competenceId,
+    upsId,
+    unit,
+    stockStatus,
+    ordering,
   };
 }
 
@@ -34,7 +59,7 @@ function requestErrorMessage(error) {
     return "A API está temporariamente indisponível. Tente novamente.";
   }
   if (error.status === 200) {
-    return "A API retornou uma resposta inesperada.";
+    return error.message || "A API retornou uma resposta inesperada.";
   }
   if (error.status === 401 || error.status === 403) {
     return "Sua sessão não está disponível. Entre novamente.";
@@ -47,9 +72,18 @@ function MedicamentosPage() {
   const [medications, setMedications] = useState([]);
   const [subgroups, setSubgroups] = useState([]);
   const [classifications, setClassifications] = useState([]);
+  const [competencies, setCompetencies] = useState([]);
+  const [upsOptions, setUpsOptions] = useState([]);
+  const [units, setUnits] = useState([]);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [categoryValue, setCategoryValue] = useState("");
+  const [competenceId, setCompetenceId] = useState("");
+  const [defaultCompetenceId, setDefaultCompetenceId] = useState("");
+  const [upsId, setUpsId] = useState("");
+  const [unit, setUnit] = useState("");
+  const [stockStatus, setStockStatus] = useState("");
+  const [ordering, setOrdering] = useState("descricao");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [error, setError] = useState("");
@@ -67,9 +101,10 @@ function MedicamentosPage() {
     let isCurrent = true;
 
     async function loadCategories() {
-      const [subgroupResult, classificationResult] = await Promise.allSettled([
+      const [subgroupResult, classificationResult, optionsResult] = await Promise.allSettled([
         getMedicationSubgroups(),
         getClassifications(),
+        getMedicationOptions(),
       ]);
       if (!isCurrent) return;
 
@@ -79,9 +114,23 @@ function MedicamentosPage() {
       if (classificationResult.status === "fulfilled") {
         setClassifications(classificationResult.value);
       }
+      if (optionsResult.status === "fulfilled") {
+        const options = optionsResult.value;
+        const initialCompetenceId = options.competencia_padrao_id
+          ? String(options.competencia_padrao_id)
+          : options.competencias[0]?.id
+            ? String(options.competencias[0].id)
+            : "";
+        setCompetencies(options.competencias);
+        setUpsOptions(options.ups);
+        setUnits(options.unidades);
+        setDefaultCompetenceId(initialCompetenceId);
+        setCompetenceId(initialCompetenceId);
+      }
       if (
         subgroupResult.status === "rejected"
         || classificationResult.status === "rejected"
+        || optionsResult.status === "rejected"
       ) {
         setCategoryError("Não foi possível carregar todas as categorias.");
       }
@@ -102,7 +151,15 @@ function MedicamentosPage() {
       setError("");
       try {
         const data = await getMedications(
-          medicationFilters(appliedSearch, categoryValue),
+          medicationFilters({
+            appliedSearch,
+            categoryValue,
+            competenceId,
+            upsId,
+            unit,
+            stockStatus,
+            ordering,
+          }),
         );
         if (isCurrent) setMedications(data);
       } catch (requestError) {
@@ -119,7 +176,7 @@ function MedicamentosPage() {
     return () => {
       isCurrent = false;
     };
-  }, [appliedSearch, categoryValue]);
+  }, [appliedSearch, categoryValue, competenceId, upsId, unit, stockStatus, ordering]);
 
   function handleSearch(event) {
     event.preventDefault();
@@ -138,6 +195,11 @@ function MedicamentosPage() {
     setSearchInput("");
     setAppliedSearch("");
     setCategoryValue("");
+    setCompetenceId(defaultCompetenceId);
+    setUpsId("");
+    setUnit("");
+    setStockStatus("");
+    setOrdering("descricao");
   }
 
   function changeCategory(value) {
@@ -217,7 +279,15 @@ function MedicamentosPage() {
   async function refreshMedicationsAfterBulkOperation() {
     try {
       const updatedMedications = await getMedications(
-        medicationFilters(appliedSearch, categoryValue),
+        medicationFilters({
+          appliedSearch,
+          categoryValue,
+          competenceId,
+          upsId,
+          unit,
+          stockStatus,
+          ordering,
+        }),
       );
       setMedications(updatedMedications);
       setError("");
@@ -263,6 +333,16 @@ function MedicamentosPage() {
     }
   }
 
+  const selectedCompetence = competencies.find(
+    (item) => String(item.id) === String(competenceId),
+  );
+  const selectedUps = upsOptions.find(
+    (item) => String(item.id) === String(upsId),
+  );
+  const competenceLabel = selectedCompetence
+    ? `${String(selectedCompetence.mes).padStart(2, "0")}/${selectedCompetence.ano}`
+    : "Competência não selecionada";
+
   return (
     <main className="medications-page">
       <header className="page-heading medications-page__heading">
@@ -281,16 +361,67 @@ function MedicamentosPage() {
         <MedicationFilters
           searchInput={searchInput}
           categoryValue={categoryValue}
+          competenceId={competenceId}
+          defaultCompetenceId={defaultCompetenceId}
+          upsId={upsId}
+          unit={unit}
+          stockStatus={stockStatus}
+          ordering={ordering}
           classifications={classifications}
           subgroups={subgroups}
+          competencies={competencies}
+          upsOptions={upsOptions}
+          units={units}
           isLoading={isLoading}
           isLoadingCategories={isLoadingCategories}
           onSearchInputChange={setSearchInput}
           onSearch={handleSearch}
           onCategoryChange={changeCategory}
+          onCompetenceChange={(value) => {
+            clearSelection();
+            setCompetenceId(value);
+          }}
+          onUpsChange={(value) => {
+            clearSelection();
+            setUpsId(value);
+          }}
+          onUnitChange={(value) => {
+            clearSelection();
+            setUnit(value);
+          }}
+          onStockStatusChange={(value) => {
+            clearSelection();
+            setStockStatus(value);
+          }}
+          onOrderingChange={(value) => {
+            clearSelection();
+            setOrdering(value);
+          }}
           onClearSearch={clearSearch}
           onClearFilters={clearFilters}
         />
+
+        <div className="medication-stock-context" role="status">
+          <div>
+            <CalendarDays size={18} aria-hidden="true" />
+            <span>
+              <small>Competência do saldo</small>
+              <strong>{competenceLabel}</strong>
+            </span>
+          </div>
+          <div>
+            <MapPin size={18} aria-hidden="true" />
+            <span>
+              <small>Origem do estoque</small>
+              <strong>{selectedUps?.nome || "Todas as UPS participantes"}</strong>
+            </span>
+          </div>
+          <p>
+            {selectedUps
+              ? "Os valores exibidos pertencem somente a esta UPS."
+              : "O total soma as UPS e a coluna ao lado detalha quanto pertence a cada uma."}
+          </p>
+        </div>
 
         {categoryError && (
           <div className="medication-inline-warning" role="status">
@@ -308,10 +439,39 @@ function MedicamentosPage() {
               </p>
             )}
           </div>
-          {(appliedSearch || categoryValue) && !isLoading && (
+          {(appliedSearch || categoryValue || upsId || unit || stockStatus || ordering !== "descricao") && !isLoading && (
             <span>Filtros aplicados</span>
           )}
         </div>
+
+        {!isLoading && !error && medications.length > 0 && (
+          <div className="medication-stock-summary" aria-label="Resumo da consulta">
+            <div>
+              <small>Com estoque</small>
+              <strong>
+                {medications.filter((item) => item.situacao_estoque === "disponivel").length}
+              </strong>
+            </div>
+            <div>
+              <small>Sem estoque</small>
+              <strong>
+                {medications.filter((item) => item.situacao_estoque === "sem_estoque").length}
+              </strong>
+            </div>
+            <div>
+              <small>Validados</small>
+              <strong>
+                {medications.filter((item) => item.situacao_validacao === "validado").length}
+              </strong>
+            </div>
+            <div>
+              <small>Divergentes</small>
+              <strong>
+                {medications.filter((item) => item.situacao_validacao === "divergente").length}
+              </strong>
+            </div>
+          </div>
+        )}
 
         {selectedIds.length > 0 && (
           <div className="medication-selection-bar" aria-label="Ações da seleção">
@@ -389,6 +549,8 @@ function MedicamentosPage() {
           ) : (
             <MedicationList
               medications={medications}
+              selectedUpsId={upsId}
+              selectedUpsName={selectedUps?.nome || ""}
               onCategorySelect={changeCategory}
               onToggleAll={toggleAllVisible}
               onToggleMedication={toggleMedication}

@@ -97,6 +97,55 @@ class MedicamentoSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    competencia_estoque = serializers.SerializerMethodField()
+    estoque_por_ups = serializers.SerializerMethodField()
+    situacao_estoque = serializers.SerializerMethodField()
+    situacao_validacao = serializers.SerializerMethodField()
+
+    def get_competencia_estoque(self, medicamento):
+        competencia = self.context.get("competencia_estoque")
+        if competencia is None:
+            return None
+        return {
+            "id": competencia.pk,
+            "mes": competencia.mes,
+            "ano": competencia.ano,
+        }
+
+    def get_estoque_por_ups(self, medicamento):
+        competencia = self.context.get("competencia_estoque")
+        if competencia is None:
+            return []
+
+        quantidades = {}
+        for saldo in getattr(medicamento, "saldos_listagem", []):
+            quantidades[saldo.ups_id] = (
+                quantidades.get(saldo.ups_id, 0) + saldo.quantidade
+            )
+
+        return [
+            {
+                "ups_id": ups.pk,
+                "ups_nome": ups.nome,
+                "id_unidade_gmus": ups.id_unidade_gmus,
+                "quantidade": f"{quantidades.get(ups.pk, 0):.3f}",
+            }
+            for ups in self.context.get("ups_estoque", [])
+        ]
+
+    def get_situacao_estoque(self, medicamento):
+        if not self.context.get("dados_estoque_disponiveis", False):
+            return "sem_dados"
+        quantidade = getattr(medicamento, "quantidade_estoque_total", None)
+        if quantidade is None:
+            return "sem_dados"
+        return "disponivel" if quantidade > 0 else "sem_estoque"
+
+    def get_situacao_validacao(self, medicamento):
+        return self.context.get("situacoes_validacao", {}).get(
+            medicamento.pk,
+            "nao_validado",
+        )
 
     class Meta:
         model = Medicamento
@@ -109,6 +158,10 @@ class MedicamentoSerializer(serializers.ModelSerializer):
             "principios_ativos",
             "classificacoes",
             "quantidade_estoque_total",
+            "competencia_estoque",
+            "estoque_por_ups",
+            "situacao_estoque",
+            "situacao_validacao",
         ]
 
 

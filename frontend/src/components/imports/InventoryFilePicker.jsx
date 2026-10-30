@@ -6,8 +6,8 @@ function formatFileSize(size) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function InventoryFilePicker({ file, disabled, onChange, onRemove }) {
-  const inputId = "inventory-file";
+function InventoryFilePicker({ file, disabled, onChange, onRemove, reportLabel }) {
+  const inputId = "stock-report-file";
 
   function handleChange(event) {
     onChange(event.target.files?.[0] || null);
@@ -57,7 +57,7 @@ function InventoryFilePicker({ file, disabled, onChange, onRemove }) {
             <Upload size={28} />
           </span>
           <div>
-            <strong>Selecione o relatório de inventário</strong>
+            <strong>Selecione o relatório de {reportLabel.toLowerCase()}</strong>
             <p>Arquivo CSV exportado pelo G-MUS.</p>
           </div>
           <label className="secondary-button" htmlFor={inputId}>

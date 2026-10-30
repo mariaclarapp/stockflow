@@ -1,28 +1,61 @@
 import csv
 import logging
 
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from .parsers import UnknownReportTypeError, parse_report_csv
-from .serializers import InventoryUploadSerializer
+from .models import Importacao, MovimentacaoEstoque
+from .serializers import ImportacaoSerializer, InventoryUploadSerializer
+from .serializers import MovimentacaoEstoqueSerializer
 from .services import (
     InventoryImportConflictError,
     InventoryPersistenceError,
-    persist_inventory_import,
+    persist_movement_import,
+    persist_stock_import,
+    delete_importacao,
 )
 
 
 logger = logging.getLogger(__name__)
 
 
-class InventoryUploadAPIView(APIView):
+class MovimentacaoEstoqueViewSet(ReadOnlyModelViewSet):
+    queryset = MovimentacaoEstoque.objects.select_related(
+        "medicamento", "ups", "competencia", "importacao"
+    )
+    serializer_class = MovimentacaoEstoqueSerializer
+    permission_classes = [IsAdminUser]
+
+
+class ImportacaoViewSet(ReadOnlyModelViewSet):
+    queryset = Importacao.objects.filter(
+        tipo_relatorio__in=("estoque", "movimentacao")
+    ).select_related("competencia", "ups", "usuario")
+    serializer_class = ImportacaoSerializer
+    permission_classes = [IsAdminUser]
+
+
+class ImportacaoDeleteAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def delete(self, request, pk):
+        get_object_or_404(Importacao, pk=pk)
+        result = delete_importacao(importacao_id=pk)
+        return Response({"importacao_id": pk, **result}, status=status.HTTP_200_OK)
+
+
+class ReportUploadAPIView(APIView):
     parser_classes = [MultiPartParser, FormParser]
     permission_classes = [IsAdminUser]
 
+
+class StockUploadAPIView(ReportUploadAPIView):
     def post(self, request):
         serializer = InventoryUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -33,8 +66,7 @@ class InventoryUploadAPIView(APIView):
             parsed_data = parse_report_csv(arquivo)
         except UnknownReportTypeError as error:
             return Response(
-                {"erro": str(error)},
-                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {"erro": str(error)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
             )
         except (csv.Error, UnicodeError, ValueError):
             return Response(
@@ -42,42 +74,39 @@ class InventoryUploadAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        if parsed_data.get("tipo_relatorio") != "estoque":
+            return Response(
+                {"erro": "Envie um relatorio de Consulta de Estoque."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
         blocking_errors = [
             item
             for item in parsed_data.get("inconsistencies", [])
-            if item.get("severity", "error") == "error"
-            and item.get("line") is None
+            if item.get("severity", "error") == "error" and item.get("line") is None
         ]
         if blocking_errors or not parsed_data.get("records"):
             return Response(
                 {
                     "erro": "O arquivo nao possui registros processaveis.",
-                    "inconsistencias": [
-                        _serialize_issue(item) for item in blocking_errors
-                    ],
+                    "inconsistencias": [_serialize_issue(item) for item in blocking_errors],
                 },
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
         try:
-            summary = persist_inventory_import(
+            summary = persist_stock_import(
                 parsed_data=parsed_data,
                 user=request.user,
                 nome_arquivo=arquivo.name,
                 reimportar=reimportar,
             )
         except InventoryImportConflictError as error:
-            return Response(
-                {"erro": str(error)},
-                status=status.HTTP_409_CONFLICT,
-            )
+            return Response({"erro": str(error)}, status=status.HTTP_409_CONFLICT)
         except InventoryPersistenceError as error:
-            return Response(
-                {"erro": str(error)},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"erro": str(error)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception:
-            logger.exception("Falha inesperada ao persistir inventario.")
+            logger.exception("Falha inesperada ao persistir estoque.")
             return Response(
                 {"erro": "Ocorreu um erro inesperado ao processar a importacao."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -85,12 +114,37 @@ class InventoryUploadAPIView(APIView):
 
         return Response(
             _build_success_response(summary),
-            status=(
-                status.HTTP_200_OK
-                if summary["reimportacao"]
-                else status.HTTP_201_CREATED
-            ),
+            status=status.HTTP_200_OK if summary["reimportacao"] else status.HTTP_201_CREATED,
         )
+
+
+class MovementUploadAPIView(ReportUploadAPIView):
+    def post(self, request):
+        serializer = InventoryUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        arquivo = serializer.validated_data["arquivo"]
+        reimportar = serializer.validated_data["reimportar"]
+        try:
+            parsed_data = parse_report_csv(arquivo)
+        except UnknownReportTypeError as error:
+            return Response({"erro": str(error)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except (csv.Error, UnicodeError, ValueError):
+            return Response({"erro": "Nao foi possivel interpretar o arquivo CSV."}, status=status.HTTP_400_BAD_REQUEST)
+        if parsed_data.get("tipo_relatorio") != "movimentacao":
+            return Response({"erro": "Envie um relatorio de movimentacao sintetica."}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        blocking_errors = [item for item in parsed_data.get("inconsistencies", []) if item.get("severity", "error") == "error" and item.get("line") is None]
+        if blocking_errors or not parsed_data.get("records"):
+            return Response({"erro": "O arquivo nao possui registros processaveis.", "inconsistencias": [_serialize_issue(item) for item in blocking_errors]}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        try:
+            summary = persist_movement_import(parsed_data=parsed_data, user=request.user, nome_arquivo=arquivo.name, reimportar=reimportar)
+        except InventoryImportConflictError as error:
+            return Response({"erro": str(error)}, status=status.HTTP_409_CONFLICT)
+        except InventoryPersistenceError as error:
+            return Response({"erro": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            logger.exception("Falha inesperada ao persistir movimentacoes.")
+            return Response({"erro": "Ocorreu um erro inesperado ao processar a importacao."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(_build_success_response(summary), status=status.HTTP_200_OK if summary["reimportacao"] else status.HTTP_201_CREATED)
 
 
 def _build_success_response(summary):
@@ -118,6 +172,9 @@ def _build_success_response(summary):
         "lotes_criados": summary["lotes_criados"],
         "lotes_reutilizados": summary["lotes_reutilizados"],
         "estoques_criados": summary["estoques_criados"],
+        "quantidade_nao_associada": summary.get(
+            "quantidade_nao_associada", importacao.quantidade_nao_associada
+        ),
         "divergencias": [
             _serialize_issue(item) for item in summary.get("divergencias", [])
         ],

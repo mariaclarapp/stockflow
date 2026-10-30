@@ -1,5 +1,9 @@
 # StockFlow Frontend
 
+A rota `/admin/analises` apresenta consumo, media mensal, evolucao, ranking, consumo
+por UPS, comparacao entre periodos e exportacao CSV. A antiga conferencia mensal esta
+preservada em `/admin/validacao`.
+
 Frontend web do StockFlow desenvolvido com React e Vite, em JavaScript. A aplicacao
 reune a consulta publica de medicamentos e o modulo administrativo autenticado.
 
@@ -172,3 +176,17 @@ implementados. A Visao geral apresenta indicadores operacionais de competencia, 
 importacoes, medicamentos e registros de estoque. Analises baseadas em consumo,
 cobertura, giro ou necessidade de compra continuam desabilitadas e condicionadas a uma
 fonte de consumo validada. Configuracoes continua desabilitada.
+
+## Conferencia de estoque
+
+A rota `/admin/analises` permite selecionar uma competencia e uma UPS para comparar o
+saldo da `Consulta de Estoque` com a soma do inventario detalhado por medicamento. A
+conferencia apresenta os totais, as diferencas e a situacao de cada medicamento, sem
+alterar os relatorios importados.
+
+A mesma tela valida as movimentações mensais quando existem estoque anterior, relatório
+de movimentações e saldo final: `estoque anterior + entradas - saídas = estoque esperado`.
+
+O resumo de uma importação também oferece a exclusão confirmada da importação. Essa
+ação remove os registros derivados, mas preserva o cadastro compartilhado de
+medicamentos e lotes.

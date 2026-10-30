@@ -8,6 +8,8 @@ from django.db.models import (
     Exists,
     IntegerField,
     OuterRef,
+    Prefetch,
+    Q,
     Subquery,
     Sum,
     Value,
@@ -15,9 +17,11 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 
-from core.models import Ups
+from core.models import Competencia, Ups
 from core.services import CompetenciaService
-from estoques.models import Estoque
+from estoques.models import SaldoEstoque
+from estoques.services import calcular_validacao_movimentacao
+from importacoes.models import MovimentacaoEstoque
 
 from .domain import CLASSIFICACAO_MANIPULADO
 from .models import Classificacao, Medicamento
@@ -43,31 +47,148 @@ def normalizar_ids_medicamentos(valor):
 
 class EstoqueTotalAdministrativoService:
     @classmethod
-    def anotar_quantidade(cls, queryset):
-        competencia = CompetenciaService.identificar_competencia_completa()
+    def competencia_padrao(cls):
+        return (
+            CompetenciaService.identificar_competencia_completa()
+            or CompetenciaService.identificar_competencia_disponivel()
+        )
+
+    @classmethod
+    def preparar_listagem(
+        cls,
+        queryset,
+        *,
+        competencia=None,
+        ups=None,
+        dados_disponiveis=True,
+    ):
         campo_quantidade = DecimalField(max_digits=14, decimal_places=3)
 
-        if competencia is None:
+        if competencia is None or not dados_disponiveis:
             return queryset.annotate(
                 quantidade_estoque_total=Value(None, output_field=campo_quantidade)
             )
 
-        estoque_total = (
-            Estoque.objects.filter(
+        filtros_saldo = {
+            "competencia": competencia,
+            "ups__participa_competencia": True,
+        }
+        if ups is not None:
+            filtros_saldo["ups"] = ups
+
+        saldo_total = (
+            SaldoEstoque.objects.filter(
                 medicamento_id=OuterRef("pk"),
-                competencia=competencia,
-                ups__participa_competencia=True,
+                **filtros_saldo,
             )
             .values("medicamento_id")
             .annotate(total=Sum("quantidade"))
             .values("total")[:1]
         )
-        return queryset.annotate(
+        saldos_listagem = SaldoEstoque.objects.filter(**filtros_saldo).select_related(
+            "ups"
+        )
+        return queryset.prefetch_related(
+            Prefetch(
+                "saldos_estoque",
+                queryset=saldos_listagem,
+                to_attr="saldos_listagem",
+            )
+        ).annotate(
             quantidade_estoque_total=Coalesce(
-                Subquery(estoque_total, output_field=campo_quantidade),
+                Subquery(saldo_total, output_field=campo_quantidade),
                 Value(Decimal("0.000"), output_field=campo_quantidade),
             )
         )
+
+    @classmethod
+    def anotar_quantidade(cls, queryset):
+        return cls.preparar_listagem(
+            queryset,
+            competencia=cls.competencia_padrao(),
+        )
+
+
+class SituacaoValidacaoMedicamentosService:
+    PRIORIDADE = {
+        "validado": 1,
+        "nao_validado": 2,
+        "divergente": 3,
+    }
+
+    @classmethod
+    def construir(cls, *, competencia, ups):
+        if competencia is None or not ups:
+            return {}
+
+        situacoes = {}
+        ups_sem_dados = False
+        for unidade in ups:
+            atual = {
+                item.medicamento_id: item.quantidade
+                for item in SaldoEstoque.objects.filter(
+                    competencia=competencia,
+                    ups=unidade,
+                )
+            }
+            if not atual:
+                ups_sem_dados = True
+
+            anterior = (
+                Competencia.objects.filter(
+                    Q(ano__lt=competencia.ano)
+                    | Q(ano=competencia.ano, mes__lt=competencia.mes),
+                    saldos_estoque__ups=unidade,
+                )
+                .distinct()
+                .order_by("-ano", "-mes")
+                .first()
+            )
+            valores_anteriores = {}
+            if anterior is not None:
+                valores_anteriores = {
+                    item.medicamento_id: item.quantidade
+                    for item in SaldoEstoque.objects.filter(
+                        competencia=anterior,
+                        ups=unidade,
+                    )
+                }
+
+            movimentacoes = {
+                item.medicamento_id: item
+                for item in MovimentacaoEstoque.objects.filter(
+                    competencia=competencia,
+                    ups=unidade,
+                )
+            }
+            medicamento_ids = set(atual) | set(valores_anteriores) | set(movimentacoes)
+            for medicamento_id in medicamento_ids:
+                resultado = calcular_validacao_movimentacao(
+                    medicamento=None,
+                    movimentacao=movimentacoes.get(medicamento_id),
+                    estoque_anterior=valores_anteriores.get(medicamento_id),
+                    estoque_atual=atual.get(medicamento_id),
+                )
+                situacao = {
+                    "conferido": "validado",
+                    "divergente": "divergente",
+                    "sem_base_completa": "nao_validado",
+                }[resultado["situacao"]]
+                anterior_registrada = situacoes.get(medicamento_id)
+                if (
+                    anterior_registrada is None
+                    or cls.PRIORIDADE[situacao] > cls.PRIORIDADE[anterior_registrada]
+                ):
+                    situacoes[medicamento_id] = situacao
+
+        if ups_sem_dados:
+            situacoes = {
+                medicamento_id: (
+                    situacao if situacao == "divergente" else "nao_validado"
+                )
+                for medicamento_id, situacao in situacoes.items()
+            }
+        return situacoes
 
 
 class MedicamentoComparacaoService:
@@ -76,8 +197,11 @@ class MedicamentoComparacaoService:
         ups_participantes = list(
             Ups.objects.filter(participa_competencia=True).order_by("id")
         )
-        competencia = CompetenciaService.identificar_competencia_completa(
-            total_ups_participantes=len(ups_participantes)
+        competencia = (
+            CompetenciaService.identificar_competencia_completa(
+                total_ups_participantes=len(ups_participantes)
+            )
+            or CompetenciaService.identificar_competencia_disponivel()
         )
         ordem = Case(
             *[
@@ -96,7 +220,7 @@ class MedicamentoComparacaoService:
         quantidades = {}
         if competencia is not None and medicamentos:
             linhas = (
-                Estoque.objects.filter(
+                SaldoEstoque.objects.filter(
                     competencia=competencia,
                     medicamento_id__in=[item.pk for item in medicamentos],
                     ups_id__in=[ups.pk for ups in ups_participantes],
@@ -108,7 +232,6 @@ class MedicamentoComparacaoService:
                 (linha["medicamento_id"], linha["ups_id"]): linha["quantidade"]
                 for linha in linhas
             }
-
         return {
             "competencia": competencia,
             "ups": ups_participantes if competencia is not None else [],
@@ -255,7 +378,7 @@ class DisponibilidadePublicaService:
 
         campo_saldo = DecimalField(max_digits=14, decimal_places=3)
         saldo_convencional = (
-            Estoque.objects.filter(
+            SaldoEstoque.objects.filter(
                 medicamento_id=OuterRef("pk"),
                 competencia=competencia,
                 ups__compoe_estoque_convencional=True,

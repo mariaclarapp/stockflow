@@ -21,6 +21,11 @@ export async function getMedications({
   classificationId = "",
   uncategorized = false,
   ids = [],
+  competenceId = "",
+  upsId = "",
+  unit = "",
+  stockStatus = "",
+  ordering = "descricao",
 } = {}) {
   const query = new URLSearchParams();
   if (search) query.set("search", search);
@@ -28,9 +33,62 @@ export async function getMedications({
   if (classificationId) query.set("classificacao", classificationId);
   if (uncategorized) query.set("sem_categoria", "true");
   if (ids.length) query.set("ids", ids.join(","));
+  if (competenceId) query.set("competencia", competenceId);
+  if (upsId) query.set("ups", upsId);
+  if (unit) query.set("unidade", unit);
+  if (stockStatus) query.set("situacao", stockStatus);
+  if (ordering) query.set("ordenacao", ordering);
+  query.set("contrato_estoque", "2");
 
   const suffix = query.size ? `?${query.toString()}` : "";
-  return ensureList(await apiRequest(`/api/medicamentos/${suffix}`));
+  const data = ensureList(
+    await apiRequest(`/api/medicamentos/${suffix}`, { cache: "no-store" }),
+  );
+  if (
+    data.length
+    && (
+      !Object.hasOwn(data[0], "estoque_por_ups")
+      || !Object.hasOwn(data[0], "situacao_estoque")
+      || !Object.hasOwn(data[0], "situacao_validacao")
+    )
+  ) {
+    throw new ApiError(
+      "O backend está executando uma versão anterior. Reinicie o servidor da API para carregar os saldos por UPS.",
+      200,
+    );
+  }
+  return data;
+}
+
+export async function getMedicationOptions() {
+  let data;
+  try {
+    data = ensureObject(
+      await apiRequest("/api/medicamentos/opcoes/?contrato_estoque=2", {
+        cache: "no-store",
+      }),
+    );
+  } catch (error) {
+    const [competencias, ups] = await Promise.all([
+      apiRequest("/api/competencias/"),
+      apiRequest("/api/ups/"),
+    ]);
+    data = {
+      competencia_padrao_id: competencias[0]?.id || null,
+      competencias,
+      ups: ups.filter((item) => item.participa_competencia),
+      unidades: [],
+    };
+    if (!data.competencias.length && !data.ups.length) throw error;
+  }
+  if (
+    !Array.isArray(data.competencias)
+    || !Array.isArray(data.ups)
+    || !Array.isArray(data.unidades)
+  ) {
+    throw new ApiError("A API retornou uma resposta inesperada.", 200);
+  }
+  return data;
 }
 
 export async function getMedicationComparison(ids) {

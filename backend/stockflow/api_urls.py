@@ -13,8 +13,20 @@ from core.views import (
     DashboardResumoAPIView,
     UpsViewSet,
 )
-from estoques.views import HistoricoMedicamentoAPIView, EstoqueViewSet, LoteViewSet
-from importacoes.views import InventoryUploadAPIView
+from estoques.views import (
+    AnaliseConsumoAPIView,
+    HistoricoMedicamentoAPIView,
+    EstoqueViewSet,
+    SaldoEstoqueViewSet,
+    ValidacaoMovimentacoesAPIView,
+)
+from importacoes.views import (
+    ImportacaoDeleteAPIView,
+    ImportacaoViewSet,
+    MovementUploadAPIView,
+    MovimentacaoEstoqueViewSet,
+    StockUploadAPIView,
+)
 from medicamentos.views import (
     ClassificacaoViewSet,
     MedicamentoViewSet,
@@ -31,8 +43,10 @@ router.register("classificacoes", ClassificacaoViewSet, basename="classificacao"
 router.register("medicamentos", MedicamentoViewSet, basename="medicamento")
 router.register("ups", UpsViewSet, basename="ups")
 router.register("competencias", CompetenciaViewSet, basename="competencia")
-router.register("lotes", LoteViewSet, basename="lote")
 router.register("estoques", EstoqueViewSet, basename="estoque")
+router.register("saldos-estoque", SaldoEstoqueViewSet, basename="saldo-estoque")
+router.register("movimentacoes", MovimentacaoEstoqueViewSet, basename="movimentacao")
+router.register("importacoes", ImportacaoViewSet, basename="importacao")
 
 urlpatterns = [
     path("auth/csrf/", CsrfCookieAPIView.as_view(), name="auth-csrf"),
@@ -60,8 +74,28 @@ urlpatterns = [
         name="medicamento-historico",
     ),
     path(
-        "importacoes/inventario/",
-        InventoryUploadAPIView.as_view(),
-        name="inventory-import-upload",
+        "analises/consumo/",
+        AnaliseConsumoAPIView.as_view(),
+        name="analise-consumo",
+    ),
+    path(
+        "estoques/validacao-movimentacoes/",
+        ValidacaoMovimentacoesAPIView.as_view(),
+        name="estoque-validacao-movimentacoes",
+    ),
+    path(
+        "importacoes/estoque/",
+        StockUploadAPIView.as_view(),
+        name="stock-import-upload",
+    ),
+    path(
+        "importacoes/movimentacoes/",
+        MovementUploadAPIView.as_view(),
+        name="movement-import-upload",
+    ),
+    path(
+        "importacoes/<int:pk>/",
+        ImportacaoDeleteAPIView.as_view(),
+        name="importacao-delete",
     ),
 ] + router.urls

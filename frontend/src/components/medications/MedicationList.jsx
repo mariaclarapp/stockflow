@@ -1,5 +1,16 @@
-import { ArrowRight, CircleSlash2, Layers3, PackageSearch, Pill, Tag } from "lucide-react";
-import { useEffect, useRef } from "react";
+import {
+  ArrowRight,
+  AlertTriangle,
+  CheckCircle2,
+  CircleHelp,
+  CircleSlash2,
+  Clock3,
+  Layers3,
+  MapPin,
+  PackageSearch,
+  Pill,
+  Tag,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { classificationStyle } from "./classificationPresentation";
@@ -50,68 +61,60 @@ export function MedicationCategoryBadges({ medication, onCategorySelect }) {
 
   return (
     <span className="medication-category-badges">
-        {hasOfficialCategory ? (
-          <CategoryBadge
-            filterValue={`subgrupo:${medication.subgrupo_gmus.id}`}
-            icon={Layers3}
-            onSelect={onCategorySelect}
-            type="subgroup"
-          >
-            {subgroupText(medication.subgrupo_gmus)}
-          </CategoryBadge>
-        ) : manualCategories.length ? (
-          manualCategories.map((classification) => (
-            <CategoryBadge
-              key={classification.id}
-              filterValue={classification.ativo
-                ? `classificacao:${classification.id}`
-                : ""}
-              icon={Tag}
-              onSelect={onCategorySelect}
-              style={classificationStyle(classification.cor)}
-              type="manual"
-            >
-              {classification.nome}
-            </CategoryBadge>
-          ))
-        ) : (
-          <CategoryBadge
-            filterValue="sem_categoria"
-            icon={CircleSlash2}
-            onSelect={onCategorySelect}
-            type="unclassified"
-          >
-            Não classificado
-          </CategoryBadge>
-        )}
-
-        {manipulated.map((classification) => (
+      {hasOfficialCategory ? (
+        <CategoryBadge
+          filterValue={`subgrupo:${medication.subgrupo_gmus.id}`}
+          icon={Layers3}
+          onSelect={onCategorySelect}
+          type="subgroup"
+        >
+          {subgroupText(medication.subgrupo_gmus)}
+        </CategoryBadge>
+      ) : manualCategories.length ? (
+        manualCategories.map((classification) => (
           <CategoryBadge
             key={classification.id}
-            filterValue={classification.ativo
-              ? `classificacao:${classification.id}`
-              : ""}
+            filterValue={classification.ativo ? `classificacao:${classification.id}` : ""}
             icon={Tag}
             onSelect={onCategorySelect}
             style={classificationStyle(classification.cor)}
-            type="manipulated"
+            type="manual"
           >
             {classification.nome}
           </CategoryBadge>
-        ))}
+        ))
+      ) : (
+        <CategoryBadge
+          filterValue="sem_categoria"
+          icon={CircleSlash2}
+          onSelect={onCategorySelect}
+          type="unclassified"
+        >
+          Não classificado
+        </CategoryBadge>
+      )}
+
+      {manipulated.map((classification) => (
+        <CategoryBadge
+          key={classification.id}
+          filterValue={classification.ativo ? `classificacao:${classification.id}` : ""}
+          icon={Tag}
+          onSelect={onCategorySelect}
+          style={classificationStyle(classification.cor)}
+          type="manipulated"
+        >
+          {classification.nome}
+        </CategoryBadge>
+      ))}
     </span>
   );
 }
 
 function MedicationDetails({ medication, onCategorySelect }) {
   const principles = medication.principios_ativos || [];
-
   return (
     <div className="medication-details">
-      <MedicationCategoryBadges
-        medication={medication}
-        onCategorySelect={onCategorySelect}
-      />
+      <MedicationCategoryBadges medication={medication} onCategorySelect={onCategorySelect} />
       {principles.length > 0 && (
         <span className="medication-principles">
           {principles.map((principle) => principle.nome).join(", ")}
@@ -121,46 +124,68 @@ function MedicationDetails({ medication, onCategorySelect }) {
   );
 }
 
-function SelectionCheckbox({ checked, disabled, medication, onChange }) {
+function StockStatus({ status }) {
+  const [modifier, Icon, label] = {
+    disponivel: ["available", CheckCircle2, "Com estoque"],
+    sem_estoque: ["empty", CircleSlash2, "Sem estoque"],
+    sem_dados: ["unknown", CircleHelp, "Sem dados"],
+  }[status] || ["unknown", CircleHelp, "Sem dados"];
+
   return (
-    <label className="medication-selection-checkbox">
-      <input
-        type="checkbox"
-        checked={checked}
-        disabled={disabled}
-        onChange={onChange}
-        aria-label={`Selecionar ${medication.descricao}`}
-      />
-      <span aria-hidden="true" />
-    </label>
+    <span className={`medication-stock-status medication-stock-status--${modifier}`}>
+      <Icon size={13} aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+function ValidationStatus({ status }) {
+  const [modifier, Icon, label] = {
+    validado: ["validated", CheckCircle2, "Validado"],
+    divergente: ["divergent", AlertTriangle, "Divergente"],
+    nao_validado: ["pending", Clock3, "Não validado"],
+  }[status] || ["pending", Clock3, "Não validado"];
+
+  return (
+    <span className={`medication-validation-status medication-validation-status--${modifier}`}>
+      <Icon size={13} aria-hidden="true" />
+      {label}
+    </span>
+  );
+}
+
+function StockByUps({ items }) {
+  if (!items?.length) {
+    return <span className="medication-ups-empty">Sem dados por UPS</span>;
+  }
+  return (
+    <span className="medication-ups-stock">
+      {items.map((item) => (
+        <span className="medication-ups-stock__item" key={item.ups_id}>
+          <MapPin size={11} aria-hidden="true" />
+          <span className="medication-ups-stock__identity" title={item.ups_nome}>
+            <b>{item.ups_nome}</b>
+            {item.id_unidade_gmus && (
+              <small>Unidade G-MUS {item.id_unidade_gmus}</small>
+            )}
+          </span>
+          <strong>{stockQuantityText(item.quantidade)}</strong>
+        </span>
+      ))}
+    </span>
   );
 }
 
 function MedicationList({
   medications,
+  selectedUpsId,
+  selectedUpsName,
   onCategorySelect,
-  onToggleAll,
-  onToggleMedication,
-  selectedIds,
-  selectionLimit,
 }) {
-  const selectAllRef = useRef(null);
-  const selectedSet = new Set(selectedIds);
-  const allVisibleSelected = medications.every((item) => selectedSet.has(item.id));
-  const someVisibleSelected = medications.some((item) => selectedSet.has(item.id));
-
-  useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate = someVisibleSelected && !allVisibleSelected;
-    }
-  }, [allVisibleSelected, someVisibleSelected]);
-
   if (!medications.length) {
     return (
       <div className="medication-empty-state">
-        <span aria-hidden="true">
-          <PackageSearch size={27} />
-        </span>
+        <span aria-hidden="true"><PackageSearch size={27} /></span>
         <div>
           <strong>Nenhum medicamento encontrado</strong>
           <p>Nenhum medicamento corresponde aos filtros informados.</p>
@@ -172,52 +197,48 @@ function MedicationList({
   return (
     <>
       <div className="medication-table-wrapper">
-        <table className="medication-table">
+        <table className={`medication-table${selectedUpsId ? " medication-table--single-ups" : ""}`}>
           <thead>
             <tr>
-              <th className="medication-table__selection" scope="col">
-                <label className="medication-selection-checkbox">
-                  <input
-                    ref={selectAllRef}
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    onChange={onToggleAll}
-                    aria-label="Selecionar todos os medicamentos visíveis"
-                  />
-                  <span aria-hidden="true" />
-                </label>
-              </th>
               <th scope="col">Código</th>
               <th scope="col">Medicamento / Categoria</th>
               <th scope="col">Unidade</th>
-              <th scope="col">Estoque total</th>
+              <th scope="col">{selectedUpsId ? "Estoque na UPS" : "Estoque total"}</th>
+              <th scope="col">Por UPS</th>
+              <th scope="col">Situação</th>
               <th scope="col"><span className="visually-hidden">Ação</span></th>
             </tr>
           </thead>
           <tbody>
             {medications.map((medication) => (
               <tr key={medication.id}>
-                <td className="medication-table__selection">
-                  <SelectionCheckbox
-                    checked={selectedSet.has(medication.id)}
-                    disabled={selectedIds.length >= selectionLimit && !selectedSet.has(medication.id)}
-                    medication={medication}
-                    onChange={() => onToggleMedication(medication.id)}
-                  />
-                </td>
-                <td>
-                  <span className="gmus-code">{medication.codigo_gmus}</span>
-                </td>
+                <td><span className="gmus-code">{medication.codigo_gmus}</span></td>
                 <td>
                   <strong className="medication-name">{medication.descricao}</strong>
-                  <MedicationDetails
-                    medication={medication}
-                    onCategorySelect={onCategorySelect}
-                  />
+                  <MedicationDetails medication={medication} onCategorySelect={onCategorySelect} />
+                  <Link
+                    className="medication-inline-detail-link"
+                    to={`/admin/medicamentos/${medication.id}`}
+                  >
+                    Ver detalhes
+                    <ArrowRight size={13} />
+                  </Link>
                 </td>
                 <td>{medication.unidade || "Não informada"}</td>
                 <td className="medication-stock-quantity">
                   {stockQuantityText(medication.quantidade_estoque_total)}
+                  {selectedUpsId && selectedUpsName && (
+                    <small className="medication-stock-origin">{selectedUpsName}</small>
+                  )}
+                </td>
+                <td>
+                  <StockByUps items={medication.estoque_por_ups} selectedUpsId={selectedUpsId} />
+                </td>
+                <td>
+                  <span className="medication-indicators">
+                    <StockStatus status={medication.situacao_estoque} />
+                    <ValidationStatus status={medication.situacao_validacao} />
+                  </span>
                 </td>
                 <td className="medication-table__action">
                   <Link
@@ -239,35 +260,29 @@ function MedicationList({
         {medications.map((medication) => (
           <article className="medication-card" key={medication.id}>
             <header>
-              <SelectionCheckbox
-                checked={selectedSet.has(medication.id)}
-                disabled={selectedIds.length >= selectionLimit && !selectedSet.has(medication.id)}
-                medication={medication}
-                onChange={() => onToggleMedication(medication.id)}
-              />
-              <span className="medication-card__icon" aria-hidden="true">
-                <Pill size={18} />
-              </span>
+              <span className="medication-card__icon" aria-hidden="true"><Pill size={18} /></span>
               <span className="gmus-code">{medication.codigo_gmus}</span>
               <span className="medication-unit">{medication.unidade || "Sem unidade"}</span>
             </header>
             <h3>{medication.descricao}</h3>
-            <MedicationDetails
-              medication={medication}
-              onCategorySelect={onCategorySelect}
-            />
+            <MedicationDetails medication={medication} onCategorySelect={onCategorySelect} />
             <dl>
               <div>
-                <dt>Estoque total</dt>
+                <dt>{selectedUpsId ? "Estoque na UPS" : "Estoque total"}</dt>
                 <dd className="medication-stock-quantity">
                   {stockQuantityText(medication.quantidade_estoque_total)}
                 </dd>
               </div>
+              <div>
+                <dt>Situação</dt>
+                <dd className="medication-indicators">
+                  <StockStatus status={medication.situacao_estoque} />
+                  <ValidationStatus status={medication.situacao_validacao} />
+                </dd>
+              </div>
             </dl>
-            <Link
-              className="medication-card__detail-link"
-              to={`/admin/medicamentos/${medication.id}`}
-            >
+            <StockByUps items={medication.estoque_por_ups} selectedUpsId={selectedUpsId} />
+            <Link className="medication-card__detail-link" to={`/admin/medicamentos/${medication.id}`}>
               Ver detalhes
               <ArrowRight size={15} />
             </Link>

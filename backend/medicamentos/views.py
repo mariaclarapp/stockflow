@@ -10,6 +10,9 @@ from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
+from core.models import Competencia, Ups
+from estoques.models import SaldoEstoque
+
 from .domain import (
     CLASSIFICACAO_MANIPULADO,
     descricao_possui_marcador_manipulado,
@@ -31,6 +34,7 @@ from .services import (
     DisponibilidadePublicaService,
     EstoqueTotalAdministrativoService,
     MedicamentoComparacaoService,
+    SituacaoValidacaoMedicamentosService,
     ClassificacaoMedicamentosLoteService,
     normalizar_ids_medicamentos,
 )
@@ -140,9 +144,144 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
     filterset_class = MedicamentoFilter
     search_fields = ["descricao", "codigo_gmus"]
 
+    def _competencia_estoque(self):
+        if hasattr(self, "_competencia_estoque_cache"):
+            return self._competencia_estoque_cache
+
+        competencia_id = self.request.query_params.get("competencia")
+        if competencia_id:
+            if not competencia_id.isdigit():
+                raise ValidationError({"competencia": "Informe uma competencia valida."})
+            competencia = get_object_or_404(Competencia, pk=competencia_id)
+        else:
+            competencia = EstoqueTotalAdministrativoService.competencia_padrao()
+        self._competencia_estoque_cache = competencia
+        return competencia
+
+    def _ups_estoque(self):
+        if hasattr(self, "_ups_estoque_cache"):
+            return self._ups_estoque_cache
+
+        ups_id = self.request.query_params.get("ups")
+        participantes = Ups.objects.filter(participa_competencia=True).order_by("nome")
+        if ups_id:
+            if not ups_id.isdigit():
+                raise ValidationError({"ups": "Informe uma UPS valida."})
+            self._ups_estoque_cache = [
+                get_object_or_404(participantes, pk=ups_id)
+            ]
+        else:
+            self._ups_estoque_cache = list(participantes)
+        return self._ups_estoque_cache
+
+    def _dados_estoque_disponiveis(self):
+        if hasattr(self, "_dados_estoque_disponiveis_cache"):
+            return self._dados_estoque_disponiveis_cache
+        competencia = self._competencia_estoque()
+        if competencia is None:
+            disponiveis = False
+        else:
+            disponiveis = SaldoEstoque.objects.filter(
+                competencia=competencia,
+                ups_id__in=[item.pk for item in self._ups_estoque()],
+            ).exists()
+        self._dados_estoque_disponiveis_cache = disponiveis
+        return disponiveis
+
+    def _situacoes_validacao(self):
+        if not hasattr(self, "_situacoes_validacao_cache"):
+            self._situacoes_validacao_cache = (
+                SituacaoValidacaoMedicamentosService.construir(
+                    competencia=self._competencia_estoque(),
+                    ups=self._ups_estoque(),
+                )
+            )
+        return self._situacoes_validacao_cache
+
     def get_queryset(self):
-        return EstoqueTotalAdministrativoService.anotar_quantidade(
-            super().get_queryset()
+        competencia = self._competencia_estoque()
+        ups_selecionadas = self._ups_estoque()
+        ups = ups_selecionadas[0] if self.request.query_params.get("ups") else None
+        queryset = EstoqueTotalAdministrativoService.preparar_listagem(
+            super().get_queryset(),
+            competencia=competencia,
+            ups=ups,
+            dados_disponiveis=self._dados_estoque_disponiveis(),
+        )
+
+        unidade = self.request.query_params.get("unidade", "").strip()
+        if unidade:
+            queryset = queryset.filter(unidade__iexact=unidade)
+
+        situacao = self.request.query_params.get("situacao", "").strip()
+        dados_disponiveis = self._dados_estoque_disponiveis()
+        if situacao == "disponivel":
+            if not dados_disponiveis:
+                return queryset.none()
+            queryset = queryset.filter(quantidade_estoque_total__gt=0)
+        elif situacao == "sem_estoque":
+            if not dados_disponiveis:
+                return queryset.none()
+            queryset = queryset.filter(quantidade_estoque_total__lte=0)
+        elif situacao == "sem_dados":
+            queryset = queryset if not dados_disponiveis else queryset.none()
+        elif situacao:
+            raise ValidationError({"situacao": "Informe uma situacao valida."})
+
+        ordenacao = self.request.query_params.get("ordenacao", "descricao")
+        ordenacoes = {
+            "descricao": ("descricao", "codigo_gmus"),
+            "codigo": ("codigo_gmus", "descricao"),
+            "maior_estoque": ("-quantidade_estoque_total", "descricao"),
+            "menor_estoque": ("quantidade_estoque_total", "descricao"),
+        }
+        if ordenacao not in ordenacoes:
+            raise ValidationError({"ordenacao": "Informe uma ordenacao valida."})
+        return queryset.order_by(*ordenacoes[ordenacao])
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context.update(
+            {
+                "competencia_estoque": self._competencia_estoque(),
+                "ups_estoque": self._ups_estoque(),
+                "dados_estoque_disponiveis": self._dados_estoque_disponiveis(),
+                "situacoes_validacao": self._situacoes_validacao(),
+            }
+        )
+        return context
+
+    @action(detail=False, methods=["get"], url_path="opcoes")
+    def opcoes(self, request):
+        competencia_padrao = EstoqueTotalAdministrativoService.competencia_padrao()
+        competencias = Competencia.objects.all().order_by("-ano", "-mes")
+        ups = Ups.objects.filter(participa_competencia=True).order_by("nome")
+        unidades = (
+            Medicamento.objects.exclude(unidade="")
+            .exclude(unidade__isnull=True)
+            .values_list("unidade", flat=True)
+            .distinct()
+            .order_by("unidade")
+        )
+        return Response(
+            {
+                "competencia_padrao_id": (
+                    competencia_padrao.pk if competencia_padrao is not None else None
+                ),
+                "competencias": [
+                    {"id": item.pk, "mes": item.mes, "ano": item.ano}
+                    for item in competencias
+                ],
+                "ups": [
+                    {
+                        "id": item.pk,
+                        "nome": item.nome,
+                        "id_unidade_gmus": item.id_unidade_gmus,
+                    }
+                    for item in ups
+                ],
+                "unidades": list(unidades),
+            }
         )
 
     @action(detail=False, methods=["get"], url_path="comparacao")

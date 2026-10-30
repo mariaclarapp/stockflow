@@ -4,7 +4,7 @@ from core.serializers import CompetenciaSerializer, UpsSerializer
 from importacoes.serializers import ImportacaoSerializer
 from medicamentos.serializers import MedicamentoSerializer
 
-from .models import Estoque, Lote
+from .models import Estoque, Lote, SaldoEstoque
 
 
 class LoteSerializer(serializers.ModelSerializer):
@@ -30,6 +30,24 @@ class EstoqueSerializer(serializers.ModelSerializer):
             "ups",
             "competencia",
             "lote",
+            "importacao",
+            "quantidade",
+        ]
+
+
+class SaldoEstoqueSerializer(serializers.ModelSerializer):
+    medicamento = MedicamentoSerializer(read_only=True)
+    ups = UpsSerializer(read_only=True)
+    competencia = CompetenciaSerializer(read_only=True)
+    importacao = ImportacaoSerializer(read_only=True)
+
+    class Meta:
+        model = SaldoEstoque
+        fields = [
+            "id",
+            "medicamento",
+            "ups",
+            "competencia",
             "importacao",
             "quantidade",
         ]

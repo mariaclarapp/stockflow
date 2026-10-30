@@ -13,6 +13,9 @@ class Importacao(models.Model):
     tipo_relatorio = models.CharField(max_length=80, blank=True)
     data_importacao = models.DateTimeField()
     status = models.CharField(max_length=50, choices=Status.choices)
+    quantidade_nao_associada = models.DecimalField(
+        max_digits=14, decimal_places=3, default=0
+    )
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -42,3 +45,46 @@ class Importacao(models.Model):
 
     def __str__(self):
         return f"{self.nome_arquivo} - {self.competencia} - {self.ups}"
+
+
+class MovimentacaoEstoque(models.Model):
+    importacao = models.ForeignKey(
+        Importacao,
+        on_delete=models.PROTECT,
+        related_name="movimentacoes",
+    )
+    medicamento = models.ForeignKey(
+        "medicamentos.Medicamento",
+        on_delete=models.PROTECT,
+        related_name="movimentacoes_estoque",
+    )
+    ups = models.ForeignKey(
+        "core.Ups",
+        on_delete=models.PROTECT,
+        related_name="movimentacoes_estoque",
+    )
+    competencia = models.ForeignKey(
+        "core.Competencia",
+        on_delete=models.PROTECT,
+        related_name="movimentacoes_estoque",
+    )
+    data_inicial = models.DateField()
+    data_final = models.DateField()
+    saida = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    devolucao_saida = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    compra = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    transferencia_devolucao = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    transferencia_entrada = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    transferencia_saida = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    acerto_entrada = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    acerto_saida = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    saldo_atual = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+
+    class Meta:
+        ordering = ["medicamento__descricao", "competencia", "ups"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["importacao", "medicamento"],
+                name="unique_movimentacao_importacao_medicamento",
+            )
+        ]

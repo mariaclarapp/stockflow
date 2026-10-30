@@ -49,11 +49,13 @@ App `medicamentos`:
 App `importacoes`:
 
 - `Importacao`
+- `MovimentacaoEstoque`
 
 App `estoques`:
 
 - `Lote`
 - `Estoque`
+- `SaldoEstoque`
 
 ## Relacionamentos principais
 
@@ -65,6 +67,8 @@ App `estoques`:
 - `Importacao.hash_arquivo` preserva o SHA-256 do CSV, sem armazenar seu conteudo completo.
 - `Estoque` referencia `Medicamento`, `Ups`, `Competencia`, `Lote` e `Importacao`.
 - `Estoque.lote` e opcional.
+- `SaldoEstoque` referencia `Medicamento`, `Ups`, `Competencia` e `Importacao`, sem lote,
+  e representa o total por medicamento da `Consulta de Estoque`.
 
 `PrincipioAtivo` e sua relacao muitos-para-muitos permanecem descritos porque ainda
 existem no schema atual. Os relatorios de inventario nao fornecem uma coluna separada
@@ -142,6 +146,9 @@ isolada do codigo compartilhado e cria a restricao composta. O dado local existe
 corrigido de forma controlada antes da segunda migration, que torna
 `id_unidade_gmus` obrigatorio.
 
+A migration `estoques.0003_saldoestoque` foi criada e aplicada ao banco local para
+separar o saldo sintético da `Consulta de Estoque` do inventário detalhado.
+
 ## Tabelas de dominio
 
 Tabelas criadas pelos apps de dominio:
@@ -155,6 +162,8 @@ Tabelas criadas pelos apps de dominio:
 - `importacoes_importacao`
 - `estoques_lote`
 - `estoques_estoque`
+- `estoques_saldoestoque`
+- `importacoes_movimentacaoestoque`
 
 Tabelas muitos-para-muitos automaticas do Django:
 
@@ -188,6 +197,8 @@ preserva a identificacao do responsavel pelas importacoes existentes.
 - `Competencia` possui unicidade para a combinacao `(ano, mes)`.
 - `Competencia.mes` possui validacao e restricao de banco para ficar entre 1 e 12.
 - `Estoque.quantidade` usa `DecimalField(max_digits=14, decimal_places=3)`.
+- `SaldoEstoque.quantidade` usa `DecimalField(max_digits=14, decimal_places=3)` e possui
+  unicidade por `(medicamento, ups, competencia, importacao)`.
 - `Importacao` impede duplicidade da combinacao `(competencia, ups, tipo_relatorio)`.
 - `Ups.participa_competencia` e `Ups.compoe_estoque_convencional` usam `True` como
   padrao e permitem configurar as unidades sem inferencia por nome.
@@ -210,6 +221,21 @@ A substituicao utiliza `transaction.atomic()`. Uma falha reverte os estoques e
 metadados anteriores integralmente. Um arquivo com o mesmo SHA-256 ja processado e
 bloqueado e nao provoca nova substituicao. Medicamentos, lotes e classificacoes
 compartilhados nao sao removidos pela reimportacao.
+
+## Reimportacao de Consulta de Estoque
+
+A `Consulta de Estoque` utiliza a mesma regra de duplicidade e reimportacao, mas
+substitui somente os registros de `SaldoEstoque` vinculados à importacao. Seus saldos
+nao entram na consolidacao do inventario detalhado. A API administrativa de conferencia
+pode comparar os dois conjuntos por competencia, UPS e medicamento.
+
+## Movimentacoes
+
+`MovimentacaoEstoque` preserva, por medicamento, UPS e competência, o período do
+relatório, compras, devoluções, transferências, acertos, saídas e o saldo atual
+informado pelo G-MUS. A tabela não substitui `Estoque` ou `SaldoEstoque`. A validação
+administrativa usa o estoque anterior, soma entradas, subtrai saídas e compara o saldo
+esperado com o saldo final importado.
 
 ## Competencia completa e consolidacao publica
 

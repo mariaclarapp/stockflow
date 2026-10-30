@@ -3,6 +3,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import AdminLayout from "./layouts/AdminLayout";
 import CompetenciasPage from "./pages/CompetenciasPage";
+import AnalisesPage from "./pages/AnalisesPage";
+import ValidacaoPage from "./pages/ValidacaoPage";
 import DashboardPage from "./pages/DashboardPage";
 import ImportacoesPage from "./pages/ImportacoesPage";
 import LoginPage from "./pages/LoginPage";
@@ -21,6 +23,8 @@ function App() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="competencias" element={<CompetenciasPage />} />
+          <Route path="analises" element={<AnalisesPage />} />
+          <Route path="validacao" element={<ValidacaoPage />} />
           <Route path="importacoes" element={<ImportacoesPage />} />
           <Route path="medicamentos" element={<MedicamentosPage />} />
           <Route path="medicamentos/comparar" element={<MedicamentosCompararPage />} />
