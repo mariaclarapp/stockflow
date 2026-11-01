@@ -118,7 +118,7 @@ function CompetenciasPage() {
         <div>
           <span className="eyebrow">Acompanhamento mensal</span>
           <h1>Competências</h1>
-          <p>Confira a situação dos inventários esperados em cada UPS.</p>
+          <p>Confira a situação dos relatórios de estoque esperados em cada UPS.</p>
         </div>
       </header>
 
@@ -194,7 +194,7 @@ function CompetenciasPage() {
           <div className="competencies-state">
             <CalendarCheck2 size={24} />
             <strong>Nenhuma competência cadastrada</strong>
-            <p>As competências aparecerão após as importações de inventário.</p>
+            <p>As competências aparecerão após as importações de estoque.</p>
             <Link className="secondary-button" to="/admin/importacoes">
               <FileUp size={16} /> Ir para importações
             </Link>
@@ -283,7 +283,7 @@ function CompetenciasPage() {
                       </div>
                       {!competence.completa && (
                         <div className="competence-item__action">
-                          <span>Complete os inventários pendentes desta competência.</span>
+                          <span>Complete os relatórios de estoque pendentes desta competência.</span>
                           <Link className="secondary-button" to="/admin/importacoes">
                             <FileUp size={16} /> Ir para importações
                           </Link>

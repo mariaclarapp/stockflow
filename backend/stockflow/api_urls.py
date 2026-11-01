@@ -22,6 +22,7 @@ from estoques.views import (
 )
 from importacoes.views import (
     ImportacaoDeleteAPIView,
+    ImportPreviewAPIView,
     ImportacaoViewSet,
     MovementUploadAPIView,
     MovimentacaoEstoqueViewSet,
@@ -82,6 +83,11 @@ urlpatterns = [
         "estoques/validacao-movimentacoes/",
         ValidacaoMovimentacoesAPIView.as_view(),
         name="estoque-validacao-movimentacoes",
+    ),
+    path(
+        "importacoes/previsualizar/",
+        ImportPreviewAPIView.as_view(),
+        name="importacao-preview",
     ),
     path(
         "importacoes/estoque/",

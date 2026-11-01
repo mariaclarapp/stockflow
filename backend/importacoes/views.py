@@ -45,9 +45,54 @@ class ImportacaoDeleteAPIView(APIView):
     permission_classes = [IsAdminUser]
 
     def delete(self, request, pk):
+        if request.data.get("confirmar") is not True:
+            return Response(
+                {"erro": "Confirme explicitamente a exclusao da importacao."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         get_object_or_404(Importacao, pk=pk)
-        result = delete_importacao(importacao_id=pk)
+        result = delete_importacao(importacao_id=pk, deleted_by=request.user)
         return Response({"importacao_id": pk, **result}, status=status.HTTP_200_OK)
+
+
+class ImportPreviewAPIView(APIView):
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = InventoryUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        arquivo = serializer.validated_data["arquivo"]
+        try:
+            parsed_data = parse_report_csv(arquivo)
+        except UnknownReportTypeError as error:
+            return Response(
+                {"erro": str(error)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+        except (csv.Error, UnicodeError, ValueError):
+            return Response(
+                {"erro": "Nao foi possivel interpretar o arquivo CSV."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        metadata = parsed_data.get("metadata", {})
+        issues = parsed_data.get("inconsistencies", [])
+        errors = [item for item in issues if item.get("severity", "error") == "error"]
+        warnings = [item for item in issues if item.get("severity") == "warning"]
+        return Response(
+            {
+                "tipo_relatorio": parsed_data.get("tipo_relatorio"),
+                "competencia": metadata.get("competencia"),
+                "ups": metadata.get("ups"),
+                "data_inicial": metadata.get("data_inicial"),
+                "data_final": metadata.get("data_final"),
+                "registros_identificados": len(parsed_data.get("records", [])),
+                "erros": [_serialize_issue(item) for item in errors],
+                "warnings": [_serialize_issue(item) for item in warnings],
+                "pode_importar": not any(item.get("line") is None for item in errors)
+                and bool(parsed_data.get("records")),
+            }
+        )
 
 
 class ReportUploadAPIView(APIView):

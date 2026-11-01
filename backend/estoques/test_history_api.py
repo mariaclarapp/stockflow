@@ -11,7 +11,7 @@ from core.models import Competencia, Ups
 from importacoes.models import Importacao
 from medicamentos.models import Medicamento
 
-from .models import Estoque, Lote
+from .models import SaldoEstoque
 
 
 class HistoricoMedicamentoApiTests(APITestCase):
@@ -65,9 +65,9 @@ class HistoricoMedicamentoApiTests(APITestCase):
         status_importacao=Importacao.Status.CONCLUIDA,
     ):
         return Importacao.objects.create(
-            nome_arquivo=f"inventario-{competencia.pk}-{ups.pk}.csv",
+            nome_arquivo=f"estoque-{competencia.pk}-{ups.pk}.csv",
             hash_arquivo="",
-            tipo_relatorio="inventario",
+            tipo_relatorio="estoque",
             data_importacao=timezone.now(),
             status=status_importacao,
             usuario=self.staff,
@@ -91,23 +91,15 @@ class HistoricoMedicamentoApiTests(APITestCase):
         lote_codigo=None,
         medicamento=None,
     ):
-        lote = None
-        if lote_codigo is not None:
-            lote = Lote.objects.create(
-                medicamento=medicamento or self.medicamento,
-                codigo_lote=lote_codigo,
-                data_validade=date(2028, 12, 31),
-            )
         importacao = Importacao.objects.get(
             competencia=competencia,
             ups=ups,
-            tipo_relatorio="inventario",
+            tipo_relatorio="estoque",
         )
-        return Estoque.objects.create(
+        return SaldoEstoque.objects.create(
             medicamento=medicamento or self.medicamento,
             ups=ups,
             competencia=competencia,
-            lote=lote,
             importacao=importacao,
             quantidade=Decimal(quantidade),
         )
@@ -197,12 +189,11 @@ class HistoricoMedicamentoApiTests(APITestCase):
             "7.500",
         )
 
-    def test_estoque_atual_soma_lotes_ups_e_exclui_nao_convencional_do_consolidado(self):
+    def test_estoque_atual_soma_ups_e_exclui_nao_convencional_do_consolidado(self):
         competencia = self.criar_competencia(2026, 8)
         self.completar_competencia(competencia)
         self.criar_importacao(competencia, self.ups_nao_convencional)
-        self.criar_estoque(competencia, self.ups_a, "1.125", "LOTE-A")
-        self.criar_estoque(competencia, self.ups_a, "2.375")
+        self.criar_estoque(competencia, self.ups_a, "3.500")
         self.criar_estoque(competencia, self.ups_b, "3.500", "LOTE-B")
         self.criar_estoque(
             competencia,
@@ -219,9 +210,8 @@ class HistoricoMedicamentoApiTests(APITestCase):
         self.assertEqual(len(atual["por_ups"]), 3)
         ups_a = next(item for item in atual["por_ups"] if item["ups"]["id"] == self.ups_a.pk)
         self.assertEqual(ups_a["quantidade_total"], "3.500")
-        self.assertEqual(len(ups_a["registros"]), 2)
-        self.assertEqual(ups_a["registros"][0]["lote"]["codigo_lote"], "LOTE-A")
-        self.assertIsNone(ups_a["registros"][1]["lote"])
+        self.assertEqual(len(ups_a["registros"]), 1)
+        self.assertIsNone(ups_a["registros"][0]["lote"])
         nao_convencional = next(
             item
             for item in atual["por_ups"]
@@ -297,13 +287,7 @@ class HistoricoMedicamentoApiTests(APITestCase):
     def test_numero_de_queries_e_constante_com_varios_registros(self):
         competencia = self.criar_competencia(2026, 8)
         self.completar_competencia(competencia)
-        for indice in range(10):
-            self.criar_estoque(
-                competencia,
-                self.ups_a,
-                "1.001",
-                f"LOTE-{indice}",
-            )
+        self.criar_estoque(competencia, self.ups_a, "10.010")
         self.autenticar()
 
         with self.assertNumQueries(4):

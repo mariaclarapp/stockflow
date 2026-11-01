@@ -68,7 +68,7 @@ Local:
 
 Atualmente estão documentados:
 
-- fluxo de importação do relatório de inventário;
+- fluxo ativo de importação da Consulta de Estoque e das movimentações sintéticas;
 - fluxo de consulta pública de medicamentos.
 
 #### Arquitetura

@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from core.models import Competencia, Ups
-from estoques.models import Estoque, Lote
+from estoques.models import SaldoEstoque
 from importacoes.models import Importacao
 
 from .models import Classificacao, Medicamento, SubgrupoGmus
@@ -45,7 +45,7 @@ class MedicationComparisonApiTests(APITestCase):
         cls.importacoes = {
             ups.pk: Importacao.objects.create(
                 nome_arquivo=f"comparacao-{ups.id_unidade_gmus}.csv",
-                tipo_relatorio="inventario",
+                tipo_relatorio="estoque",
                 data_importacao=timezone.now(),
                 status=Importacao.Status.CONCLUIDA,
                 usuario=cls.staff,
@@ -78,16 +78,10 @@ class MedicationComparisonApiTests(APITestCase):
         self.client.force_authenticate(self.staff)
 
     def criar_estoque(self, medicamento, ups, quantidade, codigo_lote):
-        lote = Lote.objects.create(
-            medicamento=medicamento,
-            codigo_lote=codigo_lote,
-            data_validade=date(2033, 12, 31),
-        )
-        return Estoque.objects.create(
+        return SaldoEstoque.objects.create(
             medicamento=medicamento,
             ups=ups,
             competencia=self.competencia,
-            lote=lote,
             importacao=self.importacoes[ups.pk],
             quantidade=quantidade,
         )
@@ -155,10 +149,9 @@ class MedicationComparisonApiTests(APITestCase):
         self.assertEqual(excedente.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("ids", excedente.data)
 
-    def test_aggregates_lots_and_returns_zero_for_missing_ups(self):
+    def test_aggregates_consolidated_balances_and_returns_zero_for_missing_ups(self):
         medicamento = self.medicamentos[0]
-        self.criar_estoque(medicamento, self.ups_farmacia, "2.000", "LOTE-F1")
-        self.criar_estoque(medicamento, self.ups_farmacia, "3.000", "LOTE-F2")
+        self.criar_estoque(medicamento, self.ups_farmacia, "5.000", "SALDO-F")
         self.criar_estoque(medicamento, self.ups_manipulacao, "10.000", "LOTE-M1")
 
         response = self.consultar([medicamento.pk])

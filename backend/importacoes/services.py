@@ -13,7 +13,7 @@ from medicamentos.domain import (
 )
 from medicamentos.models import Classificacao, Medicamento, SubgrupoGmus
 
-from .models import Importacao, MovimentacaoEstoque
+from .models import Importacao, ImportacaoExclusao, MovimentacaoEstoque
 from .report_types import REPORT_TYPE_INVENTORY, REPORT_TYPE_STOCK
 
 
@@ -37,7 +37,7 @@ class ReimportationTargetNotFoundError(InventoryImportConflictError):
     pass
 
 
-def delete_importacao(*, importacao_id):
+def delete_importacao(*, importacao_id, deleted_by):
     """Delete one import and only the records that belong to it."""
     with transaction.atomic():
         importacao = Importacao.objects.select_for_update().get(pk=importacao_id)
@@ -46,6 +46,18 @@ def delete_importacao(*, importacao_id):
             "saldos_excluidos": SaldoEstoque.objects.filter(importacao=importacao).count(),
             "movimentacoes_excluidas": MovimentacaoEstoque.objects.filter(importacao=importacao).count(),
         }
+        ImportacaoExclusao.objects.create(
+            importacao_id_original=importacao.pk,
+            nome_arquivo=importacao.nome_arquivo,
+            hash_arquivo=importacao.hash_arquivo,
+            tipo_relatorio=importacao.tipo_relatorio,
+            status_original=importacao.status,
+            competencia=importacao.competencia,
+            ups=importacao.ups,
+            usuario_importacao=importacao.usuario,
+            excluida_por=deleted_by,
+            contagens=counts,
+        )
         Estoque.objects.filter(importacao=importacao).delete()
         SaldoEstoque.objects.filter(importacao=importacao).delete()
         MovimentacaoEstoque.objects.filter(importacao=importacao).delete()

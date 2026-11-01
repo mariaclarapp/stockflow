@@ -13,7 +13,19 @@ export async function deleteImport(importacaoId) {
   const csrfToken = await getCsrfToken();
   return apiRequest(`/api/importacoes/${importacaoId}/`, {
     method: "DELETE",
+    headers: { "X-CSRFToken": csrfToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmar: true }),
+  });
+}
+
+export async function previewImport(file) {
+  const csrfToken = await getCsrfToken();
+  const formData = new FormData();
+  formData.append("arquivo", file);
+  return apiRequest("/api/importacoes/previsualizar/", {
+    method: "POST",
     headers: { "X-CSRFToken": csrfToken },
+    body: formData,
   });
 }
 

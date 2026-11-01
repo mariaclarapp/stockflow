@@ -2,7 +2,7 @@ import { AlertCircle, FileUp, Info, LoaderCircle, RefreshCw } from "lucide-react
 import { useEffect, useState } from "react";
 
 import { ApiError } from "../api/client";
-import { deleteImport, getImports, uploadMovement, uploadStock } from "../api/inventory";
+import { deleteImport, getImports, previewImport, uploadMovement, uploadStock } from "../api/inventory";
 import ImportSummary from "../components/imports/ImportSummary";
 import InventoryFilePicker from "../components/imports/InventoryFilePicker";
 import ReimportConfirmationModal from "../components/imports/ReimportConfirmationModal";
@@ -36,12 +36,15 @@ function ImportacoesPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [imports, setImports] = useState([]);
   const [isLoadingImports, setIsLoadingImports] = useState(true);
+  const [preview, setPreview] = useState(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const reportLabel = reportType === "estoque" ? "Consulta de Estoque" : "movimentações";
 
   useEffect(() => {
     getImports()
       .then((data) => setImports(Array.isArray(data) ? data : data.results || []))
+      .catch((requestError) => setError(requestErrorMessage(requestError)))
       .finally(() => setIsLoadingImports(false));
   }, []);
 
@@ -51,6 +54,33 @@ function ImportacoesPage() {
     setResult(null);
     setCanReimport(false);
     setIsConfirmationOpen(false);
+    setPreview(null);
+  }
+
+  async function inspectFile(selectedFile) {
+    setFile(selectedFile);
+    setResult(null);
+    setPreview(null);
+    const validationError = validateFile(selectedFile);
+    setError(validationError);
+    if (validationError) return;
+    setIsPreviewing(true);
+    try {
+      const data = await previewImport(selectedFile);
+      const expectedType = reportType === "estoque" ? "estoque" : "movimentacao";
+      if (data.tipo_relatorio !== expectedType) {
+        setError(
+          expectedType === "estoque"
+            ? "O arquivo selecionado não é uma Consulta de Estoque."
+            : "O arquivo selecionado não é uma Movimentação de Estoque sintética.",
+        );
+      }
+      setPreview(data);
+    } catch (requestError) {
+      setError(requestErrorMessage(requestError));
+    } finally {
+      setIsPreviewing(false);
+    }
   }
 
   async function processUpload({ reimportar = false } = {}) {
@@ -68,6 +98,13 @@ function ImportacoesPage() {
       const response = await upload(file, { reimportar });
       setResult(response);
       setResultFileName(file.name);
+      try {
+        const updatedImports = await getImports();
+        setImports(Array.isArray(updatedImports) ? updatedImports : updatedImports.results || []);
+      } catch {
+        // A importação já foi concluída. Uma falha ao atualizar o histórico não
+        // deve substituir o resultado de sucesso nem sugerir que o upload falhou.
+      }
     } catch (requestError) {
       setError(requestErrorMessage(requestError));
       setCanReimport(!reimportar && requestError instanceof ApiError && requestError.status === 409);
@@ -140,10 +177,12 @@ function ImportacoesPage() {
               </p>
             </div>
           </details>
-          <InventoryFilePicker file={file} disabled={isSubmitting} onChange={(selectedFile) => { setFile(selectedFile); setError(validateFile(selectedFile)); setResult(null); }} onRemove={removeFile} reportLabel={reportLabel} />
+          <InventoryFilePicker file={file} disabled={isSubmitting || isPreviewing} onChange={inspectFile} onRemove={removeFile} reportLabel={reportLabel} />
+          {isPreviewing && <div className="import-preview import-preview--loading"><LoaderCircle className="button-spinner" size={18} /><span>Analisando o arquivo antes da importação...</span></div>}
+          {preview && !isPreviewing && <section className={`import-preview${preview.pode_importar ? "" : " import-preview--warning"}`} aria-label="Pré-visualização da importação"><div><small>Relatório identificado</small><strong>{preview.tipo_relatorio === "estoque" ? "Consulta de Estoque" : "Movimentações de Estoque"}</strong></div><div><small>Competência</small><strong>{preview.competencia ? `${String(preview.competencia.mes).padStart(2, "0")}/${preview.competencia.ano}` : "Não identificada"}</strong></div><div><small>UPS</small><strong>{preview.ups?.nome || "Não identificada"}</strong></div><div><small>Registros reconhecidos</small><strong>{preview.registros_identificados}</strong></div><p>{preview.pode_importar ? "Arquivo reconhecido e pronto para processamento." : "O arquivo possui um erro global e não pode ser importado."}</p></section>}
           <div className="upload-card__notice"><Info size={17} aria-hidden="true" /><p>Se a competência e a UPS já tiverem sido importadas, a substituição será confirmada antes do processamento.</p></div>
           {error && <div className="request-feedback request-feedback--error import-error" role="alert"><AlertCircle size={18} aria-hidden="true" /><div><p>{error}</p>{canReimport && <button className="secondary-button import-error__action" type="button" onClick={() => setIsConfirmationOpen(true)}><RefreshCw size={15} aria-hidden="true" />Reimportar e substituir</button>}</div></div>}
-          <div className="upload-card__actions"><button className="primary-button upload-button" type="submit" disabled={!file || isSubmitting}>{isSubmitting ? <><LoaderCircle className="button-spinner" size={18} />Processando...</> : <><FileUp size={18} />Enviar {reportLabel}</>}</button></div>
+          <div className="upload-card__actions"><button className="primary-button upload-button" type="submit" disabled={!file || isSubmitting || isPreviewing || !preview?.pode_importar || error}>{isSubmitting ? <><LoaderCircle className="button-spinner" size={18} />Processando...</> : <><FileUp size={18} />Enviar {reportLabel}</>}</button></div>
         </form>
       </section>
 

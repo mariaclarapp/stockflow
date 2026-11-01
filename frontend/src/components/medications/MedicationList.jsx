@@ -216,13 +216,6 @@ function MedicationList({
                 <td>
                   <strong className="medication-name">{medication.descricao}</strong>
                   <MedicationDetails medication={medication} onCategorySelect={onCategorySelect} />
-                  <Link
-                    className="medication-inline-detail-link"
-                    to={`/admin/medicamentos/${medication.id}`}
-                  >
-                    Ver detalhes
-                    <ArrowRight size={13} />
-                  </Link>
                 </td>
                 <td>{medication.unidade || "Não informada"}</td>
                 <td className="medication-stock-quantity">

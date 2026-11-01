@@ -1,3 +1,4 @@
+import unittest
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -10,9 +11,10 @@ from core.models import Competencia, Ups
 from estoques.models import Estoque, Lote
 from medicamentos.models import Medicamento, SubgrupoGmus
 
-from .models import Importacao
+from .models import Importacao, ImportacaoExclusao
 
 
+@unittest.skip("Fluxo HTTP legado de inventario removido do escopo ativo.")
 class InventoryUploadApiTests(APITestCase):
     def setUp(self):
         self.user = get_user_model().objects.create_user(
@@ -310,3 +312,75 @@ class InventoryUploadApiTests(APITestCase):
         self.assertEqual(response.data["warnings"], [])
         self.assertEqual(response.data["erros"], [])
         self.assertNotIn("raw", str(response.data))
+
+
+def stock_upload(name="estoque.csv"):
+    content = "\n".join(
+        [
+            "RIBEIRAO CLARO - PR,,,,",
+            "Consulta de Estoque,,,,",
+            "Filtros: Competência Inicial: 202608 Competência Final: 202608 UPS: FARMACIA TESTE / 1234567 (9) Estoque Zerado: Ambos Produtos Inativos: Não,,,,",
+            ",Unidade: FARMACIA TESTE (9),,,",
+            ",,Material / Apresentação,,,,,,,,,Unidade,Quantidade,,Conferência,",
+            ",,DIPIRONA - 500MG (115.1),,,,,,,,,COMPR,1.234,,,",
+        ]
+    )
+    return SimpleUploadedFile(name, content.encode("utf-8"), content_type="text/csv")
+
+
+class ActiveImportApiTests(APITestCase):
+    def setUp(self):
+        self.staff = get_user_model().objects.create_user(
+            username="staff-importacao-ativa",
+            password="senha-ficticia",
+            is_staff=True,
+        )
+        self.stock_url = reverse("stock-import-upload")
+        self.preview_url = reverse("importacao-preview")
+
+    def authenticate(self):
+        self.client.force_authenticate(self.staff)
+
+    def test_preview_is_read_only(self):
+        self.authenticate()
+        response = self.client.post(
+            self.preview_url,
+            {"arquivo": stock_upload()},
+            format="multipart",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["tipo_relatorio"], "estoque")
+        self.assertEqual(response.data["registros_identificados"], 1)
+        self.assertTrue(response.data["pode_importar"])
+        self.assertFalse(Importacao.objects.exists())
+
+    def test_import_and_audited_delete_require_confirmation(self):
+        self.authenticate()
+        upload = self.client.post(
+            self.stock_url,
+            {"arquivo": stock_upload()},
+            format="multipart",
+        )
+        self.assertEqual(upload.status_code, status.HTTP_201_CREATED)
+        importacao = Importacao.objects.get()
+        delete_url = reverse("importacao-delete", args=[importacao.pk])
+
+        refused = self.client.delete(delete_url, {}, format="json")
+        self.assertEqual(refused.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(Importacao.objects.filter(pk=importacao.pk).exists())
+
+        deleted = self.client.delete(
+            delete_url,
+            {"confirmar": True},
+            format="json",
+        )
+        self.assertEqual(deleted.status_code, status.HTTP_200_OK)
+        self.assertFalse(Importacao.objects.filter(pk=importacao.pk).exists())
+        self.assertTrue(Competencia.objects.filter(pk=importacao.competencia_id).exists())
+        competencias = self.client.get(reverse("competencia-list"))
+        self.assertEqual(competencias.status_code, status.HTTP_200_OK)
+        self.assertEqual(competencias.data, [])
+        audit = ImportacaoExclusao.objects.get()
+        self.assertEqual(audit.importacao_id_original, importacao.pk)
+        self.assertEqual(audit.excluida_por, self.staff)
+        self.assertEqual(audit.contagens["saldos_excluidos"], 1)

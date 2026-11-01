@@ -20,8 +20,13 @@ Os dados serão obtidos por meio de relatórios exportados manualmente do G-MUS 
 
 O controle de estoque será baseado em competências mensais.
 
+Uma competência somente será exibida nas telas administrativas quando possuir ao
+menos uma importação ativa de Consulta de Estoque ou Movimentações. Se a última
+importação for excluída, a competência poderá permanecer armazenada para preservar a
+auditoria, mas deixará de aparecer em Medicamentos, Competências, Validação e Análises.
+
 Para que uma competência seja considerada completa, deverá existir uma importação de
-inventário com status `concluida` ou `concluida_com_alertas` para cada UPS configurada
+Consulta de Estoque com status `concluida` ou `concluida_com_alertas` para cada UPS configurada
 com `participa_competencia=True`.
 
 UPS adicionais que não participam dessa configuração não impedirão que a competência
@@ -38,8 +43,8 @@ As três UPS consideradas atualmente são:
 
 O tipo de relatório deverá ser identificado pelo backend a partir da estrutura e do
 conteúdo do CSV, antes da execução de um parser específico. O usuário não deverá escolher
-manualmente o tipo. Atualmente, o único formato reconhecido pelo StockFlow é o relatório
-de inventário; arquivos que não correspondam a um formato conhecido deverão ser
+manualmente o tipo. O fluxo ativo reconhece `Consulta de Estoque` e
+`Movimentação de Estoque - Sintético`; arquivos que não correspondam a um formato conhecido deverão ser
 rejeitados de maneira controlada, sem persistência parcial.
 
 Durante a importação, o sistema deverá identificar as informações disponíveis no próprio relatório, incluindo, quando presentes:
@@ -54,17 +59,10 @@ Durante a importação, o sistema deverá identificar as informações disponív
 - validade;
 - quantidade.
 
-O StockFlow reconhece dois relatórios de estoque distintos:
-
-- `Inventário`: relatório detalhado, com lote, validade e quantidade por registro;
-- `Consulta de Estoque`: relatório sintético, com o saldo total por medicamento.
-
-O formato é identificado pela estrutura do CSV. O saldo sintético é armazenado
-separadamente do inventário detalhado para evitar duplicidade na consolidação do estoque.
-Quando ambos os relatórios da mesma competência e UPS forem importados, a conferência
-administrativa poderá comparar o saldo da `Consulta de Estoque` com a soma do inventário
-detalhado por medicamento. Essa comparação não altera automaticamente nenhum dos dois
-relatórios e aponta divergências para análise.
+O formato é identificado pela estrutura do CSV. A `Consulta de Estoque` é a fonte
+oficial do saldo total por medicamento. O parser e as tabelas do antigo Inventário
+detalhado permanecem apenas para preservar compatibilidade com dados legados e não
+participam das telas, da conclusão da competência ou dos cálculos atuais.
 
 O relatório `Movimentação de Estoque - Sintético` representa as movimentações de um
 único mês e UPS. Suas entradas e saídas são armazenadas por medicamento, sem substituir
@@ -72,9 +70,10 @@ o saldo observado. A validação mensal calcula `estoque anterior + entradas - s
 compara o resultado com o saldo final importado. Quando um medicamento existe nos dois
 estoques e não possui linha no relatório sintético, suas entradas e saídas são zero.
 Quando um medicamento novo aparece no estoque final e nas movimentações, o saldo anterior
-é zero. Sem saldo final correspondente, o item fica como não comparável.
+é zero. Sem saldo final correspondente, o item fica fora da validação e é apresentado
+separadamente, sem apagar o resultado dos medicamentos efetivamente validados.
 
-No relatório de inventário, a UPS/unidade identificada nos metadados representa a localização e a origem de todos os registros do arquivo.
+Em cada relatório ativo, a UPS identificada nos metadados representa a origem dos registros do arquivo.
 
 A UPS será identificada pela combinação do código G-MUS do estabelecimento com o
 identificador da unidade apresentado no relatório. O código do estabelecimento pode ser
@@ -84,7 +83,7 @@ informado entre parênteses no filtro deverá coincidir com o valor repetido no 
 
 ## RN04 — Reimportação
 
-O sistema permite a reimportação explícita de inventário para a mesma combinação de
+O sistema permite a reimportação explícita de estoque ou movimentações para a mesma combinação de
 competência, UPS e tipo de relatório. Um upload duplicado sem confirmação continua
 bloqueado e não altera os dados existentes.
 
@@ -453,9 +452,9 @@ disponíveis no StockFlow, incluindo:
 - estoque total e distribuição por UPS na consulta administrativa;
 - disponibilidade e histórico, em seus respectivos contextos.
 
-Esses indicadores não equivalem a níveis de cobertura, giro ou consumo. Não serão
-utilizadas faixas verde, amarela e vermelha enquanto não existirem fonte de consumo,
-critérios e limites validados para esse tipo de classificação.
+Além dos indicadores operacionais, a análise pode apresentar consumo, média, tendência,
+curva ABC e cobertura estimada quando existirem movimentações mensais completas e estoque
+final completo. A cobertura é informativa e não substitui uma política administrativa de compra.
 
 ## RN30 — Parâmetros de cálculo
 
@@ -471,40 +470,32 @@ de validação administrativa e não fazem parte do fluxo atualmente implementad
 
 ## RN32 — Cobertura de estoque
 
-O estoque atual já é conhecido pelo StockFlow, mas a estimativa de sua duração depende
-de uma taxa de consumo confiável. Enquanto essa fonte não existir, a cobertura não será
-calculada nem inferida pela redução do saldo entre competências.
+O estoque atual e a média de saídas permitem estimar a cobertura em dias pela fórmula
+`estoque atual / média mensal * 30`. O cálculo somente será exibido quando o estoque final
+e todas as competências usadas na média possuírem relatórios válidos. Não será inferido
+consumo pela simples redução do saldo entre competências.
 
 ## RN33 — Média de consumo
 
-A média de consumo somente poderá ser calculada a partir de valores mensais de consumo
-obtidos de fonte confiável e validada. Os inventários atuais não fornecem essa
-informação.
-
-O período considerado, o tratamento de meses sem movimento e eventual uso de dados de
-anos anteriores deverão ser confirmados com a área responsável antes da implementação
-de uma fórmula definitiva.
+A média de consumo utiliza exclusivamente o campo `saida` das movimentações concluídas.
+Quando todas as UPS estão selecionadas, somente competências com movimentações válidas
+para todas as UPS participantes entram na soma e no divisor.
 
 ## RN34 — Comparação entre períodos
 
-A comparação entre períodos depende diretamente da média prevista no RF15 e exige
-consumo válido em mais de um período. Não será criada uma visualização ou regra de
-comparação enquanto essa base não estiver disponível.
+A comparação entre períodos usa os mesmos filtros e somente competências completas.
+Quando o período comparado possui consumo zero, a variação percentual não é calculada.
 
 ## RN35 — Fonte definitiva para consumo
 
-A regra técnica definitiva para obtenção dos valores de consumo mensal ainda depende da
-disponibilização e validação de uma fonte adequada do G-MUS ou de outro processo oficial.
-
-O relatório de inventário será utilizado como fonte principal para estoque mensal, lotes, validade, UPS de origem e demais informações disponíveis.
+O campo `saida` do relatório `Movimentação de Estoque - Sintético` é a fonte oficial do
+consumo mensal. A `Consulta de Estoque` é a fonte oficial do saldo mensal.
 
 Não deverá ser calculado consumo real apenas pela diferença entre dois estoques mensais quando existirem entradas ou outras movimentações que possam alterar o saldo.
 
-O StockFlow não possui atualmente registros de entradas, saídas, dispensações,
-transferências, perdas, devoluções ou outras movimentações mensais. Por esse motivo,
-RF15, RF16 e RF17 permanecem condicionados à fonte de consumo, e o RF18 é tratado como
-evolução futura. Essa dependência de dados não limita os fluxos implementados de
-inventário, estoque, consolidação, histórico e consulta pública.
+O StockFlow preserva compras, saídas, transferências, acertos e devoluções separadamente.
+RF15, RF16 e a cobertura informativa do RF17 estão implementados. O RF18 continua como
+evolução futura porque depende de margem de segurança, prazo de reposição e política de compra.
 
 ## RN36 — Disponibilidade pública
 

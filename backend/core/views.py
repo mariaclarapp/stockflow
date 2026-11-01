@@ -10,7 +10,11 @@ from .serializers import (
     DashboardResumoSerializer,
     UpsSerializer,
 )
-from .services import CompetenciasAcompanhamentoService, DashboardResumoService
+from .services import (
+    CompetenciaService,
+    CompetenciasAcompanhamentoService,
+    DashboardResumoService,
+)
 
 
 class UpsViewSet(ReadOnlyModelViewSet):
@@ -19,8 +23,10 @@ class UpsViewSet(ReadOnlyModelViewSet):
 
 
 class CompetenciaViewSet(ReadOnlyModelViewSet):
-    queryset = Competencia.objects.all()
     serializer_class = CompetenciaSerializer
+
+    def get_queryset(self):
+        return CompetenciaService.competencias_ativas().order_by("-ano", "-mes")
 
 
 class DashboardResumoAPIView(APIView):

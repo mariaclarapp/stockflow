@@ -8,6 +8,10 @@ As APIs ativas de importacao sao `POST /api/importacoes/estoque/` e
 `POST /api/importacoes/movimentacoes/`. O inventario detalhado nao faz parte do
 contrato ativo. A validacao usa somente estoque e movimentacoes.
 
+Antes de persistir, `POST /api/importacoes/previsualizar/` identifica o tipo, a
+competencia, a UPS, a quantidade de registros e os problemas globais do CSV sem gravar
+dados. A exclusao exige `{ "confirmar": true }` e gera uma auditoria imutavel.
+
 Este documento registra o estado atual implementado da API do StockFlow.
 
 ## Tecnologia
@@ -142,7 +146,7 @@ para compor o estoque convencional, sem revelar UPS de origem ou quantidades int
 
 A competencia valida sera a competencia completa mais recente. Uma competencia somente
 sera completa quando todas as UPS configuradas como participantes tiverem importacao de
-inventario `concluida` ou `concluida_com_alertas`. Se a mais recente estiver incompleta,
+Consulta de Estoque `concluida` ou `concluida_com_alertas`. Se a mais recente estiver incompleta,
 sera usada a completa anterior; sem competencia completa, medicamentos sem a tag ativa
 `MANIPULADO` terao `Disponibilidade não informada`.
 
@@ -197,18 +201,17 @@ Rotas disponiveis:
 
 Os uploads administrativos exigem sessão de usuário `is_staff` e proteção CSRF:
 
-- `POST /api/importacoes/inventario/` — inventário detalhado;
 - `POST /api/importacoes/estoque/` — saldo total da Consulta de Estoque;
 - `POST /api/importacoes/movimentacoes/` — movimentações sintéticas mensais;
-- `DELETE /api/importacoes/{id}/` — exclui a importação e seus registros derivados.
+- `POST /api/importacoes/previsualizar/` — valida metadados e estrutura sem persistir;
+- `DELETE /api/importacoes/{id}/` — com confirmação explícita, exclui os registros derivados e cria auditoria.
 
 Todos recebem `multipart/form-data` no campo `arquivo`. O campo opcional
 `reimportar=true` substitui a importação existente da mesma competência, UPS e tipo.
 
-`GET /api/estoques/comparacao/?competencia={id}&ups={id}` compara a Consulta de Estoque
-com a soma do inventário detalhado. `GET /api/estoques/validacao-movimentacoes/` usa os
-mesmos parâmetros e calcula o saldo esperado a partir do estoque anterior e das
-entradas e saídas importadas.
+`GET /api/estoques/validacao-movimentacoes/` recebe `competencia` e `ups`, exige estoque
+anterior, movimentações e estoque final concluídos e calcula o saldo esperado a partir
+das entradas e saídas importadas.
 
 A exclusão é transacional e não remove medicamentos, lotes ou classificações
 compartilhados. Ela pode deixar uma competência incompleta, exigindo nova importação.
@@ -366,15 +369,15 @@ resposta apenas os dados necessarios para a Visao Geral:
 }
 ```
 
-`importadas` conta somente inventarios com status `concluida` ou
+`importadas` conta somente Consultas de Estoque com status `concluida` ou
 `concluida_com_alertas` das UPS participantes. `estoques` conta os registros associados
 a competencia completa selecionada. Se nao houver competencia completa,
 `competencia_atual` sera `null`, `importacoes` sera uma lista vazia e nenhum estoque de
 competencias incompletas sera misturado ao resumo.
 
 O endpoint fornece os indicadores operacionais previstos no RF19. Ele nao calcula
-consumo medio, comparacao de consumo, cobertura, giro ou necessidade de compra previstos
-nos RF15-RF18, pois esses calculos dependem de uma fonte de consumo ainda nao disponivel.
+consumo medio, comparacao, tendencia, curva ABC e cobertura sao expostos pela API de
+analise. Necessidade de compra continua fora do escopo.
 
 ### Acompanhamento administrativo de competencias
 
@@ -420,7 +423,7 @@ configurada com `participa_competencia=True`:
 }
 ```
 
-Somente importacoes de inventario `concluida` ou `concluida_com_alertas` contam em
+Somente importacoes de Consulta de Estoque `concluida` ou `concluida_com_alertas` contam em
 `importadas_validas` e podem completar a competencia. Uma importacao
 `concluida_parcial` e exibida com seu status, mas nao conta como valida. Quando uma UPS
 participante ainda nao possui importacao, `importada` e `false` e os campos `status`,
@@ -625,11 +628,14 @@ O endpoint direto abaixo nao existe:
 - `/api/importacoes/`
 - `/api/localizacoes-estoque/`
 
-Nao existe uma listagem direta de importacoes. A importacao e exposta de forma aninhada
-em estoque, para preservar a rastreabilidade do registro consultado, e possui uma rota
-administrativa especifica para envio de inventario.
+Existe listagem administrativa em `GET /api/importacoes/`, além da importação aninhada
+nos registros de estoque para preservar a rastreabilidade.
 
-## Upload administrativo de inventario
+## Apêndice legado: inventário detalhado
+
+> Esta seção descreve o contrato histórico preservado nos parsers e testes legados.
+> A rota de inventário não faz parte do fluxo HTTP ativo. Use Consulta de Estoque e
+> Movimentações conforme o escopo ativo no início deste documento.
 
 Rota:
 
@@ -654,16 +660,13 @@ competência, UPS e tipo de relatório permanece protegida e a API retorna `409`
 O frontend pode então solicitar confirmação e repetir o upload com
 `reimportar=true`.
 
-O backend detecta o tipo do relatorio pelo conteudo do CSV antes de selecionar o parser.
-Atualmente, o unico formato reconhecido e `inventario`; o usuario nao escolhe o tipo
-manualmente. Depois da deteccao, o endpoint executa o parser de inventario e usa o nome
-original e o hash SHA-256 do arquivo na persistencia. Erros `error` associados a uma
-linha rejeitam somente aquela linha. Erros globais sem linha, um tipo desconhecido ou um
-arquivo sem registros processaveis bloqueiam a importacao antes da persistencia.
+Historicamente, o backend detectava o inventário pelo conteúdo do CSV, executava o
+parser específico e armazenava o nome original e o hash SHA-256. Erros de linha
+rejeitavam somente aquela linha; erros globais ou a ausência de registros processáveis
+bloqueavam a persistência.
 
-O segmento `/inventario/` foi mantido para preservar compatibilidade com o frontend e
-com o contrato atual, no qual inventario ainda e o unico formato suportado. Ele nao
-substitui a deteccao pelo conteudo nem permite que o usuario escolha o parser.
+O segmento `/inventario/` pertence ao contrato antigo e não está registrado nas URLs
+atuais. A referência permanece somente para explicar registros legados.
 
 Uma nova importação usa HTTP `201 Created`. Uma reimportação bem-sucedida usa HTTP
 `200 OK`, pois atualiza a mesma `Importacao`. Ambas usam a mesma estrutura:
@@ -729,8 +732,8 @@ Respostas de erro:
 ## Metodos permitidos
 
 Os endpoints administrativos de consulta permanecem somente leitura, exceto pelas
-operações explícitas de classificação e associação descritas acima. O upload de
-inventário continua disponível por `POST /api/importacoes/inventario/`.
+operações explícitas de importação, classificação, associação e exclusão auditada
+descritas acima. O upload de inventário não está disponível no fluxo atual.
 
 Permitidos:
 

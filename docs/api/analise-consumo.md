@@ -14,7 +14,8 @@ Exige usuario administrativo com `is_staff=True`.
 
 O consumo corresponde somente ao campo `saida` do relatorio sintetico de movimentacoes.
 A resposta apresenta `resumo`, `qualidade`, `evolucao`, `ranking`, `por_ups`,
-`sem_consumo` e, quando solicitado, `comparacao`.
+`sem_consumo`, `curva_abc` e, quando solicitado, `comparacao`. Cada item do ranking
+inclui media, estoque final, cobertura, classe ABC, tendencia e evolucao mensal.
 
-Competencias sem relatorio sao informadas em `qualidade.competencias_sem_dados` e nao
-entram no divisor de `resumo.media_mensal`.
+Competencias sem relatorio concluido para todas as UPS selecionadas sao informadas em
+`qualidade.competencias_sem_dados` e nao entram na soma nem no divisor da media.

@@ -2,7 +2,7 @@ from django.db.models import Count, Q
 
 from estoques.models import SaldoEstoque
 from importacoes.models import Importacao
-from importacoes.report_types import REPORT_TYPE_STOCK
+from importacoes.report_types import REPORT_TYPE_MOVEMENT, REPORT_TYPE_STOCK
 from medicamentos.models import Medicamento
 
 from .models import Competencia, Ups
@@ -10,17 +10,56 @@ from .models import Competencia, Ups
 
 class CompetenciaService:
     TIPOS_RELATORIO_ESTOQUE = (REPORT_TYPE_STOCK,)
+    TIPOS_RELATORIO_ATIVOS = (REPORT_TYPE_STOCK, REPORT_TYPE_MOVEMENT)
     STATUS_IMPORTACAO_VALIDOS = (
         Importacao.Status.CONCLUIDA,
         Importacao.Status.CONCLUIDA_COM_ALERTAS,
     )
-    STATUS_IMPORTACAO_DISPONIVEIS = STATUS_IMPORTACAO_VALIDOS + (
-        Importacao.Status.CONCLUIDA_PARCIAL,
-    )
+    STATUS_IMPORTACAO_DISPONIVEIS = STATUS_IMPORTACAO_VALIDOS
+
+    @classmethod
+    def importacoes_validas(cls, tipo_relatorio):
+        """Return only imports that are safe to use in official calculations."""
+        return Importacao.objects.filter(
+            tipo_relatorio=tipo_relatorio,
+            status__in=cls.STATUS_IMPORTACAO_VALIDOS,
+        )
+
+    @classmethod
+    def competencias_ativas(cls):
+        """Competences backed by at least one import from the active workflow."""
+        return Competencia.objects.filter(
+            importacoes__tipo_relatorio__in=cls.TIPOS_RELATORIO_ATIVOS
+        ).distinct()
+
+    @classmethod
+    def importacao_valida(cls, *, competencia, ups, tipo_relatorio):
+        return (
+            cls.importacoes_validas(tipo_relatorio)
+            .filter(competencia=competencia, ups=ups)
+            .first()
+        )
+
+    @classmethod
+    def importacao_anterior_valida(cls, *, competencia, ups, tipo_relatorio):
+        return (
+            cls.importacoes_validas(tipo_relatorio)
+            .filter(
+                Q(competencia__ano__lt=competencia.ano)
+                | Q(
+                    competencia__ano=competencia.ano,
+                    competencia__mes__lt=competencia.mes,
+                ),
+                ups=ups,
+            )
+            .select_related("competencia", "ups")
+            .order_by("-competencia__ano", "-competencia__mes")
+            .first()
+        )
 
     @classmethod
     def competencias_com_totais(cls):
-        return Competencia.objects.annotate(
+        return cls.competencias_ativas().annotate(
             total_ups_importadas=Count(
                 "importacoes__ups",
                 filter=Q(

@@ -1,13 +1,17 @@
 import {
   AlertCircle,
+  BarChart3,
   Check,
   FileText,
   Layers3,
   LoaderCircle,
   Pill,
   RefreshCw,
+  SearchCheck,
+  Upload,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { ApiError } from "../api/client";
 import { getDashboardSummary } from "../api/dashboard";
@@ -97,7 +101,7 @@ function DashboardPage() {
         label: "Importações válidas",
         value: summary?.importacoes.length ?? "--",
         detail: competence
-          ? "Inventários da competência"
+          ? "Estoques da competência"
           : "Sem competência completa",
         icon: FileText,
       },
@@ -141,7 +145,7 @@ function DashboardPage() {
           </h2>
           <p>
             {competence
-              ? `${importedUps} de ${participatingUps} UPS participantes com inventário válido.`
+              ? `${importedUps} de ${participatingUps} UPS participantes com estoque válido.`
               : "Ainda não há uma competência com todas as importações participantes válidas."}
           </p>
         </div>
@@ -149,6 +153,12 @@ function DashboardPage() {
           <span style={{ width: `${isLoading ? 0 : progress}%` }} />
         </div>
       </section>
+
+      <nav className="dashboard-quick-actions" aria-label="Atalhos administrativos">
+        <Link to="/admin/importacoes"><Upload size={18} /><span><strong>Importar relatórios</strong><small>Estoque e movimentações</small></span></Link>
+        <Link to="/admin/validacao"><SearchCheck size={18} /><span><strong>Validar competência</strong><small>Conferir saldo mensal</small></span></Link>
+        <Link to="/admin/analises"><BarChart3 size={18} /><span><strong>Abrir análises</strong><small>Consumo, média e cobertura</small></span></Link>
+      </nav>
 
       <section className="overview-grid" aria-label="Resumo da competência">
         {overviewCards.map(({ label, value, detail, icon: Icon }) => (

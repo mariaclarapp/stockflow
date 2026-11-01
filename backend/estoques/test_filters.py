@@ -10,7 +10,7 @@ from core.models import Competencia, Ups
 from importacoes.models import Importacao
 from medicamentos.models import Classificacao, Medicamento, SubgrupoGmus
 
-from .models import Estoque
+from .models import SaldoEstoque
 
 
 class AdminStructuredFiltersApiTests(APITestCase):
@@ -87,9 +87,9 @@ class AdminStructuredFiltersApiTests(APITestCase):
     @classmethod
     def create_importacao(cls, ups, competencia, suffix):
         return Importacao.objects.create(
-            nome_arquivo=f"inventario-{suffix}.csv",
+            nome_arquivo=f"estoque-{suffix}.csv",
             hash_arquivo=suffix * 64,
-            tipo_relatorio="inventario",
+            tipo_relatorio="estoque",
             data_importacao=timezone.now(),
             status=Importacao.Status.CONCLUIDA,
             usuario=cls.user,
@@ -99,11 +99,10 @@ class AdminStructuredFiltersApiTests(APITestCase):
 
     @classmethod
     def create_estoque(cls, medicamento, importacao):
-        return Estoque.objects.create(
+        return SaldoEstoque.objects.create(
             medicamento=medicamento,
             ups=importacao.ups,
             competencia=importacao.competencia,
-            lote=None,
             importacao=importacao,
             quantidade=Decimal("10.000"),
         )

@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from core.models import Competencia, Ups
-from estoques.models import Estoque, Lote
+from estoques.models import SaldoEstoque
 from importacoes.models import Importacao
 
 from .models import Classificacao, Medicamento, PrincipioAtivo, SubgrupoGmus
@@ -181,10 +181,10 @@ class PublicMedicineAvailabilityTests(APITestCase):
         competence,
         ups,
         import_status=Importacao.Status.CONCLUIDA,
-        report_type="inventario",
+        report_type="estoque",
     ):
         return Importacao.objects.create(
-            nome_arquivo=f"inventario-{competence.ano}-{competence.mes}-{ups.pk}.csv",
+            nome_arquivo=f"estoque-{competence.ano}-{competence.mes}-{ups.pk}.csv",
             hash_arquivo="",
             tipo_relatorio=report_type,
             data_importacao=timezone.now(),
@@ -212,23 +212,15 @@ class PublicMedicineAvailabilityTests(APITestCase):
         quantity,
         lot_code=None,
     ):
-        lot = None
-        if lot_code:
-            lot = Lote.objects.create(
-                medicamento=medicine,
-                codigo_lote=lot_code,
-                data_validade=date(2028, 12, 31),
-            )
         importacao = Importacao.objects.get(
             competencia=competence,
             ups=ups,
-            tipo_relatorio="inventario",
+            tipo_relatorio="estoque",
         )
-        return Estoque.objects.create(
+        return SaldoEstoque.objects.create(
             medicamento=medicine,
             ups=ups,
             competencia=competence,
-            lote=lot,
             importacao=importacao,
             quantidade=Decimal(quantity),
         )
@@ -300,12 +292,11 @@ class PublicMedicineAvailabilityTests(APITestCase):
 
         self.assertEqual(result["disponibilidade"], "Indisponível")
 
-    def test_sums_all_lots_for_the_medicine(self):
+    def test_returns_consolidated_balance_for_the_medicine(self):
         medicine = self.create_medicine()
         competence = self.create_competence(2026, 8)
         self.complete_competence(competence)
-        self.create_stock(medicine, competence, self.ups_a, "2", "LOTE-A")
-        self.create_stock(medicine, competence, self.ups_a, "3", "LOTE-B")
+        self.create_stock(medicine, competence, self.ups_a, "5", "SALDO-A")
 
         annotated = DisponibilidadePublicaService.anotar_disponibilidade(
             Medicamento.objects.filter(pk=medicine.pk)

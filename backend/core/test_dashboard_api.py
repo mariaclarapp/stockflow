@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from estoques.models import Estoque
+from estoques.models import SaldoEstoque
 from importacoes.models import Importacao
 from medicamentos.models import Medicamento
 
@@ -33,9 +33,9 @@ class DashboardResumoApiTests(APITestCase):
 
     def criar_importacao(self, competencia, ups, import_status):
         return Importacao.objects.create(
-            nome_arquivo=f"inventario-{ups.id_unidade_gmus}.csv",
+            nome_arquivo=f"estoque-{ups.id_unidade_gmus}.csv",
             hash_arquivo="a" * 64,
-            tipo_relatorio="inventario",
+            tipo_relatorio="estoque",
             data_importacao=timezone.now(),
             status=import_status,
             usuario=self.staff,
@@ -109,7 +109,7 @@ class DashboardResumoApiTests(APITestCase):
             (medicamentos[1], importacao_farmacia),
             (medicamentos[1], importacao_caf),
         ):
-            Estoque.objects.create(
+            SaldoEstoque.objects.create(
                 medicamento=medicamento,
                 ups=importacao.ups,
                 competencia=competencia,

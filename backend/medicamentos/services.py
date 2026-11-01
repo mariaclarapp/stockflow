@@ -22,6 +22,7 @@ from core.services import CompetenciaService
 from estoques.models import SaldoEstoque
 from estoques.services import calcular_validacao_movimentacao
 from importacoes.models import MovimentacaoEstoque
+from importacoes.report_types import REPORT_TYPE_STOCK
 
 from .domain import CLASSIFICACAO_MANIPULADO
 from .models import Classificacao, Medicamento
@@ -49,8 +50,13 @@ class EstoqueTotalAdministrativoService:
     @classmethod
     def competencia_padrao(cls):
         return (
-            CompetenciaService.identificar_competencia_completa()
-            or CompetenciaService.identificar_competencia_disponivel()
+            CompetenciaService.competencias_ativas()
+            .filter(
+                importacoes__tipo_relatorio=REPORT_TYPE_STOCK,
+                importacoes__status__in=CompetenciaService.STATUS_IMPORTACAO_VALIDOS,
+            )
+            .order_by("-ano", "-mes")
+            .first()
         )
 
     @classmethod
@@ -197,11 +203,8 @@ class MedicamentoComparacaoService:
         ups_participantes = list(
             Ups.objects.filter(participa_competencia=True).order_by("id")
         )
-        competencia = (
-            CompetenciaService.identificar_competencia_completa(
-                total_ups_participantes=len(ups_participantes)
-            )
-            or CompetenciaService.identificar_competencia_disponivel()
+        competencia = CompetenciaService.identificar_competencia_completa(
+            total_ups_participantes=len(ups_participantes)
         )
         ordem = Case(
             *[

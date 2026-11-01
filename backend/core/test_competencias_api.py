@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from estoques.models import Estoque
+from estoques.models import SaldoEstoque
 from importacoes.models import Importacao
 from medicamentos.models import Medicamento
 
@@ -34,9 +34,9 @@ class CompetenciasAcompanhamentoApiTests(APITestCase):
 
     def criar_importacao(self, competencia, ups, import_status):
         return Importacao.objects.create(
-            nome_arquivo=f"inventario-{competencia}-{ups.id_unidade_gmus}.csv",
+            nome_arquivo=f"estoque-{competencia}-{ups.id_unidade_gmus}.csv",
             hash_arquivo=(ups.id_unidade_gmus * 64)[:64],
-            tipo_relatorio="inventario",
+            tipo_relatorio="estoque",
             data_importacao=timezone.now(),
             status=import_status,
             usuario=self.staff,
@@ -57,6 +57,7 @@ class CompetenciasAcompanhamentoApiTests(APITestCase):
 
     def test_returns_empty_state_without_competences(self):
         self.criar_ups("9", "FARMACIA MUNICIPAL")
+        Competencia.objects.create(ano=2025, mes=12)
         self.client.force_authenticate(self.staff)
 
         with self.assertNumQueries(2):
@@ -106,14 +107,13 @@ class CompetenciasAcompanhamentoApiTests(APITestCase):
             descricao="MEDICAMENTO TESTE",
             unidade="COMPR",
         )
-        for _ in range(2):
-            Estoque.objects.create(
-                medicamento=medicamento,
-                ups=farmacia,
-                competencia=completa_anterior,
-                importacao=importacao_farmacia_julho,
-                quantidade=Decimal("5.000"),
-            )
+        SaldoEstoque.objects.create(
+            medicamento=medicamento,
+            ups=farmacia,
+            competencia=completa_anterior,
+            importacao=importacao_farmacia_julho,
+            quantidade=Decimal("10.000"),
+        )
 
         self.client.force_authenticate(self.staff)
 
@@ -158,7 +158,7 @@ class CompetenciasAcompanhamentoApiTests(APITestCase):
         julho_por_unidade = {
             item["id_unidade_gmus"]: item for item in julho["ups"]["situacoes"]
         }
-        self.assertEqual(julho_por_unidade["9"]["registros_estoque"], 2)
+        self.assertEqual(julho_por_unidade["9"]["registros_estoque"], 1)
         self.assertEqual(
             julho_por_unidade["10"]["status"],
             Importacao.Status.CONCLUIDA_COM_ALERTAS,

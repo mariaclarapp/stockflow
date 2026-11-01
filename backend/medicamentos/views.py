@@ -11,7 +11,9 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 
 from core.models import Competencia, Ups
+from core.services import CompetenciaService
 from estoques.models import SaldoEstoque
+from importacoes.report_types import REPORT_TYPE_STOCK
 
 from .domain import (
     CLASSIFICACAO_MANIPULADO,
@@ -152,7 +154,9 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
         if competencia_id:
             if not competencia_id.isdigit():
                 raise ValidationError({"competencia": "Informe uma competencia valida."})
-            competencia = get_object_or_404(Competencia, pk=competencia_id)
+            competencia = get_object_or_404(
+                CompetenciaService.competencias_ativas(), pk=competencia_id
+            )
         else:
             competencia = EstoqueTotalAdministrativoService.competencia_padrao()
         self._competencia_estoque_cache = competencia
@@ -181,10 +185,18 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
         if competencia is None:
             disponiveis = False
         else:
-            disponiveis = SaldoEstoque.objects.filter(
+            ups_ids = [item.pk for item in self._ups_estoque()]
+            ups_com_importacao = CompetenciaService.importacoes_validas(
+                REPORT_TYPE_STOCK
+            ).filter(
                 competencia=competencia,
-                ups_id__in=[item.pk for item in self._ups_estoque()],
-            ).exists()
+                ups_id__in=ups_ids,
+            ).values("ups_id").distinct().count()
+            # A consulta consolidada deve somar as UPS que possuem estoque
+            # importado, sem zerar todo o resultado porque outra unidade ainda
+            # não enviou seu relatório. Ao filtrar uma UPS específica, a mesma
+            # regra naturalmente exige que ela possua uma importação válida.
+            disponiveis = ups_com_importacao > 0
         self._dados_estoque_disponiveis_cache = disponiveis
         return disponiveis
 
@@ -254,7 +266,9 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
     @action(detail=False, methods=["get"], url_path="opcoes")
     def opcoes(self, request):
         competencia_padrao = EstoqueTotalAdministrativoService.competencia_padrao()
-        competencias = Competencia.objects.all().order_by("-ano", "-mes")
+        competencias = CompetenciaService.competencias_ativas().order_by(
+            "-ano", "-mes"
+        )
         ups = Ups.objects.filter(participa_competencia=True).order_by("nome")
         unidades = (
             Medicamento.objects.exclude(unidade="")

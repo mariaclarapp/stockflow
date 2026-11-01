@@ -7,7 +7,7 @@ export function getMovementValidation(competencia, ups) {
 
 export function getAnalysisOptions() {
   return Promise.all([
-    apiRequest("/api/competencias/"),
+    apiRequest("/api/competencias/", { cache: "no-store" }),
     apiRequest("/api/ups/"),
     apiRequest("/api/subgrupos-gmus/"),
     apiRequest("/api/classificacoes/"),

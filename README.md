@@ -60,11 +60,11 @@ Destinado à consulta pública de medicamentos, sem necessidade de autenticaçã
 
 ## Escopo de análises
 
-O Dashboard apresenta indicadores operacionais reais de competência, UPS, importações,
-medicamentos e registros de estoque. O inventário mensal é uma fotografia do saldo e
-não fornece consumo ou movimentações. Por isso, médias de consumo, comparação de
-períodos, cobertura e necessidade de compra permanecem condicionadas a uma fonte de
-consumo confiável; não são inferidas pela diferença entre inventários.
+O Dashboard apresenta indicadores operacionais de competência, UPS, importações,
+medicamentos e registros de estoque. A análise usa exclusivamente as saídas dos
+relatórios sintéticos concluídos e pode apresentar média, comparação entre períodos,
+tendência, curva ABC e cobertura informativa. Necessidade de compra continua fora do
+escopo até a definição de parâmetros administrativos.
 
 ## Status
 

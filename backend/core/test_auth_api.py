@@ -126,7 +126,6 @@ class SessionAuthenticationApiTests(APITestCase):
             "medicamento-list",
             "ups-list",
             "competencia-list",
-            "lote-list",
             "estoque-list",
         ]
         for endpoint in list_endpoints:
@@ -136,7 +135,7 @@ class SessionAuthenticationApiTests(APITestCase):
 
         _, csrf_token = self.csrf_token()
         upload_response = self.client.post(
-            reverse("inventory-import-upload"),
+            reverse("stock-import-upload"),
             {},
             HTTP_X_CSRFTOKEN=csrf_token,
         )

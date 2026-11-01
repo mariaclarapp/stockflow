@@ -18,11 +18,24 @@ pip install -r requirements.txt
 python manage.py check
 ```
 
+5. Execute as migracoes:
+
+```powershell
+.\.venv\Scripts\python manage.py migrate
+```
+
+## Testes
+
+Os testes automatizados usam SQLite em memoria e nao alteram o banco MySQL local:
+
+```powershell
+.\.venv\Scripts\python manage.py test --settings=stockflow.test_settings
+```
+
 ## Observacoes
 
-- O backend possui models de dominio, API administrativa de leitura e upload autenticado
-  do relatorio CSV de inventario.
-- A estrategia definitiva de reimportacao e os calculos de estoque ainda nao foram implementados.
+- O fluxo ativo importa Consulta de Estoque e Movimentacao de Estoque - Sintetico.
+- Reimportacao, exclusao auditada, validacao mensal e analise de consumo estao implementadas.
 - O contrato atual da API esta documentado em [`docs/api/api.md`](../docs/api/api.md).
 - As configuracoes sensiveis devem permanecer em variaveis de ambiente.
 - O banco configurado e MySQL, conforme definido na documentacao do projeto.

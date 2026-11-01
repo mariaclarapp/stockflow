@@ -16,8 +16,8 @@ nao deve ser inferido pela diferenca entre dois saldos mensais.
 ## Media mensal
 
 A media mensal e calculada dividindo a soma do consumo pela quantidade de competencias
-que possuem relatorio de movimentacao para os filtros selecionados. Competencias sem
-relatorio nao entram no divisor e devem ser sinalizadas na interface.
+com importacoes concluidas para todas as UPS selecionadas. Competencias parciais ou sem
+relatorio nao entram na soma nem no divisor e devem ser sinalizadas na interface.
 
 Medicamentos presentes nos relatorios com `saida` igual a zero sao listados como itens
 sem consumo no periodo.
@@ -37,6 +37,9 @@ percentual nao e calculada quando o periodo comparado possui consumo zero.
 - comparacao entre periodos;
 - listagem de medicamentos sem consumo;
 - exportacao CSV do ranking.
+- curva ABC por participacao acumulada no consumo;
+- tendencia entre a primeira e a ultima competencia valida do periodo;
+- cobertura estimada em dias quando o estoque final esta completo.
 
-Cobertura, giro, duracao do estoque e necessidade de compra permanecem fora deste
-escopo ate a definicao dos parametros administrativos correspondentes.
+Necessidade de compra permanece fora do escopo ate a definicao de prazo de reposicao,
+margem de seguranca e politica administrativa. A cobertura atual e informativa.

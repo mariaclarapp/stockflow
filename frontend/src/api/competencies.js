@@ -1,5 +1,5 @@
 import { apiRequest } from "./client";
 
 export function getCompetenciesTracking() {
-  return apiRequest("/api/competencias/acompanhamento/");
+  return apiRequest("/api/competencias/acompanhamento/", { cache: "no-store" });
 }

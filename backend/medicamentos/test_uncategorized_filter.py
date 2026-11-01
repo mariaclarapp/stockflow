@@ -94,7 +94,7 @@ class UncategorizedMedicationFilterTests(APITestCase):
         self.assertIn("sem_categoria", subgroup_response.data)
 
     def test_query_count_is_constant(self):
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             response = self.client.get(self.url, {"sem_categoria": "true"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

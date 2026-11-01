@@ -9,7 +9,7 @@ from rest_framework.test import APITestCase
 
 from core.models import Competencia, Ups
 from importacoes.models import Importacao, MovimentacaoEstoque
-from importacoes.report_types import REPORT_TYPE_MOVEMENT
+from importacoes.report_types import REPORT_TYPE_MOVEMENT, REPORT_TYPE_STOCK
 from medicamentos.models import Classificacao, Medicamento
 
 
@@ -33,6 +33,7 @@ class ConsumptionAnalysisApiTests(APITestCase):
             codigo_gmus="UPS-B",
             id_unidade_gmus="B",
             nome="UPS B",
+            participa_competencia=False,
         )
         self.medicamento_a = Medicamento.objects.create(
             codigo_gmus="100.1",
@@ -126,6 +127,18 @@ class ConsumptionAnalysisApiTests(APITestCase):
             Decimal("80"),
         )
         self.assertEqual(response.data["ranking"][0]["consumo"], Decimal("40"))
+        self.assertEqual(
+            response.data["ranking"][0]["media_mensal"], Decimal("20")
+        )
+        self.assertEqual(response.data["ranking"][0]["meses_com_consumo"], 2)
+        self.assertEqual(
+            [item["consumo"] for item in response.data["ranking"][0]["evolucao"]],
+            [Decimal("10"), Decimal("30")],
+        )
+        self.assertEqual(
+            response.data["ranking"][0]["pico_consumo"]["competencia"]["id"],
+            self.agosto.pk,
+        )
 
     def test_aplica_filtros_e_lista_medicamento_sem_consumo(self):
         classificacao = Classificacao.objects.create(nome="CONTROLADOS")
@@ -143,11 +156,16 @@ class ConsumptionAnalysisApiTests(APITestCase):
 
         filtrado = self.client.get(
             self.url,
-            self.parametros(ups=self.ups_a.pk, busca="100.2"),
+            self.parametros(
+                competencia_final=self.julho.pk,
+                ups=self.ups_a.pk,
+                busca="100.2",
+            ),
         )
         por_classificacao = self.client.get(
             self.url,
             self.parametros(
+                competencia_final=self.julho.pk,
                 ups=self.ups_a.pk,
                 classificacao=classificacao.pk,
             ),
@@ -190,7 +208,33 @@ class ConsumptionAnalysisApiTests(APITestCase):
             Decimal("50"),
         )
 
-    def test_informa_competencia_sem_relatorio_sem_incluir_na_media(self):
+    def test_ignora_competencia_sem_qualquer_importacao(self):
+        self.criar_movimento(
+            self.agosto, self.ups_a, self.medicamento_a, saida="30"
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(
+            self.url,
+            self.parametros(competencia_inicial=self.agosto.pk),
+        )
+
+        self.assertEqual(response.data["qualidade"]["competencias_no_periodo"], 1)
+        self.assertEqual(response.data["qualidade"]["competencias_com_dados"], 1)
+        self.assertEqual(response.data["resumo"]["media_mensal"], Decimal("30"))
+        self.assertEqual(response.data["qualidade"]["competencias_sem_dados"], [])
+
+    def test_informa_competencia_com_estoque_mas_sem_movimentacao(self):
+        Importacao.objects.create(
+            competencia=self.julho,
+            ups=self.ups_a,
+            tipo_relatorio=REPORT_TYPE_STOCK,
+            nome_arquivo="estoque-julho.csv",
+            hash_arquivo="",
+            data_importacao=timezone.now(),
+            status=Importacao.Status.CONCLUIDA,
+            usuario=self.staff,
+        )
         self.criar_movimento(
             self.agosto, self.ups_a, self.medicamento_a, saida="30"
         )
@@ -200,8 +244,24 @@ class ConsumptionAnalysisApiTests(APITestCase):
 
         self.assertEqual(response.data["qualidade"]["competencias_no_periodo"], 2)
         self.assertEqual(response.data["qualidade"]["competencias_com_dados"], 1)
-        self.assertEqual(response.data["resumo"]["media_mensal"], Decimal("30"))
         self.assertEqual(
             response.data["qualidade"]["competencias_sem_dados"][0]["id"],
             self.julho.pk,
         )
+
+    def test_ignora_importacao_parcial_na_media(self):
+        movimento = self.criar_movimento(
+            self.agosto, self.ups_a, self.medicamento_a, saida="30"
+        )
+        movimento.importacao.status = Importacao.Status.CONCLUIDA_PARCIAL
+        movimento.importacao.save(update_fields=["status"])
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(
+            self.url,
+            self.parametros(competencia_inicial=self.agosto.pk),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["resumo"]["consumo_total"], Decimal("0"))
+        self.assertEqual(response.data["qualidade"]["competencias_com_dados"], 0)

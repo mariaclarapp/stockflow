@@ -61,9 +61,9 @@ class UpsModelTests(TestCase):
         ]
         for ups in unidades:
             Importacao.objects.create(
-                nome_arquivo=f"inventario-{ups.id_unidade_gmus}.csv",
+                nome_arquivo=f"estoque-{ups.id_unidade_gmus}.csv",
                 hash_arquivo="",
-                tipo_relatorio="inventario",
+                tipo_relatorio="estoque",
                 data_importacao=timezone.now(),
                 status=Importacao.Status.CONCLUIDA,
                 usuario=user,

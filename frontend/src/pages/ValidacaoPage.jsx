@@ -14,6 +14,10 @@ function SummaryCard({ label, value }) {
   return <div><small>{label}</small><strong>{formatDecimal(value || 0)}</strong></div>;
 }
 
+function optionalDecimal(value) {
+  return value === null || value === undefined ? "—" : formatDecimal(value);
+}
+
 function ValidacaoPage() {
   const [options, setOptions] = useState({ competencias: [], ups: [] });
   const [competenciaId, setCompetenciaId] = useState("");
@@ -39,7 +43,8 @@ function ValidacaoPage() {
 
   const selectedCompetence = useMemo(() => options.competencias.find((item) => String(item.id) === competenciaId), [competenciaId, options.competencias]);
   const selectedUps = useMemo(() => options.ups.find((item) => String(item.id) === upsId), [options.ups, upsId]);
-  const validationIncomplete = validation && validation.totais.comparaveis < validation.totais.registros;
+  const validationIncomplete = validation && validation.totais.fora_da_validacao > 0;
+  const validationSucceeded = validation && validation.totais.divergentes === 0 && validation.totais.comparaveis > 0;
 
   async function validateMovements() {
     if (!competenciaId || !upsId) return;
@@ -68,18 +73,18 @@ function ValidacaoPage() {
       </section>
       {error && <div className="request-feedback request-feedback--error dashboard-error" role="alert"><AlertCircle size={18} /><p>{error}</p></div>}
       {validation && <section className="analysis-card analysis-result" aria-live="polite">
-        <header className="analysis-result__header"><div><span className="eyebrow">Resultado da validação</span><h2>{selectedCompetence ? formatCompetence(selectedCompetence) : "Competência"}</h2><p>{selectedUps?.nome || validation.ups.nome}</p></div><strong className={validation.totais.divergentes || validationIncomplete ? "analysis-total--warning" : "analysis-total--ok"}>{validation.totais.divergentes ? `${validation.totais.divergentes} divergência(s)` : validationIncomplete ? "Não comparável" : "Validado"}</strong></header>
-        <p className="analysis-note">O inventário não participa desta validação. Os valores abaixo são calculados a partir dos relatórios de estoque e movimentações.</p>
+        <header className="analysis-result__header"><div><span className="eyebrow">Resultado da validação</span><h2>{selectedCompetence ? formatCompetence(selectedCompetence) : "Competência"}</h2><p>{selectedUps?.nome || validation.ups.nome}</p></div><div className="analysis-result__status"><strong className={validationSucceeded ? "analysis-total--ok" : "analysis-total--warning"}>{validation.totais.divergentes ? `${validation.totais.divergentes} divergência(s)` : validationSucceeded ? "Validado" : "Sem itens validados"}</strong><small>{validation.totais.medicamentos_novos} medicamento(s) novo(s) registrado(s)</small></div></header>
+        <p className="analysis-note">Os valores abaixo são calculados a partir dos relatórios de estoque e movimentações.</p>
         <h3 className="analysis-section-title">Resumo do estoque</h3>
         <div className="analysis-totals"><SummaryCard label="Estoque anterior" value={validation.totais.estoque_anterior} /><SummaryCard label="Estoque esperado" value={validation.totais.estoque_esperado} /><SummaryCard label="Estoque observado" value={validation.totais.estoque_observado} /><SummaryCard label="Diferença" value={validation.totais.diferenca} /></div>
         <h3 className="analysis-section-title">Movimentações consideradas</h3>
         <p className="analysis-note">Medicamentos ausentes do relatório sintético usam movimento zero quando aparecem nos dois estoques. Medicamentos novos começam com estoque anterior zero.</p>
-        <div className="analysis-totals"><SummaryCard label="Entradas comparáveis" value={validation.movimentacoes.entradas} /><SummaryCard label="Saídas comparáveis" value={validation.movimentacoes.saidas} /><SummaryCard label="Saldo líquido comparável" value={validation.movimentacoes.saldo_liquido} /><SummaryCard label="Itens divergentes" value={validation.totais.divergentes} /></div>
+        <div className="analysis-totals"><SummaryCard label="Entradas validadas" value={validation.movimentacoes.entradas} /><SummaryCard label="Saídas validadas" value={validation.movimentacoes.saidas} /><SummaryCard label="Saldo líquido validado" value={validation.movimentacoes.saldo_liquido} /><SummaryCard label="Medicamentos validados" value={validation.totais.comparaveis} /></div>
         <h3 className="analysis-section-title">Detalhamento do relatório completo</h3>
         <p className="analysis-note">Os valores abaixo representam todas as linhas reconhecidas no relatório de movimentações, inclusive itens que não puderam ser conciliados individualmente.</p>
         <div className="analysis-movement-details"><div><span>Compras</span><strong>{formatDecimal(validation.movimentacoes.compra)}</strong></div><div><span>Transferências recebidas</span><strong>{formatDecimal(validation.movimentacoes.transferencia_entrada)}</strong></div><div><span>Transferências enviadas</span><strong>{formatDecimal(validation.movimentacoes.transferencia_saida)}</strong></div><div><span>Acertos de entrada</span><strong>{formatDecimal(validation.movimentacoes.acerto_entrada)}</strong></div><div><span>Acertos de saída</span><strong>{formatDecimal(validation.movimentacoes.acerto_saida)}</strong></div><div><span>Devoluções/retornos</span><strong>{formatDecimal(validation.movimentacoes.devolucoes)}</strong></div></div>
-        {validationIncomplete && <p className="analysis-note">Alguns medicamentos não possuem saldo final e, por isso, não podem ser comparados.</p>}
-        <div className="analysis-table-wrapper"><table className="analysis-table"><thead><tr><th>Medicamento</th><th>Anterior</th><th>Entradas</th><th>Saídas</th><th>Esperado</th><th>Observado</th><th>Situação</th></tr></thead><tbody>{validation.registros.map((item) => <tr key={item.medicamento.id}><td><strong>{item.medicamento.descricao}</strong><small>{item.medicamento.codigo_gmus}</small></td><td>{formatDecimal(item.estoque_anterior || 0)}</td><td>{formatDecimal(item.entradas || 0)}</td><td>{formatDecimal(item.saidas || 0)}</td><td>{formatDecimal(item.estoque_esperado || 0)}</td><td>{formatDecimal(item.estoque_observado || 0)}</td><td>{item.situacao === "conferido" ? <span className="analysis-status analysis-status--ok"><CheckCircle2 size={15} />Validado</span> : item.situacao === "divergente" ? <span className="analysis-status analysis-status--warning"><XCircle size={15} />Divergente</span> : <span className="analysis-status">Não comparável</span>}</td></tr>)}</tbody></table></div>
+        {validationIncomplete && <p className="analysis-note">{validation.totais.fora_da_validacao} item(ns) ficou(aram) fora da validação; {validation.totais.sem_saldo_final} não possui(em) saldo final nesta competência. Isso não altera o resultado dos medicamentos validados acima.</p>}
+        <div className="analysis-table-wrapper"><table className="analysis-table"><thead><tr><th>Medicamento</th><th>Anterior</th><th>Entradas</th><th>Saídas</th><th>Esperado</th><th>Observado</th><th>Situação</th></tr></thead><tbody>{validation.registros.map((item) => <tr key={item.medicamento.id}><td><strong>{item.medicamento.descricao}</strong><small>{item.medicamento.codigo_gmus}</small></td><td>{optionalDecimal(item.estoque_anterior)}</td><td>{optionalDecimal(item.entradas)}</td><td>{optionalDecimal(item.saidas)}</td><td>{optionalDecimal(item.estoque_esperado)}</td><td>{optionalDecimal(item.estoque_observado)}</td><td>{item.situacao === "conferido" ? <span className="analysis-status analysis-status--ok"><CheckCircle2 size={15} />{item.estoque_anterior_inferido ? "Validado · novo" : "Validado"}</span> : item.situacao === "divergente" ? <span className="analysis-status analysis-status--warning"><XCircle size={15} />Divergente</span> : <span className="analysis-status">{item.estoque_observado === null ? "Sem saldo final" : "Sem base anterior"}</span>}</td></tr>)}</tbody></table></div>
       </section>}
     </main>
   );

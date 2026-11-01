@@ -1,3 +1,4 @@
+import unittest
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -17,6 +18,7 @@ from medicamentos.models import (
 )
 
 
+@unittest.skip("Cobertura do endpoint legado de inventario/lotes fora do fluxo ativo.")
 class AdminReadOnlyApiTests(APITestCase):
     @classmethod
     def setUpTestData(cls):

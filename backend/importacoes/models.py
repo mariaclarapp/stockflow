@@ -88,3 +88,40 @@ class MovimentacaoEstoque(models.Model):
                 name="unique_movimentacao_importacao_medicamento",
             )
         ]
+
+
+class ImportacaoExclusao(models.Model):
+    """Immutable audit record created before an import is physically removed."""
+
+    importacao_id_original = models.PositiveBigIntegerField(db_index=True)
+    nome_arquivo = models.CharField(max_length=255)
+    hash_arquivo = models.CharField(max_length=64, blank=True)
+    tipo_relatorio = models.CharField(max_length=80)
+    status_original = models.CharField(max_length=50)
+    competencia = models.ForeignKey(
+        "core.Competencia",
+        on_delete=models.PROTECT,
+        related_name="auditorias_exclusao_importacao",
+    )
+    ups = models.ForeignKey(
+        "core.Ups",
+        on_delete=models.PROTECT,
+        related_name="auditorias_exclusao_importacao",
+    )
+    usuario_importacao = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="importacoes_posteriormente_excluidas",
+    )
+    excluida_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="exclusoes_de_importacao",
+    )
+    data_exclusao = models.DateTimeField(auto_now_add=True)
+    contagens = models.JSONField(default=dict)
+
+    class Meta:
+        ordering = ["-data_exclusao", "-id"]
+        verbose_name = "auditoria de exclusao de importacao"
+        verbose_name_plural = "auditorias de exclusao de importacao"
