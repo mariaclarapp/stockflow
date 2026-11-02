@@ -188,7 +188,7 @@ function MedicationList({
         <span aria-hidden="true"><PackageSearch size={27} /></span>
         <div>
           <strong>Nenhum medicamento encontrado</strong>
-          <p>Nenhum medicamento corresponde aos filtros informados.</p>
+          <p>Não há medicamentos importados para esta competência e UPS, ou nenhum item corresponde aos filtros informados.</p>
         </div>
       </div>
     );

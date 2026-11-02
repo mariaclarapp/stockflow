@@ -1,12 +1,29 @@
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.middleware.csrf import get_token
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import AllowAny, IsAdminUser
+from rest_framework.permissions import AllowAny, BasePermission, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .auth_serializers import AuthenticatedUserSerializer, LoginSerializer
+from .auth_serializers import (
+    AuthenticatedUserSerializer,
+    FuncionarioCreateSerializer,
+    FuncionarioSerializer,
+    LoginSerializer,
+)
+
+
+class IsSuperUser(BasePermission):
+    message = "Somente o superusuário pode gerenciar funcionários."
+
+    def has_permission(self, request, view):
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and request.user.is_active
+            and request.user.is_superuser
+        )
 
 
 class CsrfCookieAPIView(APIView):
@@ -57,3 +74,34 @@ class CurrentUserAPIView(APIView):
 
     def get(self, request):
         return Response(AuthenticatedUserSerializer(request.user).data)
+
+
+class FuncionarioListCreateAPIView(APIView):
+    permission_classes = [IsSuperUser]
+
+    def get(self, request):
+        funcionarios = (
+            get_user_model()
+            .objects.filter(is_staff=True, is_superuser=False)
+            .order_by("first_name", "username")
+        )
+        return Response(FuncionarioSerializer(funcionarios, many=True).data)
+
+    def post(self, request):
+        serializer = FuncionarioCreateSerializer(data=request.data)
+        if not serializer.is_valid():
+            errors = serializer.errors
+            first_error = next(iter(errors.values()), ["Dados inválidos."])
+            if isinstance(first_error, dict):
+                first_error = next(iter(first_error.values()), ["Dados inválidos."])
+            if isinstance(first_error, (list, tuple)):
+                first_error = first_error[0] if first_error else "Dados inválidos."
+            return Response(
+                {**errors, "erro": str(first_error)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        funcionario = serializer.save()
+        return Response(
+            FuncionarioSerializer(funcionario).data,
+            status=status.HTTP_201_CREATED,
+        )

@@ -2,8 +2,13 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from core.models import Competencia, Ups
+from estoques.models import SaldoEstoque
+from importacoes.models import Importacao
 
 from .models import Classificacao, Medicamento, SubgrupoGmus
 from .services import DesclassificacaoMedicamentosLoteService
@@ -58,6 +63,39 @@ class BulkMedicationDeclassificationApiTests(APITestCase):
         cls.categorizado_b.classificacoes.add(cls.categoria)
         cls.com_subgrupo.classificacoes.add(cls.categoria)
         cls.apenas_manipulado.classificacoes.add(cls.manipulado)
+        ups = Ups.objects.create(
+            codigo_gmus="UPS-DESCLASSIFICACAO",
+            id_unidade_gmus="1",
+            nome="UPS DESCLASSIFICACAO",
+        )
+        competencia = Competencia.objects.create(ano=2031, mes=3)
+        importacao = Importacao.objects.create(
+            nome_arquivo="estoque-desclassificacao.csv",
+            tipo_relatorio="estoque",
+            data_importacao=timezone.now(),
+            status=Importacao.Status.CONCLUIDA,
+            usuario=cls.staff,
+            competencia=competencia,
+            ups=ups,
+        )
+        SaldoEstoque.objects.bulk_create(
+            [
+                SaldoEstoque(
+                    medicamento=medicamento,
+                    ups=ups,
+                    competencia=competencia,
+                    importacao=importacao,
+                    quantidade="0.000",
+                )
+                for medicamento in (
+                    cls.categorizado_a,
+                    cls.categorizado_b,
+                    cls.sem_categoria,
+                    cls.com_subgrupo,
+                    cls.apenas_manipulado,
+                )
+            ]
+        )
         cls.url = reverse("medicamento-desclassificar-lote")
 
     def setUp(self):

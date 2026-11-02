@@ -1,7 +1,12 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from core.models import Competencia, Ups
+from estoques.models import SaldoEstoque
+from importacoes.models import Importacao
 
 from .models import Medicamento
 
@@ -35,6 +40,33 @@ class AdminMedicineSearchApiTests(APITestCase):
             codigo_gmus="200.1",
             descricao="AMOXICILINA / 500MG",
             unidade="CAPS",
+        )
+        ups = Ups.objects.create(
+            codigo_gmus="UPS-PESQUISA",
+            id_unidade_gmus="1",
+            nome="UPS PESQUISA",
+        )
+        competencia = Competencia.objects.create(ano=2031, mes=2)
+        importacao = Importacao.objects.create(
+            nome_arquivo="estoque-pesquisa.csv",
+            tipo_relatorio="estoque",
+            data_importacao=timezone.now(),
+            status=Importacao.Status.CONCLUIDA,
+            usuario=cls.user,
+            competencia=competencia,
+            ups=ups,
+        )
+        SaldoEstoque.objects.bulk_create(
+            [
+                SaldoEstoque(
+                    medicamento=medicamento,
+                    ups=ups,
+                    competencia=competencia,
+                    importacao=importacao,
+                    quantidade="0.000",
+                )
+                for medicamento in (*cls.presentations, cls.other_medicine)
+            ]
         )
         cls.url = reverse("medicamento-list")
 

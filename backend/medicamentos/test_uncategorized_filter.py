@@ -1,7 +1,12 @@
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from core.models import Competencia, Ups
+from estoques.models import SaldoEstoque
+from importacoes.models import Importacao
 
 from .models import Classificacao, Medicamento, SubgrupoGmus
 
@@ -38,6 +43,38 @@ class UncategorizedMedicationFilterTests(APITestCase):
             codigo_gmus="COM-SUB-1",
             descricao="MEDICAMENTO COM SUBGRUPO",
             subgrupo_gmus=cls.subgrupo,
+        )
+        ups = Ups.objects.create(
+            codigo_gmus="UPS-SEM-CATEGORIA",
+            id_unidade_gmus="1",
+            nome="UPS SEM CATEGORIA",
+        )
+        competencia = Competencia.objects.create(ano=2031, mes=1)
+        importacao = Importacao.objects.create(
+            nome_arquivo="estoque-sem-categoria.csv",
+            tipo_relatorio="estoque",
+            data_importacao=timezone.now(),
+            status=Importacao.Status.CONCLUIDA,
+            usuario=cls.staff,
+            competencia=competencia,
+            ups=ups,
+        )
+        SaldoEstoque.objects.bulk_create(
+            [
+                SaldoEstoque(
+                    medicamento=medicamento,
+                    ups=ups,
+                    competencia=competencia,
+                    importacao=importacao,
+                    quantidade="0.000",
+                )
+                for medicamento in (
+                    cls.sem_categoria,
+                    cls.apenas_manipulado,
+                    cls.com_categoria_manual,
+                    cls.com_subgrupo,
+                )
+            ]
         )
         cls.url = reverse("medicamento-list")
 
@@ -94,7 +131,7 @@ class UncategorizedMedicationFilterTests(APITestCase):
         self.assertIn("sem_categoria", subgroup_response.data)
 
     def test_query_count_is_constant(self):
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(12):
             response = self.client.get(self.url, {"sem_categoria": "true"})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

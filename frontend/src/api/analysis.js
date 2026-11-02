@@ -1,8 +1,33 @@
 import { apiRequest } from "./client";
+import { getCsrfToken } from "./csrf";
 
 export function getMovementValidation(competencia, ups) {
   const params = new URLSearchParams({ competencia: String(competencia), ups: String(ups) });
   return apiRequest(`/api/estoques/validacao-movimentacoes/?${params.toString()}`);
+}
+
+export async function correctMovementValidation({
+  competencia,
+  ups,
+  medicamento,
+  estoqueCorrigido,
+  justificativa,
+}) {
+  const csrfToken = await getCsrfToken();
+  return apiRequest("/api/estoques/validacao-movimentacoes/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken,
+    },
+    body: JSON.stringify({
+      competencia,
+      ups,
+      medicamento,
+      estoque_corrigido: estoqueCorrigido,
+      justificativa,
+    }),
+  });
 }
 
 export function getAnalysisOptions() {

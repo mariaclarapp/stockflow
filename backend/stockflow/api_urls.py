@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from core.auth_views import (
     CsrfCookieAPIView,
     CurrentUserAPIView,
+    FuncionarioListCreateAPIView,
     LoginAPIView,
     LogoutAPIView,
 )
@@ -54,6 +55,11 @@ urlpatterns = [
     path("auth/login/", LoginAPIView.as_view(), name="auth-login"),
     path("auth/logout/", LogoutAPIView.as_view(), name="auth-logout"),
     path("auth/me/", CurrentUserAPIView.as_view(), name="auth-me"),
+    path(
+        "usuarios/funcionarios/",
+        FuncionarioListCreateAPIView.as_view(),
+        name="funcionario-list-create",
+    ),
     path(
         "dashboard/resumo/",
         DashboardResumoAPIView.as_view(),

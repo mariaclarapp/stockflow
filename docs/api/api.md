@@ -42,9 +42,10 @@ para acessar o modulo administrativo.
 O fluxo administrativo usa sessao e cookies nativos do Django. Nao sao utilizados
 JWT, tokens proprios ou senhas fora do mecanismo de autenticacao do framework.
 
-Nao existe API CRUD de usuarios. O gerenciamento das contas administrativas ocorre pelo
-Django Admin e e restrito a superusers; usuarios staff comuns continuam autorizados a
-operar os endpoints administrativos do StockFlow sem precisar de `is_superuser`.
+O cadastro e a listagem segura de funcionarios administrativos possuem endpoint proprio,
+restrito a superusers. O Django Admin permanece disponivel como mecanismo complementar;
+usuarios staff comuns continuam autorizados a operar o StockFlow, mas nao administram
+contas.
 
 ## Autenticacao administrativa por sessao
 
@@ -109,6 +110,20 @@ X-CSRFToken: token-csrf
 
 Exige sessao administrativa autorizada e protecao CSRF, encerra apenas a sessao atual
 e retorna HTTP `204`.
+
+### Funcionarios administrativos
+
+```text
+GET /api/usuarios/funcionarios/
+POST /api/usuarios/funcionarios/
+Content-Type: application/json
+X-CSRFToken: token-csrf
+```
+
+As duas operacoes exigem `is_superuser=True`. O `POST` recebe `nome`, `username`,
+`password` e `password_confirmation`. A senha passa pelos validadores nativos do Django,
+nao e devolvida pela API e e armazenada somente como hash. A conta criada recebe
+`is_active=True`, `is_staff=True` e `is_superuser=False`.
 
 ## Consulta publica de medicamentos
 

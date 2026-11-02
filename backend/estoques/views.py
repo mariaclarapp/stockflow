@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django_filters import rest_framework as django_filters
 from django.shortcuts import get_object_or_404
@@ -14,14 +14,18 @@ from importacoes.report_types import REPORT_TYPE_MOVEMENT, REPORT_TYPE_STOCK
 from core.models import Competencia, Ups
 from core.services import CompetenciaService
 
-from .models import Lote, SaldoEstoque
+from .models import CorrecaoValidacaoEstoque, Lote, SaldoEstoque
 from .serializers import (
     EstoqueSerializer,
     HistoricoMedicamentoSerializer,
     LoteSerializer,
     SaldoEstoqueSerializer,
 )
-from .services import HistoricoMedicamentoService, calcular_validacao_movimentacao
+from .services import (
+    HistoricoMedicamentoService,
+    calcular_validacao_movimentacao,
+    versao_importacao,
+)
 from .analytics import AnaliseConsumoService, competencia_key, variacao_percentual
 
 
@@ -83,11 +87,7 @@ class SaldoEstoqueViewSet(ReadOnlyModelViewSet):
 class ValidacaoMovimentacoesAPIView(APIView):
     permission_classes = [IsAdminUser]
 
-    def get(self, request):
-        competencia_id = request.query_params.get("competencia")
-        ups_id = request.query_params.get("ups")
-        if not competencia_id or not ups_id:
-            return Response({"erro": "Informe competencia e ups para validar as movimentacoes."}, status=400)
+    def _resolver_fontes(self, competencia_id, ups_id):
         competencia = get_object_or_404(Competencia, pk=competencia_id)
         ups = get_object_or_404(Ups, pk=ups_id)
 
@@ -97,7 +97,7 @@ class ValidacaoMovimentacoesAPIView(APIView):
             tipo_relatorio=REPORT_TYPE_STOCK,
         )
         if current_import is None:
-            return Response(
+            return None, Response(
                 {"erro": "Importe um estoque final concluido para esta competencia e UPS."},
                 status=422,
             )
@@ -108,7 +108,7 @@ class ValidacaoMovimentacoesAPIView(APIView):
             tipo_relatorio=REPORT_TYPE_MOVEMENT,
         )
         if movement_import is None:
-            return Response(
+            return None, Response(
                 {"erro": "Importe as movimentacoes concluidas desta competencia e UPS."},
                 status=422,
             )
@@ -119,10 +119,32 @@ class ValidacaoMovimentacoesAPIView(APIView):
             tipo_relatorio=REPORT_TYPE_STOCK,
         )
         if previous_import is None:
-            return Response(
+            return None, Response(
                 {"erro": "Importe um estoque anterior concluido para validar esta competencia."},
                 status=422,
             )
+
+        return {
+            "competencia": competencia,
+            "ups": ups,
+            "estoque_anterior": previous_import,
+            "movimentacao": movement_import,
+            "estoque_final": current_import,
+        }, None
+
+    def get(self, request):
+        competencia_id = request.query_params.get("competencia")
+        ups_id = request.query_params.get("ups")
+        if not competencia_id or not ups_id:
+            return Response({"erro": "Informe competencia e ups para validar as movimentacoes."}, status=400)
+        fontes, erro = self._resolver_fontes(competencia_id, ups_id)
+        if erro is not None:
+            return erro
+        competencia = fontes["competencia"]
+        ups = fontes["ups"]
+        previous_import = fontes["estoque_anterior"]
+        movement_import = fontes["movimentacao"]
+        current_import = fontes["estoque_final"]
 
         previous = previous_import.competencia
         movements = {
@@ -138,6 +160,20 @@ class ValidacaoMovimentacoesAPIView(APIView):
             for item in SaldoEstoque.objects.filter(importacao=previous_import)
         }
         medicine_ids = set(movements) | set(current) | set(previous_values)
+        versoes = {
+            "estoque_anterior": versao_importacao(previous_import),
+            "movimentacao": versao_importacao(movement_import),
+            "estoque_final": versao_importacao(current_import),
+        }
+        correcoes = {
+            item.medicamento_id: item
+            for item in CorrecaoValidacaoEstoque.objects.filter(
+                medicamento_id__in=medicine_ids,
+                versao_estoque_anterior=versoes["estoque_anterior"],
+                versao_movimentacao=versoes["movimentacao"],
+                versao_estoque_final=versoes["estoque_final"],
+            ).select_related("corrigido_por")
+        }
         medicines = {
             item["id"]: item
             for item in Medicamento.objects.filter(pk__in=medicine_ids).values(
@@ -175,14 +211,26 @@ class ValidacaoMovimentacoesAPIView(APIView):
         )
         records = []
         for medicine_id in sorted(medicine_ids):
-            records.append(
-                calcular_validacao_movimentacao(
-                    medicamento=medicines[medicine_id],
-                    movimentacao=movements.get(medicine_id),
-                    estoque_anterior=previous_values.get(medicine_id),
-                    estoque_atual=current.get(medicine_id),
-                )
+            correcao = correcoes.get(medicine_id)
+            estoque_original = current.get(medicine_id)
+            resultado = calcular_validacao_movimentacao(
+                medicamento=medicines[medicine_id],
+                movimentacao=movements.get(medicine_id),
+                estoque_anterior=previous_values.get(medicine_id),
+                estoque_atual=(
+                    correcao.estoque_corrigido if correcao else estoque_original
+                ),
             )
+            if correcao is not None:
+                resultado["estoque_observado_original"] = estoque_original
+                resultado["correcao_manual"] = {
+                    "id": correcao.pk,
+                    "estoque_corrigido": correcao.estoque_corrigido,
+                    "justificativa": correcao.justificativa,
+                    "corrigido_por": correcao.corrigido_por.get_username(),
+                    "corrigido_em": correcao.atualizado_em,
+                }
+            records.append(resultado)
         comparable = [item for item in records if item["situacao"] != "sem_base_completa"]
         estoque_anterior_total = sum(
             (item["estoque_anterior"] for item in comparable), Decimal("0.000")
@@ -192,6 +240,13 @@ class ValidacaoMovimentacoesAPIView(APIView):
         )
         estoque_observado_total = sum(
             (item["estoque_observado"] for item in comparable), Decimal("0.000")
+        )
+        estoque_observado_original_total = sum(
+            (
+                item.get("estoque_observado_original", item["estoque_observado"])
+                for item in comparable
+            ),
+            Decimal("0.000"),
         )
         entradas_comparaveis = sum(
             (item["entradas"] for item in comparable), Decimal("0.000")
@@ -245,6 +300,9 @@ class ValidacaoMovimentacoesAPIView(APIView):
                 "registros": len(records),
                 "comparaveis": len(comparable),
                 "divergentes": sum(item["situacao"] == "divergente" for item in comparable),
+                "correcoes_manuais": sum(
+                    bool(item.get("correcao_manual")) for item in comparable
+                ),
                 "medicamentos_novos": medicamentos_novos,
                 "fora_da_validacao": len(fora_da_validacao),
                 "sem_saldo_final": sem_saldo_final,
@@ -252,9 +310,118 @@ class ValidacaoMovimentacoesAPIView(APIView):
                 "estoque_esperado": estoque_esperado_total,
                 "estoque_observado": estoque_observado_total,
                 "diferenca": estoque_observado_total - estoque_esperado_total,
+                "estoque_observado_original": estoque_observado_original_total,
+                "diferenca_original": (
+                    estoque_observado_original_total - estoque_esperado_total
+                ),
             },
             "registros": records,
         })
+
+    def post(self, request):
+        competencia_id = request.data.get("competencia")
+        ups_id = request.data.get("ups")
+        medicamento_id = request.data.get("medicamento")
+        if not competencia_id or not ups_id or not medicamento_id:
+            return Response(
+                {"erro": "Informe competencia, UPS e medicamento."}, status=400
+            )
+
+        fontes, erro = self._resolver_fontes(competencia_id, ups_id)
+        if erro is not None:
+            return erro
+
+        try:
+            estoque_corrigido = Decimal(str(request.data.get("estoque_corrigido")))
+        except (InvalidOperation, TypeError, ValueError):
+            return Response(
+                {"erro": "Informe um saldo final corrigido valido."}, status=400
+            )
+        if not estoque_corrigido.is_finite() or estoque_corrigido < 0:
+            return Response(
+                {"erro": "O saldo final corrigido deve ser maior ou igual a zero."},
+                status=400,
+            )
+        if estoque_corrigido.as_tuple().exponent < -3:
+            return Response(
+                {"erro": "Use no maximo tres casas decimais no saldo corrigido."},
+                status=400,
+            )
+
+        justificativa = str(request.data.get("justificativa") or "").strip()
+        if len(justificativa) < 5:
+            return Response(
+                {"erro": "Informe uma justificativa com pelo menos 5 caracteres."},
+                status=400,
+            )
+        if len(justificativa) > 1000:
+            return Response(
+                {"erro": "A justificativa deve ter no maximo 1000 caracteres."},
+                status=400,
+            )
+
+        medicamento = get_object_or_404(Medicamento, pk=medicamento_id)
+        previous_import = fontes["estoque_anterior"]
+        movement_import = fontes["movimentacao"]
+        current_import = fontes["estoque_final"]
+        estoque_anterior = SaldoEstoque.objects.filter(
+            importacao=previous_import, medicamento=medicamento
+        ).values_list("quantidade", flat=True).first()
+        estoque_original = SaldoEstoque.objects.filter(
+            importacao=current_import, medicamento=medicamento
+        ).values_list("quantidade", flat=True).first()
+        movimentacao = MovimentacaoEstoque.objects.filter(
+            importacao=movement_import, medicamento=medicamento
+        ).first()
+        resultado_original = calcular_validacao_movimentacao(
+            medicamento=None,
+            movimentacao=movimentacao,
+            estoque_anterior=estoque_anterior,
+            estoque_atual=estoque_original,
+        )
+        if resultado_original["situacao"] != "divergente":
+            return Response(
+                {"erro": "Este medicamento nao possui divergencia para corrigir."},
+                status=409,
+            )
+        if estoque_corrigido != resultado_original["estoque_esperado"]:
+            return Response(
+                {
+                    "erro": "O saldo informado ainda nao fecha a validacao.",
+                    "estoque_esperado": resultado_original["estoque_esperado"],
+                    "estoque_corrigido": estoque_corrigido,
+                    "diferenca": (
+                        estoque_corrigido - resultado_original["estoque_esperado"]
+                    ),
+                },
+                status=422,
+            )
+
+        correcao, criada = CorrecaoValidacaoEstoque.objects.update_or_create(
+            medicamento=medicamento,
+            versao_estoque_anterior=versao_importacao(previous_import),
+            versao_movimentacao=versao_importacao(movement_import),
+            versao_estoque_final=versao_importacao(current_import),
+            defaults={
+                "competencia": fontes["competencia"],
+                "ups": fontes["ups"],
+                "estoque_observado_original": estoque_original,
+                "estoque_corrigido": estoque_corrigido,
+                "justificativa": justificativa,
+                "corrigido_por": request.user,
+            },
+        )
+        return Response(
+            {
+                "correcao_id": correcao.pk,
+                "criada": criada,
+                "medicamento": medicamento.pk,
+                "estoque_original": estoque_original,
+                "estoque_corrigido": correcao.estoque_corrigido,
+                "situacao": "conferido",
+            },
+            status=201 if criada else 200,
+        )
 
 
 class AnaliseConsumoAPIView(APIView):

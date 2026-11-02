@@ -214,19 +214,34 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
         competencia = self._competencia_estoque()
         ups_selecionadas = self._ups_estoque()
         ups = ups_selecionadas[0] if self.request.query_params.get("ups") else None
+        dados_disponiveis = self._dados_estoque_disponiveis()
         queryset = EstoqueTotalAdministrativoService.preparar_listagem(
             super().get_queryset(),
             competencia=competencia,
             ups=ups,
-            dados_disponiveis=self._dados_estoque_disponiveis(),
+            dados_disponiveis=dados_disponiveis,
         )
+
+        # A listagem administrativa representa o conteúdo efetivamente importado
+        # no recorte selecionado, e não todo o cadastro histórico de medicamentos.
+        # Assim, uma competência/UPS sem dados não exibe linhas artificiais zeradas.
+        if self.action == "list":
+            if competencia is None or not dados_disponiveis:
+                return queryset.none()
+            queryset = queryset.filter(
+                saldos_estoque__competencia=competencia,
+                saldos_estoque__ups_id__in=[item.pk for item in ups_selecionadas],
+                saldos_estoque__importacao__tipo_relatorio=REPORT_TYPE_STOCK,
+                saldos_estoque__importacao__status__in=(
+                    CompetenciaService.STATUS_IMPORTACAO_VALIDOS
+                ),
+            ).distinct()
 
         unidade = self.request.query_params.get("unidade", "").strip()
         if unidade:
             queryset = queryset.filter(unidade__iexact=unidade)
 
         situacao = self.request.query_params.get("situacao", "").strip()
-        dados_disponiveis = self._dados_estoque_disponiveis()
         if situacao == "disponivel":
             if not dados_disponiveis:
                 return queryset.none()

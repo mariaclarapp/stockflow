@@ -334,10 +334,11 @@ administrativo quando possuir simultaneamente `is_active=True` e `is_staff=True`
 `is_superuser` não será requisito de acesso. Não serão criados grupos, perfis ou um
 sistema próprio de permissões para representar essa autorização.
 
-O gerenciamento dos usuários administrativos será realizado pelo Django Admin e ficará
-restrito a superusers. Usuários staff comuns não deverão receber permissões de
-visualização, criação, alteração ou exclusão de `User` ou `Group`. Superusers continuarão
-sendo criados por procedimento administrativo controlado com `createsuperuser`.
+O cadastro de funcionários administrativos poderá ser realizado pela tela própria do
+StockFlow ou pelo Django Admin, sempre restrito a superusers. A tela própria criará contas
+com `is_active=True`, `is_staff=True` e `is_superuser=False`. Usuários staff comuns não
+deverão receber permissão para visualizar ou criar contas. Superusers continuarão sendo
+criados exclusivamente pelo procedimento administrativo controlado com `createsuperuser`.
 
 Usuários vinculados ao histórico de importações deverão ser desativados por meio de
 `is_active=False`, e não excluídos. A relação protegida entre `Importacao` e o usuário
@@ -496,6 +497,15 @@ Não deverá ser calculado consumo real apenas pela diferença entre dois estoqu
 O StockFlow preserva compras, saídas, transferências, acertos e devoluções separadamente.
 RF15, RF16 e a cobertura informativa do RF17 estão implementados. O RF18 continua como
 evolução futura porque depende de margem de segurança, prazo de reposição e política de compra.
+
+### RN35-A — Correção manual de divergência
+
+Uma correção manual somente poderá ser criada para um medicamento que esteja divergente.
+O saldo corrigido deverá fechar exatamente a equação `estoque anterior + entradas - saídas`.
+A correção exige justificativa, usuário autenticado e registro da data, e não altera os
+CSV nem os saldos originais. Ela fica vinculada às versões exatas do estoque anterior,
+das movimentações e do estoque final; a reimportação de qualquer fonte invalida o ajuste
+anterior e exige nova conferência.
 
 ## RN36 — Disponibilidade pública
 

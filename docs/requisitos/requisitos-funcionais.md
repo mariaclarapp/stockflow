@@ -39,13 +39,14 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
 | RF24 | Preservar dados legados de inventário sem utilizá-los no fluxo ativo | Administrativo |
 | RF25 | Importar o relatório sintético de movimentações mensais por medicamento e UPS | Administrativo |
 | RF26 | Validar o saldo final com base no estoque anterior e nas entradas e saídas do mês | Administrativo |
+| RF27 | Corrigir manualmente uma divergência de validação, com justificativa, usuário e rastreabilidade das fontes | Administrativo |
 
 ## Observações
 
 - O módulo administrativo exige autenticação.
-- O RF02 é atendido pelo gerenciamento dos usuários Django no Django Admin. Somente
-  superusers realizam essa gestão; usuários staff comuns operam o módulo administrativo
-  do StockFlow, mas não administram contas.
+- O RF02 permite que o superusuário cadastre funcionários pela tela própria do StockFlow.
+  O Django Admin permanece disponível como mecanismo administrativo complementar. As
+  contas criadas são ativas e staff, mas não recebem privilégio de superusuário.
 - O módulo público não exige autenticação.
 - A seleção múltipla deixou de fazer parte da listagem atual; cada medicamento possui consulta individual e a análise oferece comparação por período.
 - No módulo público, a consulta será individual por medicamento.
@@ -56,6 +57,9 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
   movimento zero quando o medicamento existe nos estoques anterior e final. Medicamentos
   novos, presentes no estoque final e no relatório de movimentações, usam saldo anterior
   zero. A validação continua indisponível quando não existe saldo final.
+- O RF27 não altera os relatórios nem o saldo originalmente importado. A correção só é
+  aceita quando o saldo informado fecha a equação da competência e deixa de valer se
+  alguma das importações usadas na validação for substituída.
 - O RF15 depende de uma fonte confiável e validada de consumo mensal. Os inventários
   atualmente importados são fotografias do saldo de estoque e não fornecem consumo.
 - O RF16 depende diretamente do RF15 e de consumo válido em múltiplos períodos.

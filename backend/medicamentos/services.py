@@ -1,3 +1,4 @@
+from collections import defaultdict
 from decimal import Decimal
 
 from django.db import transaction
@@ -17,12 +18,12 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 
-from core.models import Competencia, Ups
+from core.models import Ups
 from core.services import CompetenciaService
-from estoques.models import SaldoEstoque
-from estoques.services import calcular_validacao_movimentacao
+from estoques.models import CorrecaoValidacaoEstoque, SaldoEstoque
+from estoques.services import calcular_validacao_movimentacao, versao_importacao
 from importacoes.models import MovimentacaoEstoque
-from importacoes.report_types import REPORT_TYPE_STOCK
+from importacoes.report_types import REPORT_TYPE_MOVEMENT, REPORT_TYPE_STOCK
 
 from .domain import CLASSIFICACAO_MANIPULADO
 from .models import Classificacao, Medicamento
@@ -129,51 +130,96 @@ class SituacaoValidacaoMedicamentosService:
 
         situacoes = {}
         ups_sem_dados = False
-        for unidade in ups:
-            atual = {
-                item.medicamento_id: item.quantidade
-                for item in SaldoEstoque.objects.filter(
-                    competencia=competencia,
-                    ups=unidade,
-                )
-            }
-            if not atual:
-                ups_sem_dados = True
-
-            anterior = (
-                Competencia.objects.filter(
-                    Q(ano__lt=competencia.ano)
-                    | Q(ano=competencia.ano, mes__lt=competencia.mes),
-                    saldos_estoque__ups=unidade,
-                )
-                .distinct()
-                .order_by("-ano", "-mes")
-                .first()
+        ups_ids = [unidade.pk for unidade in ups]
+        importacoes_atuais = {
+            item.ups_id: item
+            for item in CompetenciaService.importacoes_validas(REPORT_TYPE_STOCK)
+            .filter(competencia=competencia, ups_id__in=ups_ids)
+        }
+        importacoes_movimento = {
+            item.ups_id: item
+            for item in CompetenciaService.importacoes_validas(REPORT_TYPE_MOVEMENT)
+            .filter(competencia=competencia, ups_id__in=ups_ids)
+        }
+        importacoes_anteriores = {}
+        candidatos_anteriores = (
+            CompetenciaService.importacoes_validas(REPORT_TYPE_STOCK)
+            .filter(
+                Q(competencia__ano__lt=competencia.ano)
+                | Q(
+                    competencia__ano=competencia.ano,
+                    competencia__mes__lt=competencia.mes,
+                ),
+                ups_id__in=ups_ids,
             )
-            valores_anteriores = {}
-            if anterior is not None:
-                valores_anteriores = {
-                    item.medicamento_id: item.quantidade
-                    for item in SaldoEstoque.objects.filter(
-                        competencia=anterior,
-                        ups=unidade,
-                    )
-                }
+            .select_related("competencia")
+            .order_by("ups_id", "-competencia__ano", "-competencia__mes")
+        )
+        for item in candidatos_anteriores:
+            importacoes_anteriores.setdefault(item.ups_id, item)
 
-            movimentacoes = {
-                item.medicamento_id: item
-                for item in MovimentacaoEstoque.objects.filter(
-                    competencia=competencia,
-                    ups=unidade,
-                )
-            }
+        atuais_por_ups = defaultdict(dict)
+        for item in SaldoEstoque.objects.filter(
+            importacao_id__in=[item.pk for item in importacoes_atuais.values()]
+        ):
+            atuais_por_ups[item.ups_id][item.medicamento_id] = item.quantidade
+
+        anteriores_por_ups = defaultdict(dict)
+        for item in SaldoEstoque.objects.filter(
+            importacao_id__in=[item.pk for item in importacoes_anteriores.values()]
+        ):
+            anteriores_por_ups[item.ups_id][item.medicamento_id] = item.quantidade
+
+        movimentos_por_ups = defaultdict(dict)
+        for item in MovimentacaoEstoque.objects.filter(
+            importacao_id__in=[item.pk for item in importacoes_movimento.values()]
+        ):
+            movimentos_por_ups[item.ups_id][item.medicamento_id] = item
+
+        correcoes_por_ups = defaultdict(list)
+        for item in CorrecaoValidacaoEstoque.objects.filter(
+            competencia=competencia,
+            ups_id__in=ups_ids,
+        ):
+            correcoes_por_ups[item.ups_id].append(item)
+
+        for unidade in ups:
+            importacao_atual = importacoes_atuais.get(unidade.pk)
+            importacao_movimento = importacoes_movimento.get(unidade.pk)
+            importacao_anterior = importacoes_anteriores.get(unidade.pk)
+            atual = atuais_por_ups[unidade.pk]
+            valores_anteriores = anteriores_por_ups[unidade.pk]
+            movimentacoes = movimentos_por_ups[unidade.pk]
             medicamento_ids = set(atual) | set(valores_anteriores) | set(movimentacoes)
+            if not all(
+                (importacao_atual, importacao_movimento, importacao_anterior)
+            ):
+                ups_sem_dados = True
+                for medicamento_id in medicamento_ids:
+                    situacoes.setdefault(medicamento_id, "nao_validado")
+                continue
+
+            versao_anterior = versao_importacao(importacao_anterior)
+            versao_movimento = versao_importacao(importacao_movimento)
+            versao_atual = versao_importacao(importacao_atual)
+            correcoes = {
+                item.medicamento_id: item
+                for item in correcoes_por_ups[unidade.pk]
+                if item.versao_estoque_anterior == versao_anterior
+                and item.versao_movimentacao == versao_movimento
+                and item.versao_estoque_final == versao_atual
+            }
             for medicamento_id in medicamento_ids:
+                correcao = correcoes.get(medicamento_id)
                 resultado = calcular_validacao_movimentacao(
                     medicamento=None,
                     movimentacao=movimentacoes.get(medicamento_id),
                     estoque_anterior=valores_anteriores.get(medicamento_id),
-                    estoque_atual=atual.get(medicamento_id),
+                    estoque_atual=(
+                        correcao.estoque_corrigido
+                        if correcao is not None
+                        else atual.get(medicamento_id)
+                    ),
                 )
                 situacao = {
                     "conferido": "validado",

@@ -9,7 +9,7 @@ import {
   Menu,
   Pill,
   SearchCheck,
-  Settings,
+  UsersRound,
   X,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
@@ -24,7 +24,7 @@ const navItems = [
   { label: "Análise", icon: BarChart3, to: "/admin/analises" },
   { label: "Competências", icon: CalendarDays, to: "/admin/competencias" },
   { label: "Validação", icon: SearchCheck, to: "/admin/validacao" },
-  { label: "Configurações", icon: Settings },
+  { label: "Funcionários", icon: UsersRound, to: "/admin/funcionarios", superuserOnly: true },
 ];
 
 function AdminLayout() {
@@ -68,7 +68,7 @@ function AdminLayout() {
         </div>
 
         <nav className="sidebar__nav" aria-label="Navegação administrativa">
-          {navItems.map(({ label, icon: Icon, to, end }) =>
+          {navItems.filter((item) => !item.superuserOnly || user.is_superuser).map(({ label, icon: Icon, to, end }) =>
             to ? (
               <NavLink
                 key={label}

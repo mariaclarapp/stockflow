@@ -154,13 +154,16 @@ class AdminStructuredFiltersApiTests(APITestCase):
 
         response = self.client.get(
             self.medicamentos_url,
-            {"subgrupo": self.subgrupo_a.pk},
+            {
+                "subgrupo": self.subgrupo_a.pk,
+                "competencia": self.competencia_a.pk,
+            },
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(
             {item["codigo_gmus"] for item in response.data},
-            {"115.1", "200.1", "300.1"},
+            {"115.1", "200.1"},
         )
 
     def test_combines_stock_filters(self):
@@ -187,7 +190,11 @@ class AdminStructuredFiltersApiTests(APITestCase):
 
         response = self.client.get(
             self.medicamentos_url,
-            {"search": "dipirona", "subgrupo": self.subgrupo_a.pk},
+            {
+                "search": "dipirona",
+                "subgrupo": self.subgrupo_a.pk,
+                "competencia": self.competencia_a.pk,
+            },
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -199,7 +206,10 @@ class AdminStructuredFiltersApiTests(APITestCase):
 
         response = self.client.get(
             self.medicamentos_url,
-            {"classificacao": self.manipulado.pk},
+            {
+                "classificacao": self.manipulado.pk,
+                "competencia": self.competencia_a.pk,
+            },
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -213,7 +223,11 @@ class AdminStructuredFiltersApiTests(APITestCase):
 
         response = self.client.get(
             self.medicamentos_url,
-            {"search": "dipirona", "classificacao": self.categoria_manual.pk},
+            {
+                "search": "dipirona",
+                "classificacao": self.categoria_manual.pk,
+                "competencia": self.competencia_a.pk,
+            },
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

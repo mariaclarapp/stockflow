@@ -62,18 +62,33 @@ class AdministrativeMedicationStockApiTests(APITestCase):
             descricao="MEDICAMENTO SEM ESTOQUE",
             unidade="COMPR",
         )
+        SaldoEstoque.objects.bulk_create(
+            [
+                SaldoEstoque(
+                    medicamento=medicamento,
+                    ups=self.ups_convencional_a,
+                    competencia=self.competencia,
+                    importacao=self.importacoes[self.ups_convencional_a.pk],
+                    quantidade="0.000",
+                )
+                for medicamento in (self.medicamento, self.sem_estoque)
+            ]
+        )
         self.url = reverse("medicamento-list")
         self.client.force_authenticate(self.staff)
 
     def criar_estoque(self, ups, quantidade, lote, medicamento=None):
         medicamento = medicamento or self.medicamento
-        return SaldoEstoque.objects.create(
+        saldo, _ = SaldoEstoque.objects.update_or_create(
             medicamento=medicamento,
-            ups=ups,
-            competencia=self.competencia,
             importacao=self.importacoes[ups.pk],
-            quantidade=quantidade,
+            defaults={
+                "ups": ups,
+                "competencia": self.competencia,
+                "quantidade": quantidade,
+            },
         )
+        return saldo
 
     def obter_itens(self):
         response = self.client.get(self.url)
@@ -149,7 +164,7 @@ class AdministrativeMedicationStockApiTests(APITestCase):
         self.assertEqual(itens["SALDO-1"]["quantidade_estoque_total"], "2.500")
         self.assertEqual(itens["SALDO-2"]["quantidade_estoque_total"], "0.000")
 
-    def test_specific_ups_without_stock_import_returns_uninformed_quantity(self):
+    def test_specific_ups_without_stock_import_returns_empty_list(self):
         Importacao.objects.filter(ups=self.ups_nao_convencional).delete()
 
         response = self.client.get(
@@ -158,9 +173,37 @@ class AdministrativeMedicationStockApiTests(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertTrue(
-            all(item["quantidade_estoque_total"] is None for item in response.data)
+        self.assertEqual(response.data, [])
+
+    def test_list_hides_medication_without_imported_balance(self):
+        nunca_importado = Medicamento.objects.create(
+            codigo_gmus="SEM-IMPORTACAO",
+            descricao="MEDICAMENTO NUNCA IMPORTADO",
+            unidade="COMPR",
         )
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn(nunca_importado.pk, [item["id"] for item in response.data])
+
+    def test_list_is_empty_when_scope_has_no_imported_stock_data(self):
+        SaldoEstoque.objects.all().delete()
+        Importacao.objects.all().delete()
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
+
+    def test_specific_ups_with_import_but_without_balance_rows_is_empty(self):
+        response = self.client.get(
+            self.url,
+            {"ups": self.ups_convencional_b.pk, "competencia": self.competencia.pk},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
 
     def test_options_hide_competence_without_imports(self):
         vazia = Competencia.objects.create(ano=2030, mes=7)
@@ -173,7 +216,7 @@ class AdministrativeMedicationStockApiTests(APITestCase):
         self.assertNotIn(vazia.pk, ids)
 
     def test_list_query_count_is_constant_for_multiple_medications(self):
-        Medicamento.objects.bulk_create(
+        extras = Medicamento.objects.bulk_create(
             [
                 Medicamento(
                     codigo_gmus=f"SALDO-EXTRA-{indice}",
@@ -182,8 +225,20 @@ class AdministrativeMedicationStockApiTests(APITestCase):
                 for indice in range(10)
             ]
         )
+        SaldoEstoque.objects.bulk_create(
+            [
+                SaldoEstoque(
+                    medicamento=item,
+                    ups=self.ups_convencional_a,
+                    competencia=self.competencia,
+                    importacao=self.importacoes[self.ups_convencional_a.pk],
+                    quantidade="0.000",
+                )
+                for item in extras
+            ]
+        )
 
-        with self.assertNumQueries(16):
+        with self.assertNumQueries(12):
             response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -193,7 +248,7 @@ class AdministrativeMedicationStockApiTests(APITestCase):
         categoria = Classificacao.objects.create(nome="CATEGORIA TESTE")
         self.medicamento.classificacoes.add(categoria)
 
-        with self.assertNumQueries(16):
+        with self.assertNumQueries(12):
             response = self.client.get(
                 self.url,
                 {"classificacao": categoria.pk},
@@ -341,8 +396,20 @@ class AdministrativeMedicationStockApiTests(APITestCase):
             self.sem_estoque.pk,
             *[item.pk for item in extras],
         ]
+        SaldoEstoque.objects.bulk_create(
+            [
+                SaldoEstoque(
+                    medicamento=item,
+                    ups=self.ups_convencional_a,
+                    competencia=self.competencia,
+                    importacao=self.importacoes[self.ups_convencional_a.pk],
+                    quantidade="0.000",
+                )
+                for item in extras
+            ]
+        )
 
-        with self.assertNumQueries(16):
+        with self.assertNumQueries(12):
             response = self.client.get(
                 self.url,
                 {"ids": ",".join(str(item) for item in ids)},

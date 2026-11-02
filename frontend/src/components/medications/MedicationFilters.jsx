@@ -118,7 +118,6 @@ function MedicationFilters({
           <option value="">Todas</option>
           <option value="disponivel">Com estoque</option>
           <option value="sem_estoque">Sem estoque</option>
-          <option value="sem_dados">Sem dados</option>
         </select>
       </label>
 

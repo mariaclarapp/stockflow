@@ -1,12 +1,14 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import ProtectedRoute from "./auth/ProtectedRoute";
+import SuperuserRoute from "./auth/SuperuserRoute";
 import AdminLayout from "./layouts/AdminLayout";
 import CompetenciasPage from "./pages/CompetenciasPage";
 import AnalisesPage from "./pages/AnalisesPage";
 import ValidacaoPage from "./pages/ValidacaoPage";
 import DashboardPage from "./pages/DashboardPage";
 import ImportacoesPage from "./pages/ImportacoesPage";
+import FuncionariosPage from "./pages/FuncionariosPage";
 import LoginPage from "./pages/LoginPage";
 import MedicamentoDetalhePage from "./pages/MedicamentoDetalhePage";
 import MedicamentosCompararPage from "./pages/MedicamentosCompararPage";
@@ -29,6 +31,9 @@ function App() {
           <Route path="medicamentos" element={<MedicamentosPage />} />
           <Route path="medicamentos/comparar" element={<MedicamentosCompararPage />} />
           <Route path="medicamentos/:id" element={<MedicamentoDetalhePage />} />
+          <Route element={<SuperuserRoute />}>
+            <Route path="funcionarios" element={<FuncionariosPage />} />
+          </Route>
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/medicamentos" replace />} />

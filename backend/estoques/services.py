@@ -6,6 +6,16 @@ from core.services import CompetenciaService
 from .models import SaldoEstoque
 
 
+def versao_importacao(importacao):
+    return ":".join(
+        (
+            str(importacao.pk),
+            importacao.hash_arquivo or "sem-hash",
+            importacao.data_importacao.isoformat(),
+        )
+    )
+
+
 def calcular_validacao_movimentacao(
     *, medicamento, movimentacao, estoque_anterior, estoque_atual
 ):
