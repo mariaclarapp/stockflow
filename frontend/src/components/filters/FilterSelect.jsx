@@ -12,6 +12,7 @@ function FilterSelect({
   loadingLabel = "Carregando...",
   icon: Icon = SlidersHorizontal,
   className = "",
+  allowEmpty = true,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef(null);
@@ -22,6 +23,8 @@ function FilterSelect({
   );
   const labelId = `${id}-label`;
   const optionsId = `${id}-options`;
+  const optionOffset = allowEmpty ? 1 : 0;
+  const optionCount = options.length + optionOffset;
 
   useEffect(() => {
     function handleOutsideClick(event) {
@@ -46,7 +49,7 @@ function FilterSelect({
   function openMenu() {
     setIsOpen(true);
     const selectedIndex = selectedOption
-      ? options.findIndex((option) => option.value === selectedOption.value) + 1
+      ? options.findIndex((option) => option.value === selectedOption.value) + optionOffset
       : 0;
     requestAnimationFrame(() => optionRefs.current[selectedIndex]?.focus());
   }
@@ -60,7 +63,7 @@ function FilterSelect({
   function handleOptionKeyDown(event, index) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      optionRefs.current[Math.min(index + 1, options.length)]?.focus();
+      optionRefs.current[Math.min(index + 1, optionCount - 1)]?.focus();
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       optionRefs.current[Math.max(index - 1, 0)]?.focus();
@@ -69,7 +72,7 @@ function FilterSelect({
       optionRefs.current[0]?.focus();
     } else if (event.key === "End") {
       event.preventDefault();
-      optionRefs.current[options.length]?.focus();
+      optionRefs.current[optionCount - 1]?.focus();
     }
   }
 
@@ -110,22 +113,24 @@ function FilterSelect({
           role="listbox"
           aria-labelledby={labelId}
         >
-          <button
-            ref={(element) => {
-              optionRefs.current[0] = element;
-            }}
-            type="button"
-            role="option"
-            aria-selected={!value}
-            className={`filter-select__option${!value ? " filter-select__option--selected" : ""}`}
-            onClick={() => selectOption("")}
-            onKeyDown={(event) => handleOptionKeyDown(event, 0)}
-          >
-            <span className="filter-select__check">
-              {!value && <Check size={15} />}
-            </span>
-            <span>{placeholder}</span>
-          </button>
+          {allowEmpty && (
+            <button
+              ref={(element) => {
+                optionRefs.current[0] = element;
+              }}
+              type="button"
+              role="option"
+              aria-selected={!value}
+              className={`filter-select__option${!value ? " filter-select__option--selected" : ""}`}
+              onClick={() => selectOption("")}
+              onKeyDown={(event) => handleOptionKeyDown(event, 0)}
+            >
+              <span className="filter-select__check">
+                {!value && <Check size={15} />}
+              </span>
+              <span>{placeholder}</span>
+            </button>
+          )}
 
           {options.map((option, index) => {
             const isSelected = String(option.value) === String(value);
@@ -140,14 +145,14 @@ function FilterSelect({
                 )}
                 <button
                   ref={(element) => {
-                    optionRefs.current[index + 1] = element;
+                    optionRefs.current[index + optionOffset] = element;
                   }}
                   type="button"
                   role="option"
                   aria-selected={isSelected}
                   className={`filter-select__option${isSelected ? " filter-select__option--selected" : ""}`}
                   onClick={() => selectOption(String(option.value))}
-                  onKeyDown={(event) => handleOptionKeyDown(event, index + 1)}
+                  onKeyDown={(event) => handleOptionKeyDown(event, index + optionOffset)}
                 >
                   <span className="filter-select__check">
                     {isSelected && <Check size={15} />}

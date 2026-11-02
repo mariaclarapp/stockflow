@@ -15,12 +15,19 @@
   --muted: #657470;
   --danger: #a53b3b;
   --shadow: 0 16px 40px rgba(20, 66, 61, 0.12);
-  --admin-content-max-width: 1180px;
-  --admin-page-padding-inline: clamp(26px, 4vw, 58px);
+  --admin-content-max-width: 1400px;
+  --admin-page-padding-inline: clamp(22px, 3vw, 48px);
   --admin-card-radius: 8px;
   --admin-card-border: 1px solid var(--border);
   --admin-card-shadow: 0 6px 18px rgba(37, 76, 71, 0.05);
-  --admin-control-height: 42px;
+  --admin-control-height: 44px;
+  --admin-font-caption: 0.72rem;
+  --admin-font-small: 0.8rem;
+  --admin-font-body: 0.86rem;
+}
+
+html {
+  font-size: 17px;
 }
 
 * {
@@ -32,6 +39,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: var(--background);
+  line-height: 1.5;
 }
 
 button,
@@ -414,14 +422,14 @@ p {
 }
 
 .public-main {
-  width: min(1000px, 100%);
+  width: min(1120px, 100%);
   flex: 1;
   margin: 0 auto;
   padding: 54px 28px 68px;
 }
 
 .public-intro {
-  max-width: 780px;
+  max-width: 880px;
   margin: 0 auto;
   text-align: center;
 }
@@ -908,7 +916,8 @@ p {
 .medication-detail-page,
 .competencies-page,
 .analysis-page,
-.analytics-page {
+.analytics-page,
+.staff-page {
   width: 100%;
   max-width: var(--admin-content-max-width);
   margin: 0 auto;
@@ -1118,7 +1127,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 0.76rem;
+  font-size: var(--admin-font-small);
 }
 
 th,
@@ -1130,7 +1139,7 @@ td {
 th {
   color: #74817e;
   background: #fbfcfc;
-  font-size: 0.66rem;
+  font-size: var(--admin-font-caption);
   font-weight: 750;
   text-transform: uppercase;
 }
@@ -1417,7 +1426,6 @@ th {
   align-items: center;
 }
 
-.report-type-badge,
 .status-badge {
   display: inline-flex;
   flex: 0 0 auto;
@@ -1426,13 +1434,6 @@ th {
   border-radius: 999px;
   font-size: 0.7rem;
   font-weight: 750;
-}
-
-.report-type-badge {
-  padding: 8px 11px;
-  border: 1px solid #cfe1de;
-  color: var(--primary-800);
-  background: #edf7f5;
 }
 
 .upload-card,
@@ -1444,6 +1445,7 @@ th {
 }
 
 .upload-card {
+  margin-bottom: 20px;
   padding: 26px;
 }
 
@@ -1475,6 +1477,23 @@ th {
 
 .field-label select {
   max-width: 360px;
+}
+
+.report-type-select {
+  width: min(100%, 460px);
+  margin-bottom: 18px;
+}
+
+.report-type-select .filter-select__trigger {
+  min-height: 48px;
+  border-color: #a9cbc5;
+  background: #f8fcfb;
+}
+
+.report-type-select .filter-select__trigger:hover:not(:disabled),
+.report-type-select .filter-select__trigger--open {
+  border-color: var(--primary-700);
+  background: #ffffff;
 }
 
 .analysis-card {
@@ -2548,6 +2567,26 @@ th {
 .upload-card__notice {
   color: #56635f;
   background: #f1f5f4;
+}
+
+.upload-card__submission {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid #e2ecea;
+}
+
+.upload-card__submission .upload-card__notice,
+.upload-card__submission .upload-card__actions {
+  margin-top: 0;
+}
+
+.upload-card__submission .upload-card__notice {
+  min-width: 0;
+  flex: 1;
 }
 
 .upload-card__notice svg,
@@ -5404,10 +5443,6 @@ th {
     margin-top: 14px;
   }
 
-  .report-type-badge {
-    margin-top: 14px;
-  }
-
   .medications-page__badge {
     margin-top: 14px;
   }
@@ -5438,6 +5473,11 @@ th {
 
   .upload-button {
     width: 100%;
+  }
+
+  .upload-card__submission {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .import-result__header {
@@ -5825,9 +5865,8 @@ th {
 }
 
 .staff-page {
-  width: min(100%, var(--admin-content-max-width));
-  margin: 0 auto;
-  padding: 42px var(--admin-page-padding-inline) 64px;
+  padding-top: 42px;
+  padding-bottom: 64px;
 }
 
 .staff-page__heading {
@@ -6045,6 +6084,168 @@ th {
   padding: 24px;
   color: var(--muted);
   font-size: 0.76rem;
+}
+
+/* Shared visual foundation for the administrative module. */
+.admin-content {
+  font-size: var(--admin-font-body);
+}
+
+.nav-item {
+  font-size: var(--admin-font-small);
+}
+
+.user-summary strong {
+  font-size: 0.78rem;
+}
+
+.user-summary small,
+.sidebar-error {
+  font-size: 0.68rem;
+}
+
+.eyebrow,
+.placeholder-badge,
+.status-badge,
+.medications-page__badge,
+.staff-page__badge {
+  font-size: var(--admin-font-caption);
+}
+
+.page-heading p,
+.section-heading p,
+.upload-card__heading p,
+.analysis-card__heading p,
+.analysis-result__header p,
+.analytics-panel__heading p,
+.staff-card__heading p {
+  font-size: var(--admin-font-small);
+  line-height: 1.55;
+}
+
+.section-heading h2,
+.competencies-toolbar h2,
+.upload-card__heading h2,
+.import-result__header h2,
+.analysis-card__heading h2,
+.analysis-result__header h2,
+.analytics-panel__heading h2,
+.staff-card__heading h2 {
+  font-size: 1.08rem;
+}
+
+.field-label,
+.staff-form label,
+.medication-search > label,
+.filter-select > span:first-child,
+.medication-filter-field > span {
+  font-size: var(--admin-font-small);
+}
+
+.field-label select,
+.staff-form input,
+.stock-correction-form input,
+.stock-correction-form textarea,
+.classification-form input[type="text"],
+.classification-form textarea {
+  width: 100%;
+  min-height: var(--admin-control-height);
+  padding: 0 12px;
+  border: 1px solid #c9d9d6;
+  border-radius: 6px;
+  color: var(--text);
+  background-color: #ffffff;
+  font-size: var(--admin-font-small);
+  line-height: 1.35;
+}
+
+.stock-correction-form textarea,
+.classification-form textarea {
+  min-height: 96px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  resize: vertical;
+}
+
+.field-label select:hover:not(:disabled),
+.staff-form input:hover:not(:disabled),
+.stock-correction-form input:hover:not(:disabled),
+.stock-correction-form textarea:hover:not(:disabled),
+.classification-form input[type="text"]:hover:not(:disabled),
+.classification-form textarea:hover:not(:disabled) {
+  border-color: #a9c9c3;
+}
+
+.field-label select:focus,
+.staff-form input:focus,
+.stock-correction-form input:focus,
+.stock-correction-form textarea:focus,
+.classification-form input[type="text"]:focus,
+.classification-form textarea:focus {
+  border-color: var(--primary-700);
+  box-shadow: 0 0 0 3px rgba(11, 129, 120, 0.1);
+  outline: 0;
+}
+
+.field-label select:disabled,
+.staff-form input:disabled,
+.stock-correction-form input:disabled,
+.stock-correction-form textarea:disabled,
+.classification-form input[type="text"]:disabled,
+.classification-form textarea:disabled {
+  color: #7c8986;
+  background: #f1f5f4;
+}
+
+.primary-button,
+.secondary-button {
+  font-size: var(--admin-font-small);
+}
+
+.medication-filter-field select,
+.medication-search__control input,
+.filter-select__trigger > span,
+.filter-select__option {
+  font-size: var(--admin-font-small);
+}
+
+.overview-card small,
+.overview-card p,
+.dashboard-quick-actions small,
+.competencies-summary small,
+.competencies-toolbar p,
+.competencies-state p,
+.competence-item__progress-label,
+.medication-panel__summary p,
+.medication-stock-context small,
+.medication-stock-context p,
+.medication-stock-summary small,
+.staff-list small,
+.staff-form__help,
+.staff-feedback,
+.stock-correction-help,
+.stock-correction-error {
+  font-size: var(--admin-font-caption);
+}
+
+.dashboard-quick-actions strong,
+.overview-card small,
+.competencies-state strong,
+.medication-panel__summary h2,
+.medication-name,
+.staff-list strong,
+.selected-file__details strong {
+  font-size: var(--admin-font-small);
+}
+
+.competence-status,
+.medication-panel__summary > span,
+.medication-category-badge,
+.gmus-code,
+.medication-detail-link,
+.medication-card__detail-link,
+.medication-inline-detail-link {
+  font-size: var(--admin-font-caption);
 }
 
 @media (max-width: 1100px) {

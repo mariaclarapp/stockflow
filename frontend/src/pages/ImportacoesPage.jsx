@@ -1,8 +1,9 @@
-import { AlertCircle, FileUp, Info, LoaderCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, FileText, FileUp, Info, LoaderCircle, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ApiError } from "../api/client";
 import { deleteImport, getImports, previewImport, uploadMovement, uploadStock } from "../api/inventory";
+import FilterSelect from "../components/filters/FilterSelect";
 import ImportSummary from "../components/imports/ImportSummary";
 import InventoryFilePicker from "../components/imports/InventoryFilePicker";
 import ReimportConfirmationModal from "../components/imports/ReimportConfirmationModal";
@@ -132,18 +133,30 @@ function ImportacoesPage() {
     <main className="import-page">
       <header className="page-heading import-page__heading">
         <div><span className="eyebrow">Estoque mensal</span><h1>Importações</h1><p>Envie relatórios CSV do G-MUS para processar estoque e movimentações.</p></div>
-        <span className="report-type-badge"><FileUp size={15} />{reportType === "estoque" ? "Consulta de Estoque" : "Movimentações de Estoque"}</span>
       </header>
 
       <section className="upload-card" aria-labelledby="upload-title">
         <div className="upload-card__heading"><div><h2 id="upload-title">Enviar {reportLabel}</h2><p>O conteúdo será validado e processado pelo StockFlow.</p></div></div>
         <form onSubmit={(event) => { event.preventDefault(); processUpload(); }}>
-          <label className="field-label" htmlFor="report-type">Tipo de relatório
-            <select id="report-type" value={reportType} onChange={(event) => { setReportType(event.target.value); removeFile(); }} disabled={isSubmitting}>
-              <option value="estoque">Consulta de Estoque (saldo total)</option>
-              <option value="movimentacao">Movimentações de Estoque (sintético)</option>
-            </select>
-          </label>
+          <FilterSelect
+            id="report-type"
+            className="report-type-select"
+            label="Tipo de relatório"
+            value={reportType}
+            options={[
+              { value: "estoque", label: "Consulta de Estoque (saldo total)" },
+              { value: "movimentacao", label: "Movimentações de Estoque (sintético)" },
+            ]}
+            placeholder="Selecione o tipo de relatório"
+            isLoading={isSubmitting}
+            loadingLabel="Processando relatório..."
+            icon={FileText}
+            allowEmpty={false}
+            onChange={(value) => {
+              setReportType(value);
+              removeFile();
+            }}
+          />
           <details className="import-download-guide">
             <summary>
               <Info size={18} aria-hidden="true" />
@@ -180,9 +193,11 @@ function ImportacoesPage() {
           <InventoryFilePicker file={file} disabled={isSubmitting || isPreviewing} onChange={inspectFile} onRemove={removeFile} reportLabel={reportLabel} />
           {isPreviewing && <div className="import-preview import-preview--loading"><LoaderCircle className="button-spinner" size={18} /><span>Analisando o arquivo antes da importação...</span></div>}
           {preview && !isPreviewing && <section className={`import-preview${preview.pode_importar ? "" : " import-preview--warning"}`} aria-label="Pré-visualização da importação"><div><small>Relatório identificado</small><strong>{preview.tipo_relatorio === "estoque" ? "Consulta de Estoque" : "Movimentações de Estoque"}</strong></div><div><small>Competência</small><strong>{preview.competencia ? `${String(preview.competencia.mes).padStart(2, "0")}/${preview.competencia.ano}` : "Não identificada"}</strong></div><div><small>UPS</small><strong>{preview.ups?.nome || "Não identificada"}</strong></div><div><small>Registros reconhecidos</small><strong>{preview.registros_identificados}</strong></div><p>{preview.pode_importar ? "Arquivo reconhecido e pronto para processamento." : "O arquivo possui um erro global e não pode ser importado."}</p></section>}
-          <div className="upload-card__notice"><Info size={17} aria-hidden="true" /><p>Se a competência e a UPS já tiverem sido importadas, a substituição será confirmada antes do processamento.</p></div>
           {error && <div className="request-feedback request-feedback--error import-error" role="alert"><AlertCircle size={18} aria-hidden="true" /><div><p>{error}</p>{canReimport && <button className="secondary-button import-error__action" type="button" onClick={() => setIsConfirmationOpen(true)}><RefreshCw size={15} aria-hidden="true" />Reimportar e substituir</button>}</div></div>}
-          <div className="upload-card__actions"><button className="primary-button upload-button" type="submit" disabled={!file || isSubmitting || isPreviewing || !preview?.pode_importar || error}>{isSubmitting ? <><LoaderCircle className="button-spinner" size={18} />Processando...</> : <><FileUp size={18} />Enviar {reportLabel}</>}</button></div>
+          <div className="upload-card__submission">
+            <div className="upload-card__notice"><Info size={17} aria-hidden="true" /><p>Se a competência e a UPS já tiverem sido importadas, a substituição será confirmada antes do processamento.</p></div>
+            <div className="upload-card__actions"><button className="primary-button upload-button" type="submit" disabled={!file || isSubmitting || isPreviewing || !preview?.pode_importar || error}>{isSubmitting ? <><LoaderCircle className="button-spinner" size={18} />Processando...</> : <><FileUp size={18} />Enviar {reportLabel}</>}</button></div>
+          </div>
         </form>
       </section>
 
