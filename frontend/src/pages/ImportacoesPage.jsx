@@ -6,6 +6,7 @@ import { deleteImport, getImports, previewImport, uploadMovement, uploadStock } 
 import FilterSelect from "../components/filters/FilterSelect";
 import ImportSummary from "../components/imports/ImportSummary";
 import InventoryFilePicker from "../components/imports/InventoryFilePicker";
+import PendingImportResolutions from "../components/imports/PendingImportResolutions";
 import ReimportConfirmationModal from "../components/imports/ReimportConfirmationModal";
 
 function validateFile(file) {
@@ -129,6 +130,44 @@ function ImportacoesPage() {
     }
   }
 
+  function handleImportUpdated(resolution) {
+    const updatedImport = resolution.importacao || resolution;
+    const resolvedPending = resolution.pendencia;
+    setImports((current) => current.map((item) => (
+      item.id === updatedImport.id ? updatedImport : item
+    )));
+    setResult((current) => {
+      if (!current || current.importacao_id !== updatedImport.id) return current;
+      return {
+        ...current,
+        status: updatedImport.status,
+        quantidade_nao_associada: updatedImport.quantidade_nao_associada,
+        pendencias: updatedImport.pendencias,
+        registros_processados: resolvedPending
+          ? Number(current.registros_processados || 0) + 1
+          : current.registros_processados,
+        registros_ignorados: resolvedPending
+          ? Math.max(0, Number(current.registros_ignorados || 0) - 1)
+          : current.registros_ignorados,
+        medicamentos_criados: resolution.medicamento_criado
+          ? Number(current.medicamentos_criados || 0) + 1
+          : current.medicamentos_criados,
+        medicamentos_reutilizados: resolvedPending && !resolution.medicamento_criado
+          ? Number(current.medicamentos_reutilizados || 0) + 1
+          : current.medicamentos_reutilizados,
+        estoques_criados: resolution.saldo_criado
+          ? Number(current.estoques_criados || 0) + 1
+          : current.estoques_criados,
+        erros: resolvedPending
+          ? (current.erros || []).filter((issue) => (
+              issue.line !== resolvedPending.linha
+              || issue.type !== "invalid_material"
+            ))
+          : current.erros,
+      };
+    });
+  }
+
   return (
     <main className="import-page">
       <header className="page-heading import-page__heading">
@@ -203,11 +242,11 @@ function ImportacoesPage() {
 
       <section className="import-history" aria-labelledby="import-history-title">
         <div className="import-history__heading"><div><span className="eyebrow">Histórico</span><h2 id="import-history-title">Importações realizadas</h2></div></div>
-        {isLoadingImports ? <p className="import-history__empty">Carregando importações...</p> : imports.length === 0 ? <p className="import-history__empty">Nenhuma importação registrada.</p> : <div className="import-history__list">{imports.map((item) => <article className="import-history__item" key={item.id}><div><strong>{item.nome_arquivo}</strong><span>{item.tipo_relatorio} · {String(item.competencia?.mes).padStart(2, "0")}/{item.competencia?.ano} · {item.ups?.nome}</span></div><button className="secondary-button secondary-button--danger" type="button" onClick={() => handleDeleteImport(item)} disabled={isDeleting}>Excluir</button></article>)}</div>}
+        {isLoadingImports ? <p className="import-history__empty">Carregando importações...</p> : imports.length === 0 ? <p className="import-history__empty">Nenhuma importação registrada.</p> : <div className="import-history__list">{imports.map((item) => <article className="import-history__item" key={item.id}><div className="import-history__summary"><div><strong>{item.nome_arquivo}</strong><span>{item.tipo_relatorio} · {String(item.competencia?.mes).padStart(2, "0")}/{item.competencia?.ano} · {item.ups?.nome}</span><small>Importado por <b>{item.usuario || "usuário não informado"}</b></small></div><button className="secondary-button secondary-button--danger" type="button" onClick={() => handleDeleteImport(item)} disabled={isDeleting}>Excluir</button></div><PendingImportResolutions importId={item.id} pendencias={item.pendencias} onResolved={handleImportUpdated} compact /></article>)}</div>}
       </section>
 
       <div className="result-announcer" aria-live="polite" aria-atomic="true">{isSubmitting && "Importação em processamento."}{result && `Importação finalizada com status ${result.status}.`}</div>
-      {result && <ImportSummary result={result} fileName={resultFileName} onDelete={() => handleDeleteImport({ id: result.importacao_id, nome_arquivo: resultFileName })} isDeleting={isDeleting} />}
+      {result && <ImportSummary result={result} fileName={resultFileName} onDelete={() => handleDeleteImport({ id: result.importacao_id, nome_arquivo: resultFileName })} onImportUpdated={handleImportUpdated} isDeleting={isDeleting} />}
       {isConfirmationOpen && <ReimportConfirmationModal isSubmitting={isSubmitting} onCancel={() => setIsConfirmationOpen(false)} onConfirm={() => { setIsConfirmationOpen(false); processUpload({ reimportar: true }); }} />}
     </main>
   );

@@ -25,6 +25,7 @@ export async function getMedications({
   upsId = "",
   unit = "",
   stockStatus = "",
+  validationStatus = "",
   ordering = "descricao",
 } = {}) {
   const query = new URLSearchParams();
@@ -37,6 +38,7 @@ export async function getMedications({
   if (upsId) query.set("ups", upsId);
   if (unit) query.set("unidade", unit);
   if (stockStatus) query.set("situacao", stockStatus);
+  if (validationStatus) query.set("validacao", validationStatus);
   if (ordering) query.set("ordenacao", ordering);
   query.set("contrato_estoque", "2");
 

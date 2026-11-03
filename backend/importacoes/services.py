@@ -13,7 +13,12 @@ from medicamentos.domain import (
 )
 from medicamentos.models import Classificacao, Medicamento, SubgrupoGmus
 
-from .models import Importacao, ImportacaoExclusao, MovimentacaoEstoque
+from .models import (
+    Importacao,
+    ImportacaoExclusao,
+    MovimentacaoEstoque,
+    PendenciaImportacao,
+)
 from .report_types import REPORT_TYPE_INVENTORY, REPORT_TYPE_STOCK
 
 
@@ -45,6 +50,7 @@ def delete_importacao(*, importacao_id, deleted_by):
             "estoques_excluidos": Estoque.objects.filter(importacao=importacao).count(),
             "saldos_excluidos": SaldoEstoque.objects.filter(importacao=importacao).count(),
             "movimentacoes_excluidas": MovimentacaoEstoque.objects.filter(importacao=importacao).count(),
+            "pendencias_excluidas": importacao.pendencias.count(),
         }
         ImportacaoExclusao.objects.create(
             importacao_id_original=importacao.pk,
@@ -63,6 +69,89 @@ def delete_importacao(*, importacao_id, deleted_by):
         MovimentacaoEstoque.objects.filter(importacao=importacao).delete()
         importacao.delete()
         return counts
+
+
+@transaction.atomic
+def resolver_pendencia_importacao(
+    *, importacao_id, pendencia_id, codigo_gmus, resolvida_por
+):
+    codigo_gmus = (codigo_gmus or "").strip()
+    if not re.fullmatch(r"\d+(?:\.\d+)?", codigo_gmus):
+        raise InventoryPersistenceError(
+            "Informe um codigo G-MUS numerico valido, como 184.1."
+        )
+
+    pendencia = (
+        PendenciaImportacao.objects.select_for_update()
+        .select_related("importacao", "medicamento")
+        .get(pk=pendencia_id, importacao_id=importacao_id)
+    )
+    if pendencia.status != PendenciaImportacao.Status.PENDENTE:
+        raise InventoryPersistenceError("Esta pendencia ja foi resolvida.")
+    importacao = Importacao.objects.select_for_update().get(pk=importacao_id)
+    if importacao.tipo_relatorio != REPORT_TYPE_STOCK:
+        raise InventoryPersistenceError(
+            "Somente pendencias de Consulta de Estoque podem ser associadas."
+        )
+
+    medicamento, criado = Medicamento.objects.get_or_create(
+        codigo_gmus=codigo_gmus,
+        defaults={
+            "descricao": pendencia.descricao,
+            "unidade": pendencia.unidade,
+        },
+    )
+    if (
+        pendencia.unidade
+        and medicamento.unidade
+        and _normalize_match_text(pendencia.unidade)
+        != _normalize_match_text(medicamento.unidade)
+    ):
+        raise InventoryPersistenceError(
+            "O medicamento informado possui uma unidade diferente da linha pendente."
+        )
+
+    saldo, saldo_criado = SaldoEstoque.objects.select_for_update().get_or_create(
+        medicamento=medicamento,
+        ups=importacao.ups,
+        competencia=importacao.competencia,
+        importacao=importacao,
+        defaults={"quantidade": pendencia.quantidade},
+    )
+    if not saldo_criado:
+        saldo.quantidade += pendencia.quantidade
+        saldo.save(update_fields=["quantidade"])
+
+    pendencia.status = PendenciaImportacao.Status.RESOLVIDA
+    pendencia.medicamento = medicamento
+    pendencia.resolvida_por = resolvida_por
+    pendencia.resolvida_em = timezone.now()
+    pendencia.save(
+        update_fields=["status", "medicamento", "resolvida_por", "resolvida_em"]
+    )
+
+    pendencias_abertas = importacao.pendencias.filter(
+        status=PendenciaImportacao.Status.PENDENTE
+    )
+    importacao.quantidade_nao_associada = sum(
+        (item.quantidade for item in pendencias_abertas),
+        start=0,
+    )
+    if not pendencias_abertas.exists() and importacao.erros_nao_corrigiveis == 0:
+        importacao.status = (
+            Importacao.Status.CONCLUIDA_COM_ALERTAS
+            if importacao.alertas_relevantes
+            else Importacao.Status.CONCLUIDA
+        )
+    importacao.save(update_fields=["quantidade_nao_associada", "status"])
+
+    return {
+        "importacao": importacao,
+        "pendencia": pendencia,
+        "medicamento_criado": criado,
+        "saldo_criado": saldo_criado,
+        "saldo": saldo,
+    }
 
 
 def persist_inventory_import(*, parsed_data, user, nome_arquivo, reimportar=False):
@@ -331,10 +420,6 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
             raise DuplicateInventoryImportError(
                 "Ja existe uma importacao para esta competencia, UPS e tipo de relatorio."
             )
-        if importacao is not None and importacao.hash_arquivo == file_hash:
-            raise SameInventoryFileError(
-                "Este mesmo arquivo ja foi processado para esta competencia e UPS."
-            )
         if importacao is None and reimportar:
             raise ReimportationTargetNotFoundError(
                 "Nao existe importacao para substituir com a competencia e UPS do arquivo."
@@ -342,6 +427,7 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
 
         if importacao is not None:
             SaldoEstoque.objects.filter(importacao=importacao).delete()
+            importacao.pendencias.all().delete()
         else:
             importacao = Importacao.objects.create(
                 nome_arquivo=nome_arquivo,
@@ -379,7 +465,7 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
                 "lote": None,
                 "raw": issue.get("raw"),
             })
-            issue["severity"] = "warning"
+            issue["severity"] = "info"
             issue["type"] = "material_reconciliado"
             issue["message"] = "Material sem codigo foi associado a um medicamento cadastrado por correspondencia unica."
             issue["codigo_gmus"] = medicine.codigo_gmus
@@ -390,7 +476,7 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
                 and fallback
                 and fallback.get("quantidade") == 0
             ):
-                issue["severity"] = "warning"
+                issue["severity"] = "info"
                 issue["type"] = "material_sem_saldo"
                 issue["message"] = (
                     "Material sem codigo foi ignorado porque a quantidade informada e zero."
@@ -400,6 +486,15 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
             for item in parser_errors
             if item.get("severity", "error") == "error" and item.get("fallback")
         )
+        pendencias_corrigiveis = [
+            item
+            for item in parser_errors
+            if item.get("severity", "error") == "error"
+            and item.get("type") == "invalid_material"
+            and item.get("fallback")
+            and item["fallback"].get("quantidade", 0) > 0
+            and item.get("line") is not None
+        ]
         invalid_lines = {
             item.get("line")
             for item in parser_errors
@@ -481,9 +576,35 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
                 "A reimportacao nao gerou registros de saldo validos."
             )
 
+        PendenciaImportacao.objects.bulk_create(
+            [
+                PendenciaImportacao(
+                    importacao=importacao,
+                    linha=item["line"],
+                    descricao=item["fallback"].get("descricao", ""),
+                    unidade=item["fallback"].get("unidade", ""),
+                    quantidade=item["fallback"]["quantidade"],
+                    raw=str(item.get("raw") or ""),
+                )
+                for item in pendencias_corrigiveis
+            ]
+        )
+        erros_nao_corrigiveis = (
+            sum(
+                1
+                for item in parser_errors
+                if item.get("severity", "error") == "error"
+            )
+            - len(pendencias_corrigiveis)
+            + len(service_errors)
+        )
+
         has_warnings = any(
             item.get("severity") == "warning" for item in parser_errors
         )
+        alertas_relevantes = sum(
+            1 for item in parser_errors if item.get("severity") == "warning"
+        ) + len(divergencias)
         import_status = Importacao.Status.CONCLUIDA
         if invalid_lines or service_errors:
             import_status = Importacao.Status.CONCLUIDA_PARCIAL
@@ -495,6 +616,8 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
         importacao.data_importacao = timezone.now()
         importacao.status = import_status
         importacao.quantidade_nao_associada = quantidade_nao_associada
+        importacao.erros_nao_corrigiveis = erros_nao_corrigiveis
+        importacao.alertas_relevantes = alertas_relevantes
         importacao.usuario = user
         importacao.save(
             update_fields=[
@@ -503,6 +626,8 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
                 "data_importacao",
                 "status",
                 "quantidade_nao_associada",
+                "erros_nao_corrigiveis",
+                "alertas_relevantes",
                 "usuario",
             ]
         )

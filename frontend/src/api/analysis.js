@@ -33,14 +33,16 @@ export async function correctMovementValidation({
 export function getAnalysisOptions() {
   return Promise.all([
     apiRequest("/api/competencias/", { cache: "no-store" }),
-    apiRequest("/api/ups/"),
-    apiRequest("/api/subgrupos-gmus/"),
-    apiRequest("/api/classificacoes/"),
-  ]).then(([competencias, ups, subgrupos, classificacoes]) => ({
+    apiRequest("/api/ups/", { cache: "no-store" }),
+    apiRequest("/api/subgrupos-gmus/", { cache: "no-store" }),
+    apiRequest("/api/classificacoes/", { cache: "no-store" }),
+    apiRequest("/api/medicamentos/opcoes/?contrato_estoque=2", { cache: "no-store" }),
+  ]).then(([competencias, ups, subgrupos, classificacoes, medicationOptions]) => ({
     competencias,
     ups,
     subgrupos,
     classificacoes,
+    unidades: medicationOptions.unidades || [],
   }));
 }
 
@@ -50,6 +52,7 @@ export function getConsumptionAnalysis({
   upsId = "",
   search = "",
   category = "",
+  unit = "",
   comparisonEnabled = false,
   comparisonStart = "",
   comparisonEnd = "",
@@ -60,6 +63,7 @@ export function getConsumptionAnalysis({
   });
   if (upsId) params.set("ups", upsId);
   if (search.trim()) params.set("busca", search.trim());
+  if (unit) params.set("unidade", unit);
   if (category) {
     const [type, id] = category.split(":");
     params.set(type, id);

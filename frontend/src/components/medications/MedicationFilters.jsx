@@ -10,6 +10,7 @@ function MedicationFilters({
   upsId,
   unit,
   stockStatus,
+  validationStatus,
   ordering,
   classifications,
   subgroups,
@@ -25,6 +26,7 @@ function MedicationFilters({
   onUpsChange,
   onUnitChange,
   onStockStatusChange,
+  onValidationStatusChange,
   onOrderingChange,
   onClearSearch,
   onClearFilters,
@@ -36,6 +38,7 @@ function MedicationFilters({
     || upsId
     || unit
     || stockStatus
+    || validationStatus
     || ordering !== "descricao",
   );
 
@@ -128,6 +131,19 @@ function MedicationFilters({
           <option value="codigo">Código G-MUS</option>
           <option value="maior_estoque">Maior estoque</option>
           <option value="menor_estoque">Menor estoque</option>
+        </select>
+      </label>
+
+      <label className="medication-filter-field">
+        <span>Validação</span>
+        <select
+          value={validationStatus}
+          onChange={(event) => onValidationStatusChange(event.target.value)}
+        >
+          <option value="">Todas</option>
+          <option value="validado">Validados</option>
+          <option value="divergente">Divergentes</option>
+          <option value="nao_validado">Não validados</option>
         </select>
       </label>
 

@@ -273,6 +273,10 @@ class HistoricoMedicamentoApiTests(APITestCase):
         self.assertEqual([item["id"] for item in response.data], [estoque_esperado.pk])
 
     def test_api_publica_nao_expoe_campos_administrativos(self):
+        competencia = self.criar_competencia(2026, 8)
+        self.completar_competencia(competencia)
+        self.criar_estoque(competencia, self.ups_a, "1.000")
+
         response = self.client.get(
             reverse("public-medicamento-list"),
             {"search": self.medicamento.codigo_gmus},

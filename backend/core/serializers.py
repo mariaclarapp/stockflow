@@ -46,6 +46,7 @@ class DashboardImportacaoSerializer(serializers.Serializer):
     status = serializers.CharField()
     data_importacao = serializers.DateTimeField()
     registros_estoque = serializers.IntegerField()
+    usuario = serializers.CharField()
 
 
 class DashboardTotaisSerializer(serializers.Serializer):

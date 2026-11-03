@@ -23,6 +23,7 @@ from estoques.views import (
 )
 from importacoes.views import (
     ImportacaoDeleteAPIView,
+    ImportacaoPendenciaResolveAPIView,
     ImportPreviewAPIView,
     ImportacaoViewSet,
     MovementUploadAPIView,
@@ -104,6 +105,11 @@ urlpatterns = [
         "importacoes/movimentacoes/",
         MovementUploadAPIView.as_view(),
         name="movement-import-upload",
+    ),
+    path(
+        "importacoes/<int:pk>/pendencias/<int:pendencia_id>/resolver/",
+        ImportacaoPendenciaResolveAPIView.as_view(),
+        name="importacao-pendencia-resolver",
     ),
     path(
         "importacoes/<int:pk>/",

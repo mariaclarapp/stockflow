@@ -180,6 +180,51 @@ class ConsumptionAnalysisApiTests(APITestCase):
             por_classificacao.data["resumo"]["consumo_total"], Decimal("15")
         )
 
+    def test_inclui_ups_com_movimentacao_e_consumo_zero(self):
+        self.criar_movimento(
+            self.julho,
+            self.ups_a,
+            self.medicamento_a,
+            saida="0",
+            compra="100",
+            transferencia_saida="40",
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(
+            self.url,
+            self.parametros(competencia_final=self.julho.pk),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["por_ups"]), 1)
+        self.assertEqual(response.data["por_ups"][0]["id"], self.ups_a.pk)
+        self.assertEqual(response.data["por_ups"][0]["consumo"], Decimal("0"))
+
+    def test_filtra_analise_por_unidade(self):
+        self.criar_movimento(
+            self.julho, self.ups_a, self.medicamento_a, saida="12"
+        )
+        self.criar_movimento(
+            self.julho, self.ups_a, self.medicamento_b, saida="40"
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(
+            self.url,
+            self.parametros(
+                competencia_final=self.julho.pk,
+                unidade="COMPR",
+            ),
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["resumo"]["consumo_total"], Decimal("12"))
+        self.assertEqual(
+            [item["id"] for item in response.data["ranking"]],
+            [self.medicamento_a.pk],
+        )
+
     def test_compara_dois_periodos(self):
         self.criar_movimento(
             self.julho, self.ups_a, self.medicamento_a, saida="20"

@@ -57,7 +57,7 @@ class DashboardResumoApiTests(APITestCase):
             status.HTTP_403_FORBIDDEN,
         )
 
-    def test_returns_empty_state_without_complete_competence(self):
+    def test_returns_latest_incomplete_competence_progress(self):
         ups_a = self.criar_ups("9", "FARMACIA")
         self.criar_ups("10", "CAF")
         competencia = Competencia.objects.create(ano=2026, mes=8)
@@ -73,14 +73,45 @@ class DashboardResumoApiTests(APITestCase):
         )
         self.client.force_authenticate(self.staff)
 
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(5):
             response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIsNone(response.data["competencia_atual"])
-        self.assertEqual(response.data["ups"], {"participantes": 2, "importadas": 0})
-        self.assertEqual(response.data["importacoes"], [])
-        self.assertEqual(response.data["totais"], {"medicamentos": 1, "estoques": 0})
+        self.assertEqual(
+            response.data["competencia_atual"],
+            {
+                "id": competencia.pk,
+                "ano": 2026,
+                "mes": 8,
+                "completa": False,
+            },
+        )
+        self.assertEqual(response.data["ups"], {"participantes": 2, "importadas": 1})
+        self.assertEqual(len(response.data["importacoes"]), 1)
+        self.assertEqual(response.data["importacoes"][0]["usuario"], self.staff.username)
+        self.assertEqual(response.data["totais"], {"medicamentos": 0, "estoques": 0})
+
+    def test_shows_partial_stock_import_in_latest_competence(self):
+        ups = self.criar_ups("10", "CAF")
+        competencia = Competencia.objects.create(ano=2026, mes=9)
+        self.criar_importacao(
+            competencia,
+            ups,
+            Importacao.Status.CONCLUIDA_PARCIAL,
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["competencia_atual"]["id"], competencia.pk)
+        self.assertFalse(response.data["competencia_atual"]["completa"])
+        self.assertEqual(response.data["ups"]["importadas"], 0)
+        self.assertEqual(len(response.data["importacoes"]), 1)
+        self.assertEqual(
+            response.data["importacoes"][0]["status"],
+            Importacao.Status.CONCLUIDA_PARCIAL,
+        )
 
     def test_returns_complete_competence_imports_and_real_totals(self):
         farmacia = self.criar_ups("9", "FARMACIA MUNICIPAL")
@@ -132,7 +163,7 @@ class DashboardResumoApiTests(APITestCase):
             },
         )
         self.assertEqual(response.data["ups"], {"participantes": 2, "importadas": 2})
-        self.assertEqual(response.data["totais"], {"medicamentos": 3, "estoques": 3})
+        self.assertEqual(response.data["totais"], {"medicamentos": 2, "estoques": 3})
         self.assertEqual(len(response.data["importacoes"]), 2)
         imports_by_unit = {
             item["ups"]["id_unidade_gmus"]: item
@@ -140,6 +171,7 @@ class DashboardResumoApiTests(APITestCase):
         }
         self.assertEqual(imports_by_unit["9"]["status"], "concluida")
         self.assertEqual(imports_by_unit["9"]["registros_estoque"], 2)
+        self.assertEqual(imports_by_unit["9"]["usuario"], self.staff.username)
         self.assertEqual(
             imports_by_unit["10"]["status"],
             "concluida_com_alertas",

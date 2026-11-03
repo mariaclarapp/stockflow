@@ -24,6 +24,7 @@ function medicationFilters({
   upsId,
   unit,
   stockStatus,
+  validationStatus,
   ordering,
 }) {
   const [categoryType, categoryId] = categoryValue.split(":");
@@ -36,6 +37,7 @@ function medicationFilters({
     upsId,
     unit,
     stockStatus,
+    validationStatus,
     ordering,
   };
 }
@@ -71,6 +73,7 @@ function MedicamentosPage() {
   const [upsId, setUpsId] = useState("");
   const [unit, setUnit] = useState("");
   const [stockStatus, setStockStatus] = useState("");
+  const [validationStatus, setValidationStatus] = useState("");
   const [ordering, setOrdering] = useState("descricao");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -138,6 +141,7 @@ function MedicamentosPage() {
             upsId,
             unit,
             stockStatus,
+            validationStatus,
             ordering,
           }),
         );
@@ -156,7 +160,7 @@ function MedicamentosPage() {
     return () => {
       isCurrent = false;
     };
-  }, [appliedSearch, categoryValue, competenceId, upsId, unit, stockStatus, ordering]);
+  }, [appliedSearch, categoryValue, competenceId, upsId, unit, stockStatus, validationStatus, ordering]);
 
   function handleSearch(event) {
     event.preventDefault();
@@ -176,6 +180,7 @@ function MedicamentosPage() {
     setUpsId("");
     setUnit("");
     setStockStatus("");
+    setValidationStatus("");
     setOrdering("descricao");
   }
 
@@ -216,6 +221,7 @@ function MedicamentosPage() {
           upsId={upsId}
           unit={unit}
           stockStatus={stockStatus}
+          validationStatus={validationStatus}
           ordering={ordering}
           classifications={classifications}
           subgroups={subgroups}
@@ -231,6 +237,7 @@ function MedicamentosPage() {
           onUpsChange={setUpsId}
           onUnitChange={setUnit}
           onStockStatusChange={setStockStatus}
+          onValidationStatusChange={setValidationStatus}
           onOrderingChange={setOrdering}
           onClearSearch={clearSearch}
           onClearFilters={clearFilters}
@@ -274,7 +281,7 @@ function MedicamentosPage() {
               </p>
             )}
           </div>
-          {(appliedSearch || categoryValue || upsId || unit || stockStatus || ordering !== "descricao") && !isLoading && (
+          {(appliedSearch || categoryValue || upsId || unit || stockStatus || validationStatus || ordering !== "descricao") && !isLoading && (
             <span>Filtros aplicados</span>
           )}
         </div>

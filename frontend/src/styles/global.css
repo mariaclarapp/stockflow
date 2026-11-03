@@ -1635,16 +1635,20 @@ th {
 }
 
 .import-history__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   padding: 13px 0;
   border-top: 1px solid #e4eeec;
 }
 
+.import-history__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .import-history__item strong,
-.import-history__item span {
+.import-history__item span,
+.import-history__item small {
   display: block;
 }
 
@@ -1656,6 +1660,12 @@ th {
   margin-top: 4px;
   color: var(--muted);
   font-size: 0.72rem;
+}
+
+.import-history__item small {
+  margin-top: 6px;
+  color: var(--primary-800);
+  font-size: 0.68rem;
 }
 
 .secondary-button--danger {
@@ -2101,6 +2111,11 @@ th {
 }
 
 .analytics-submit {
+  min-height: 42px;
+  justify-content: center;
+}
+
+.analytics-clear {
   min-height: 42px;
   justify-content: center;
 }
@@ -2833,6 +2848,106 @@ th {
   display: grid;
   gap: 14px;
   padding: 0 24px 24px;
+}
+
+.import-pending {
+  overflow: hidden;
+  border: 1px solid #e4c38e;
+  border-radius: 7px;
+  background: #fffdf7;
+}
+
+.import-pending > header {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 13px 14px;
+  color: #76530e;
+  background: #fff7df;
+}
+
+.import-pending > header svg {
+  flex: 0 0 auto;
+}
+
+.import-pending > header strong,
+.import-pending > header small {
+  display: block;
+}
+
+.import-pending > header strong {
+  font-size: 0.76rem;
+}
+
+.import-pending > header small {
+  margin-top: 3px;
+  color: #756548;
+  font-size: 0.68rem;
+}
+
+.import-pending__list article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.7fr);
+  gap: 20px;
+  align-items: end;
+  padding: 14px;
+}
+
+.import-pending__list article + article {
+  border-top: 1px solid #eee4cf;
+}
+
+.import-pending__description strong,
+.import-pending__description small {
+  display: block;
+}
+
+.import-pending__description strong {
+  color: #34413e;
+  font-size: 0.74rem;
+}
+
+.import-pending__description small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.import-pending__form label {
+  display: block;
+  margin-bottom: 5px;
+  color: #5e5140;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.import-pending__form > div {
+  display: flex;
+  gap: 7px;
+}
+
+.import-pending__form input {
+  min-width: 0;
+  min-height: 38px;
+  flex: 1;
+  padding: 0 10px;
+  border: 1px solid #cfddda;
+  border-radius: 6px;
+  font-size: 0.76rem;
+}
+
+.import-pending__form p {
+  margin: 5px 0 0;
+  color: var(--danger);
+  font-size: 0.65rem;
+}
+
+.import-pending--compact {
+  margin-top: 12px;
+}
+
+.import-pending--compact .import-pending__list article {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.55fr);
 }
 
 .issues-panel {
@@ -5290,6 +5405,16 @@ th {
 }
 
 @media (max-width: 640px) {
+  .import-pending__list article,
+  .import-pending--compact .import-pending__list article {
+    grid-template-columns: 1fr;
+  }
+
+  .import-history__summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .public-header__inner {
     align-items: flex-start;
     flex-direction: column;

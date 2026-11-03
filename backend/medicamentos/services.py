@@ -395,6 +395,7 @@ class DesclassificacaoMedicamentosLoteService:
 
 
 class DisponibilidadePublicaService:
+    _COMPETENCIA_AUTOMATICA = object()
     DISPONIVEL_MANIPULADO = (
         "Disponível sob manipulação, confirmar disponibilidade"
     )
@@ -402,8 +403,13 @@ class DisponibilidadePublicaService:
     INDISPONIVEL = "Indisponível"
     NAO_INFORMADA = "Disponibilidade não informada"
     @classmethod
-    def anotar_disponibilidade(cls, queryset):
-        competencia = CompetenciaService.identificar_competencia_completa()
+    def anotar_disponibilidade(
+        cls,
+        queryset,
+        competencia=_COMPETENCIA_AUTOMATICA,
+    ):
+        if competencia is cls._COMPETENCIA_AUTOMATICA:
+            competencia = CompetenciaService.identificar_competencia_completa()
         tag_manipulado_ativa = Classificacao.objects.filter(
             nome=CLASSIFICACAO_MANIPULADO,
             ativo=True,

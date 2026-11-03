@@ -54,6 +54,7 @@ class AnaliseConsumoService:
         competencia_final,
         ups_id=None,
         busca="",
+        unidade="",
         subgrupo_id=None,
         classificacao_id=None,
     ):
@@ -105,6 +106,8 @@ class AnaliseConsumoService:
                 models.Q(medicamento__descricao__icontains=busca)
                 | models.Q(medicamento__codigo_gmus__icontains=busca)
             )
+        if unidade:
+            queryset = queryset.filter(medicamento__unidade__iexact=unidade)
         if subgrupo_id:
             queryset = queryset.filter(medicamento__subgrupo_gmus_id=subgrupo_id)
         if classificacao_id:
@@ -150,6 +153,8 @@ class AnaliseConsumoService:
                 models.Q(descricao__icontains=busca)
                 | models.Q(codigo_gmus__icontains=busca)
             )
+        if unidade:
+            medicamentos = medicamentos.filter(unidade__iexact=unidade)
         if subgrupo_id:
             medicamentos = medicamentos.filter(subgrupo_gmus_id=subgrupo_id)
         if classificacao_id:

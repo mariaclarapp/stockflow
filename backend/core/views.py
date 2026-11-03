@@ -18,8 +18,12 @@ from .services import (
 
 
 class UpsViewSet(ReadOnlyModelViewSet):
-    queryset = Ups.objects.all()
     serializer_class = UpsSerializer
+
+    def get_queryset(self):
+        return Ups.objects.filter(
+            importacoes__tipo_relatorio__in=CompetenciaService.TIPOS_RELATORIO_ATIVOS,
+        ).distinct().order_by("nome")
 
 
 class CompetenciaViewSet(ReadOnlyModelViewSet):

@@ -78,17 +78,15 @@ function DashboardPage() {
   const overviewCards = useMemo(
     () => [
       {
-        label: "Medicamentos cadastrados",
+        label: "Medicamentos na competência",
         value: summary?.totais.medicamentos ?? "--",
-        detail: "Apresentações no StockFlow",
+        detail: competence ? "Apresentações importadas" : "Sem dados importados",
         icon: Pill,
       },
       {
         label: "Registros da competência",
         value: competence ? summary.totais.estoques : "--",
-        detail: competence
-          ? formatCompetence(competence)
-          : "Sem competência completa",
+        detail: competence ? formatCompetence(competence) : "Sem competência importada",
         icon: Layers3,
       },
       {
@@ -98,11 +96,9 @@ function DashboardPage() {
         icon: Check,
       },
       {
-        label: "Importações válidas",
+        label: "Relatórios de estoque",
         value: summary?.importacoes.length ?? "--",
-        detail: competence
-          ? "Estoques da competência"
-          : "Sem competência completa",
+        detail: competence ? "Válidos ou com pendência" : "Sem competência importada",
         icon: FileText,
       },
     ],
@@ -135,18 +131,18 @@ function DashboardPage() {
 
       <section className="competence-banner" aria-labelledby="competence-title">
         <div>
-          <span>{competence ? "Competência completa" : "Resumo mensal"}</span>
+          <span>{competence?.completa ? "Competência completa" : competence ? "Competência em andamento" : "Resumo mensal"}</span>
           <h2 id="competence-title">
             {isLoading
               ? "Carregando resumo..."
               : competence
                 ? formatCompetence(competence)
-                : "Nenhuma competência completa"}
+                : "Nenhuma competência importada"}
           </h2>
           <p>
             {competence
-              ? `${importedUps} de ${participatingUps} UPS participantes com estoque válido.`
-              : "Ainda não há uma competência com todas as importações participantes válidas."}
+              ? `${importedUps} de ${participatingUps} UPS participantes com estoque válido.${competence.completa ? " Competência pronta para consolidação." : " Ainda existem UPS pendentes."}`
+              : "Ainda não há importações de estoque válidas para acompanhar."}
           </p>
         </div>
         <div className="competence-progress" aria-hidden="true">
@@ -179,7 +175,7 @@ function DashboardPage() {
         <div className="section-heading">
           <div>
             <h2 id="imports-title">Situação das importações</h2>
-            <p>Resumo por UPS da competência completa mais recente.</p>
+            <p>Resumo por UPS da competência importada mais recente.</p>
           </div>
         </div>
 
@@ -191,12 +187,13 @@ function DashboardPage() {
                 <th>Status</th>
                 <th>Registros</th>
                 <th>Importado em</th>
+                <th>Responsável</th>
               </tr>
             </thead>
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan="4">
+                  <td colSpan="5">
                     <div className="empty-table-state">
                       <LoaderCircle className="button-spinner" size={22} />
                       <strong>Carregando importações</strong>
@@ -220,14 +217,15 @@ function DashboardPage() {
                     </td>
                     <td>{item.registros_estoque}</td>
                     <td>{formatDateTime(item.data_importacao)}</td>
+                    <td>{item.usuario || "Não informado"}</td>
                   </tr>
                 ))}
               {!isLoading && !error && summary?.importacoes.length === 0 && (
                 <tr>
-                  <td colSpan="4">
+                  <td colSpan="5">
                     <div className="empty-table-state">
                       <Layers3 size={22} aria-hidden="true" />
-                      <strong>Nenhuma competência completa disponível</strong>
+                      <strong>Nenhuma importação de estoque disponível</strong>
                     </div>
                   </td>
                 </tr>

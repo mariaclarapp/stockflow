@@ -488,7 +488,10 @@ class AnaliseConsumoAPIView(APIView):
             raise ValueError("A competencia inicial deve ser anterior a final.")
 
     def _filtros(self, request):
-        filtros = {"busca": request.query_params.get("busca", "").strip()}
+        filtros = {
+            "busca": request.query_params.get("busca", "").strip(),
+            "unidade": request.query_params.get("unidade", "").strip(),
+        }
         for parametro, destino in (
             ("ups", "ups_id"),
             ("subgrupo", "subgrupo_id"),

@@ -2,6 +2,7 @@ import csv
 import logging
 
 from django.shortcuts import get_object_or_404
+from django.db.models import Prefetch
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAdminUser
@@ -10,8 +11,13 @@ from rest_framework.views import APIView
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from .parsers import UnknownReportTypeError, parse_report_csv
-from .models import Importacao, MovimentacaoEstoque
-from .serializers import ImportacaoSerializer, InventoryUploadSerializer
+from .models import Importacao, MovimentacaoEstoque, PendenciaImportacao
+from .serializers import (
+    ImportacaoSerializer,
+    InventoryUploadSerializer,
+    PendenciaImportacaoSerializer,
+    ResolverPendenciaImportacaoSerializer,
+)
 from .serializers import MovimentacaoEstoqueSerializer
 from .services import (
     InventoryImportConflictError,
@@ -19,6 +25,7 @@ from .services import (
     persist_movement_import,
     persist_stock_import,
     delete_importacao,
+    resolver_pendencia_importacao,
 )
 
 
@@ -36,7 +43,15 @@ class MovimentacaoEstoqueViewSet(ReadOnlyModelViewSet):
 class ImportacaoViewSet(ReadOnlyModelViewSet):
     queryset = Importacao.objects.filter(
         tipo_relatorio__in=("estoque", "movimentacao")
-    ).select_related("competencia", "ups", "usuario")
+    ).select_related("competencia", "ups", "usuario").prefetch_related(
+        Prefetch(
+            "pendencias",
+            queryset=PendenciaImportacao.objects.filter(
+                status=PendenciaImportacao.Status.PENDENTE
+            ).select_related("medicamento"),
+            to_attr="pendencias_abertas_prefetch",
+        )
+    )
     serializer_class = ImportacaoSerializer
     permission_classes = [IsAdminUser]
 
@@ -53,6 +68,50 @@ class ImportacaoDeleteAPIView(APIView):
         get_object_or_404(Importacao, pk=pk)
         result = delete_importacao(importacao_id=pk, deleted_by=request.user)
         return Response({"importacao_id": pk, **result}, status=status.HTTP_200_OK)
+
+
+class ImportacaoPendenciaResolveAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk, pendencia_id):
+        get_object_or_404(Importacao, pk=pk)
+        get_object_or_404(PendenciaImportacao, pk=pendencia_id, importacao_id=pk)
+        serializer = ResolverPendenciaImportacaoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            resultado = resolver_pendencia_importacao(
+                importacao_id=pk,
+                pendencia_id=pendencia_id,
+                codigo_gmus=serializer.validated_data["codigo_gmus"],
+                resolvida_por=request.user,
+            )
+        except InventoryPersistenceError as error:
+            return Response({"erro": str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+        importacao = (
+            Importacao.objects.select_related("competencia", "ups", "usuario")
+            .prefetch_related(
+                Prefetch(
+                    "pendencias",
+                    queryset=PendenciaImportacao.objects.filter(
+                        status=PendenciaImportacao.Status.PENDENTE
+                    ).select_related("medicamento"),
+                    to_attr="pendencias_abertas_prefetch",
+                )
+            )
+            .get(pk=pk)
+        )
+        return Response(
+            {
+                "importacao": ImportacaoSerializer(importacao).data,
+                "pendencia": PendenciaImportacaoSerializer(
+                    resultado["pendencia"]
+                ).data,
+                "medicamento_criado": resultado["medicamento_criado"],
+                "saldo_criado": resultado["saldo_criado"],
+                "saldo": str(resultado["saldo"].quantidade),
+            }
+        )
 
 
 class ImportPreviewAPIView(APIView):
@@ -220,6 +279,12 @@ def _build_success_response(summary):
         "quantidade_nao_associada": summary.get(
             "quantidade_nao_associada", importacao.quantidade_nao_associada
         ),
+        "pendencias": PendenciaImportacaoSerializer(
+            importacao.pendencias.filter(
+                status=PendenciaImportacao.Status.PENDENTE
+            ).select_related("medicamento"),
+            many=True,
+        ).data,
         "divergencias": [
             _serialize_issue(item) for item in summary.get("divergencias", [])
         ],

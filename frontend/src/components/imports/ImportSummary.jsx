@@ -9,6 +9,7 @@ import {
 
 import ImportStatusBadge from "./ImportStatusBadge";
 import IssuesList from "./IssuesList";
+import PendingImportResolutions from "./PendingImportResolutions";
 
 function formatCompetence(competence) {
   if (!competence) return "Não informada";
@@ -22,7 +23,7 @@ function reportTypeLabel(reportType) {
   return reportType;
 }
 
-function ImportSummary({ result, fileName, onDelete, isDeleting }) {
+function ImportSummary({ result, fileName, onDelete, onImportUpdated, isDeleting }) {
   const stats = [
     { label: "Processados", value: result.registros_processados, icon: FileCheck2 },
     { label: "Ignorados", value: result.registros_ignorados, icon: Boxes },
@@ -97,6 +98,11 @@ function ImportSummary({ result, fileName, onDelete, isDeleting }) {
       </div>
 
       <div className="issues-grid">
+        <PendingImportResolutions
+          importId={result.importacao_id}
+          pendencias={result.pendencias}
+          onResolved={onImportUpdated}
+        />
         <IssuesList kind="divergences" issues={result.divergencias} />
         <IssuesList kind="warnings" issues={result.warnings} />
         <IssuesList kind="errors" issues={result.erros} />

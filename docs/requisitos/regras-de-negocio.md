@@ -94,7 +94,9 @@ anteriores, a criação dos novos registros e a atualização da importação oc
 
 Medicamentos, lotes e classificações são compartilhados e não são removidos durante a
 substituição. Lotes que deixarem de ser referenciados não são excluídos automaticamente.
-Um arquivo com o mesmo SHA-256 já processado não provoca nova substituição.
+Um arquivo com o mesmo SHA-256 poderá ser reprocessado somente após confirmação explícita
+de reimportação. Isso permite aplicar correções de conciliação sem editar o arquivo de
+origem; uploads duplicados sem confirmação continuam bloqueados.
 
 ## RN05 — Preservação da origem
 
@@ -323,6 +325,18 @@ Uma inconsistência em um registro não deverá necessariamente impedir o proces
 
 As inconsistências relevantes deverão ser classificadas como `error` ou `warning`. Somente um `error` associado a uma linha deverá impedir a persistência daquela linha. Um `warning` deverá permitir o processamento e resultar em importação concluída com alertas.
 
+Quando uma linha da Consulta de Estoque possuir descrição, unidade e quantidade, mas não
+possuir código G-MUS identificável nem correspondência única no cadastro, o sistema
+deverá preservá-la como pendência de associação. A importação permanecerá parcial até
+que um usuário administrativo informe um código G-MUS numérico válido. A resolução
+deverá registrar medicamento, usuário e data, incorporar a quantidade ao saldo original
+e manter os dados brutos para auditoria. Não serão criados códigos vazios ou genéricos.
+
+Se descrição e unidade encontrarem uma única correspondência segura no cadastro, a
+associação será automática e registrada como informação interna. A linha deverá ser
+processada normalmente, sem ser exibida como alerta e sem tornar a importação
+`concluida_com_alertas` por esse motivo isolado.
+
 ## RN21 — Módulo administrativo
 
 O módulo administrativo será restrito a usuários autenticados e autorizados.
@@ -513,9 +527,9 @@ A disponibilidade apresentada ao cidadão deverá ser calculada pelo StockFlow a
 
 A competência válida para esse cálculo será a competência completa mais recente. Se a
 competência cronologicamente mais recente estiver incompleta, deverá ser usada a
-competência completa anterior mais recente. Se nenhuma competência completa existir, a
-situação pública dos medicamentos sem a tag ativa `MANIPULADO` será
-`Disponibilidade não informada`.
+competência completa anterior mais recente. A consulta pública exibirá somente os
+medicamentos presentes nos registros válidos de estoque dessa competência. Se nenhuma
+competência completa existir, a consulta retornará uma lista vazia.
 
 O cálculo deverá consolidar internamente os estoques das UPS. O cidadão não deverá
 visualizar o valor numérico utilizado, a UPS de origem nem qual UPS possui o medicamento.
@@ -595,12 +609,10 @@ A ordem de decisão da disponibilidade pública é:
 1. Se o medicamento possuir a tag ativa `MANIPULADO`, apresentar exatamente
    `Disponível sob manipulação, confirmar disponibilidade`, independentemente de haver
    estoque convencional positivo ou de o estoque registrado estar zerado.
-2. Se o medicamento não possuir a tag ativa `MANIPULADO` e não existir competência
-   completa, apresentar `Disponibilidade não informada`.
-3. Se o medicamento não possuir a tag ativa `MANIPULADO`, existir competência completa
+2. Se o medicamento não possuir a tag ativa `MANIPULADO`, existir competência completa
    e houver estoque convencional
    positivo considerado válido para a consulta pública, apresentar `Disponível`.
-4. Se o medicamento não possuir a tag ativa `MANIPULADO`, existir competência completa
+3. Se o medicamento não possuir a tag ativa `MANIPULADO`, existir competência completa
    e não houver estoque convencional positivo, apresentar `Indisponível`.
 
 A existência de lote antigo, saldo positivo anterior ou simples histórico na UPS de

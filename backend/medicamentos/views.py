@@ -255,6 +255,19 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
         elif situacao:
             raise ValidationError({"situacao": "Informe uma situacao valida."})
 
+        validacao = self.request.query_params.get("validacao", "").strip()
+        if validacao:
+            if validacao not in {"validado", "divergente", "nao_validado"}:
+                raise ValidationError(
+                    {"validacao": "Informe uma situacao de validacao valida."}
+                )
+            ids = [
+                medicamento_id
+                for medicamento_id, estado in self._situacoes_validacao().items()
+                if estado == validacao
+            ]
+            queryset = queryset.filter(pk__in=ids)
+
         ordenacao = self.request.query_params.get("ordenacao", "descricao")
         ordenacoes = {
             "descricao": ("descricao", "codigo_gmus"),
@@ -284,9 +297,18 @@ class MedicamentoViewSet(ReadOnlyModelViewSet):
         competencias = CompetenciaService.competencias_ativas().order_by(
             "-ano", "-mes"
         )
-        ups = Ups.objects.filter(participa_competencia=True).order_by("nome")
+        ups = Ups.objects.filter(
+            participa_competencia=True,
+            importacoes__tipo_relatorio=REPORT_TYPE_STOCK,
+        ).distinct().order_by("nome")
         unidades = (
-            Medicamento.objects.exclude(unidade="")
+            Medicamento.objects.filter(
+                saldos_estoque__importacao__tipo_relatorio=REPORT_TYPE_STOCK,
+                saldos_estoque__importacao__status__in=(
+                    CompetenciaService.STATUS_IMPORTACAO_VALIDOS
+                ),
+            )
+            .exclude(unidade="")
             .exclude(unidade__isnull=True)
             .values_list("unidade", flat=True)
             .distinct()
@@ -461,5 +483,20 @@ class MedicamentoPublicoListAPIView(ListAPIView):
     search_fields = ["descricao", "codigo_gmus"]
 
     def get_queryset(self):
-        queryset = Medicamento.objects.only("codigo_gmus", "descricao", "unidade")
-        return DisponibilidadePublicaService.anotar_disponibilidade(queryset)
+        competencia = CompetenciaService.identificar_competencia_completa()
+        if competencia is None:
+            return Medicamento.objects.none()
+        queryset = (
+            Medicamento.objects.only("codigo_gmus", "descricao", "unidade")
+            .filter(
+                saldos_estoque__competencia=competencia,
+                saldos_estoque__importacao__status__in=(
+                    CompetenciaService.STATUS_IMPORTACAO_VALIDOS
+                ),
+            )
+            .distinct()
+        )
+        return DisponibilidadePublicaService.anotar_disponibilidade(
+            queryset,
+            competencia=competencia,
+        )

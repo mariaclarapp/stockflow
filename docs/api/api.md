@@ -155,25 +155,25 @@ nem expoe uma entidade separada de principio ativo.
 Nao sao expostos UPS, quantidades, lote, validade, competencia, importacao, usuario,
 subgrupo, principios ativos ou classificacoes.
 
-A disponibilidade publica e calculada internamente de forma consolidada a partir dos
-estoques das UPS configuradas
-para compor o estoque convencional, sem revelar UPS de origem ou quantidades internas.
+A consulta publica lista somente medicamentos presentes nos registros validos de estoque
+da competencia completa mais recente. A disponibilidade e calculada internamente de
+forma consolidada a partir das UPS configuradas para compor o estoque convencional, sem
+revelar UPS de origem ou quantidades internas.
 
 A competencia valida sera a competencia completa mais recente. Uma competencia somente
 sera completa quando todas as UPS configuradas como participantes tiverem importacao de
 Consulta de Estoque `concluida` ou `concluida_com_alertas`. Se a mais recente estiver incompleta,
-sera usada a completa anterior; sem competencia completa, medicamentos sem a tag ativa
-`MANIPULADO` terao `Disponibilidade não informada`.
+sera usada a completa anterior. Sem competencia completa, o endpoint retorna uma lista
+vazia; medicamentos que nao constam nos estoques validos da competencia tambem nao sao
+exibidos.
 
 O campo `disponibilidade` segue esta ordem:
 
 1. com tag ativa `MANIPULADO`, independentemente do saldo:
    `Disponível sob manipulação, confirmar disponibilidade`;
-2. sem tag ativa `MANIPULADO` e sem competência completa:
-   `Disponibilidade não informada`;
-3. sem tag ativa `MANIPULADO`, com competência completa e estoque convencional
+2. sem tag ativa `MANIPULADO`, com competência completa e estoque convencional
    positivo: `Disponível`;
-4. sem tag ativa `MANIPULADO`, com competência completa e sem estoque convencional
+3. sem tag ativa `MANIPULADO`, com competência completa e sem estoque convencional
    positivo: `Indisponível`.
 
 A tag, e nao saldo, lote ou historico da UPS de manipulacao, determina a mensagem
@@ -219,10 +219,24 @@ Os uploads administrativos exigem sessão de usuário `is_staff` e proteção CS
 - `POST /api/importacoes/estoque/` — saldo total da Consulta de Estoque;
 - `POST /api/importacoes/movimentacoes/` — movimentações sintéticas mensais;
 - `POST /api/importacoes/previsualizar/` — valida metadados e estrutura sem persistir;
+- `POST /api/importacoes/{id}/pendencias/{pendencia_id}/resolver/` — associa uma linha sem código ao código G-MUS correto;
 - `DELETE /api/importacoes/{id}/` — com confirmação explícita, exclui os registros derivados e cria auditoria.
 
 Todos recebem `multipart/form-data` no campo `arquivo`. O campo opcional
 `reimportar=true` substitui a importação existente da mesma competência, UPS e tipo.
+Uma reimportação explicitamente confirmada também pode reprocessar o mesmo arquivo, o
+que permite aplicar novas regras de conciliação sem editar o CSV original.
+
+Uma linha de estoque com descrição, unidade e quantidade, mas sem código identificável,
+fica registrada como pendência corrigível quando não existe correspondência única no
+cadastro. A resolução recebe `codigo_gmus`, reutiliza o medicamento desse código ou cria
+um cadastro com a descrição e unidade preservadas, incorpora a quantidade ao saldo e
+registra usuário e data da resolução. Enquanto houver pendência aberta, a importação
+permanece `concluida_parcial`. Códigos vazios ou genéricos são rejeitados.
+
+Quando descrição e unidade encontram uma única correspondência segura no cadastro, a
+conciliação é automática e tratada como informação interna: a linha é processada, não é
+exibida como alerta e não altera sozinha o status da importação.
 
 `GET /api/estoques/validacao-movimentacoes/` recebe `competencia` e `ups`, exige estoque
 anterior, movimentações e estoque final concluídos e calcula o saldo esperado a partir
@@ -349,7 +363,7 @@ GET /api/dashboard/resumo/
 ```
 
 Exige usuario administrativo com `is_staff=True`. O endpoint utiliza a competencia
-completa mais recente identificada por `CompetenciaService` e retorna em uma unica
+mais recente que possui ao menos uma Consulta de Estoque registrada e retorna em uma unica
 resposta apenas os dados necessarios para a Visao Geral:
 
 ```json
@@ -372,6 +386,7 @@ resposta apenas os dados necessarios para a Visao Geral:
         "id_unidade_gmus": "9",
         "nome": "UPS EXEMPLO"
       },
+      "usuario": "Maria da Silva",
       "status": "concluida",
       "data_importacao": "2026-08-17T10:00:00-03:00",
       "registros_estoque": 100
@@ -385,10 +400,13 @@ resposta apenas os dados necessarios para a Visao Geral:
 ```
 
 `importadas` conta somente Consultas de Estoque com status `concluida` ou
-`concluida_com_alertas` das UPS participantes. `estoques` conta os registros associados
-a competencia completa selecionada. Se nao houver competencia completa,
-`competencia_atual` sera `null`, `importacoes` sera uma lista vazia e nenhum estoque de
-competencias incompletas sera misturado ao resumo.
+`concluida_com_alertas` das UPS participantes. `estoques` e `medicamentos` contam apenas
+registros associados a importacoes validas da competencia selecionada. O campo
+`competencia_atual.completa` indica se todas as UPS participantes ja importaram um
+estoque valido. Assim, a Visao Geral tambem exibe importacoes parciais e o andamento de
+uma competencia incompleta, sem incorporar seus registros aos totais oficiais nem
+misturar dados de outras competencias. Cada importacao informa o nome completo do
+usuario responsavel, com fallback para o username.
 
 O endpoint fornece os indicadores operacionais previstos no RF19. Ele nao calcula
 consumo medio, comparacao, tendencia, curva ABC e cobertura sao expostos pela API de
@@ -484,8 +502,10 @@ As opcoes da tela administrativa podem ser obtidas em:
 GET /api/medicamentos/opcoes/
 ```
 
-O contrato retorna competencias, UPS participantes, unidades cadastradas e o ID da
-competencia padrao. A listagem aceita ainda `unidade`, `situacao` e `ordenacao`. Os
+O contrato retorna competencias e UPS que possuem importacao registrada, inclusive
+parcial, alem das unidades presentes em dados validos e do ID da competencia padrao. A
+listagem aceita ainda `unidade`, `situacao`, `validacao` e
+`ordenacao`. Os
 valores de ordenacao sao `descricao`, `codigo`, `maior_estoque` e `menor_estoque`.
 
 Para filtros administrativos em lote, o endpoint de listagem aceita `ids` com até 50
@@ -533,6 +553,7 @@ Medicamentos:
 - `ups`: ID da UPS; quando omitido, soma todas as UPS participantes;
 - `unidade`: unidade de apresentacao do medicamento;
 - `situacao`: `disponivel`, `sem_estoque` ou `sem_dados`;
+- `validacao`: `validado`, `divergente` ou `nao_validado`;
 - `ordenacao`: `descricao`, `codigo`, `maior_estoque` ou `menor_estoque`.
 
 Estoques:
@@ -720,8 +741,8 @@ A substituição ocorre em uma transação atômica: somente os registros de `Es
 vinculados à importação encontrada são removidos, os novos estoques são persistidos e
 os metadados (`nome_arquivo`, hash, data, status e usuário) são atualizados. Em caso de
 falha, os estoques e metadados anteriores são restaurados pelo rollback. Medicamentos,
-lotes e classificações não são removidos. Um arquivo com SHA-256 igual ao já
-processado retorna `409` e não executa a substituição.
+lotes e classificações não são removidos. No fluxo ativo de Consulta de Estoque, um
+arquivo com SHA-256 igual poderá ser reprocessado quando `reimportar=true` for confirmado.
 
 Os itens de divergencia, warning ou erro nao incluem as linhas brutas do CSV.
 
@@ -738,9 +759,8 @@ Respostas de erro:
 
 - `400 Bad Request`: arquivo ausente, extensao invalida, falha de parsing ou contexto invalido;
 - `401 Unauthorized` ou `403 Forbidden`: usuario nao autenticado;
-- `409 Conflict`: ja existe importacao sem confirmacao de reimportacao, o arquivo tem o
-  mesmo SHA-256 ja processado ou `reimportar=true` nao encontrou importacao para a chave
-  detectada no CSV;
+- `409 Conflict`: ja existe importacao sem confirmacao de reimportacao ou
+  `reimportar=true` nao encontrou importacao para a chave detectada no CSV;
 - `422 Unprocessable Entity`: tipo de relatorio desconhecido, erro global do parser ou ausencia de registros processaveis;
 - `500 Internal Server Error`: falha inesperada, com mensagem generica e rollback da persistencia.
 

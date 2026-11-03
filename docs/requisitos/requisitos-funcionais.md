@@ -40,6 +40,7 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
 | RF25 | Importar o relatório sintético de movimentações mensais por medicamento e UPS | Administrativo |
 | RF26 | Validar o saldo final com base no estoque anterior e nas entradas e saídas do mês | Administrativo |
 | RF27 | Corrigir manualmente uma divergência de validação, com justificativa, usuário e rastreabilidade das fontes | Administrativo |
+| RF28 | Resolver linhas de estoque sem código G-MUS, preservando a pendência e a auditoria da associação | Administrativo |
 
 ## Observações
 
@@ -49,7 +50,8 @@ Este documento apresenta os requisitos funcionais atualmente definidos para o si
   contas criadas são ativas e staff, mas não recebem privilégio de superusuário.
 - O módulo público não exige autenticação.
 - A seleção múltipla deixou de fazer parte da listagem atual; cada medicamento possui consulta individual e a análise oferece comparação por período.
-- No módulo público, a consulta será individual por medicamento.
+- No módulo público, a consulta será individual por medicamento e exibirá somente itens
+  presentes no estoque válido da competência completa mais recente.
 - O fluxo ativo preserva competência, UPS, apresentação, unidade, saldo e movimentações disponíveis nos relatórios oficiais.
 - Dados históricos do antigo Inventário permanecem separados e não são somados à Consulta de Estoque.
 - O RF25 preserva separadamente compras, devoluções, transferências, acertos, saídas e saldo atual do relatório de movimentação.

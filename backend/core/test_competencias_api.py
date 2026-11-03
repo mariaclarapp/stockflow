@@ -67,6 +67,22 @@ class CompetenciasAcompanhamentoApiTests(APITestCase):
         self.assertIsNone(response.data["competencia_completa_mais_recente"])
         self.assertEqual(response.data["competencias"], [])
 
+    def test_ups_filter_lists_partial_import_but_hides_never_imported_unit(self):
+        parcial = self.criar_ups("10", "CAF")
+        self.criar_ups("19", "SEM IMPORTACAO")
+        competencia = Competencia.objects.create(ano=2026, mes=9)
+        self.criar_importacao(
+            competencia,
+            parcial,
+            Importacao.Status.CONCLUIDA_PARCIAL,
+        )
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(reverse("ups-list"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["id"] for item in response.data], [parcial.pk])
+
     def test_tracks_complete_incomplete_partial_and_missing_imports(self):
         farmacia = self.criar_ups("9", "FARMACIA MUNICIPAL")
         caf = self.criar_ups("10", "CAF")

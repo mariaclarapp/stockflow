@@ -8,10 +8,10 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from core.models import Competencia, Ups
-from estoques.models import Estoque, Lote
+from estoques.models import Estoque, Lote, SaldoEstoque
 from medicamentos.models import Medicamento, SubgrupoGmus
 
-from .models import Importacao, ImportacaoExclusao
+from .models import Importacao, ImportacaoExclusao, PendenciaImportacao
 
 
 @unittest.skip("Fluxo HTTP legado de inventario removido do escopo ativo.")
@@ -328,6 +328,21 @@ def stock_upload(name="estoque.csv"):
     return SimpleUploadedFile(name, content.encode("utf-8"), content_type="text/csv")
 
 
+def stock_upload_with_missing_code(name="estoque-sem-codigo.csv"):
+    content = "\n".join(
+        [
+            "RIBEIRAO CLARO - PR,,,,",
+            "Consulta de Estoque,,,,",
+            "Filtros: Competência Inicial: 202608 Competência Final: 202608 UPS: FARMACIA TESTE / 1234567 (9) Estoque Zerado: Ambos Produtos Inativos: Não,,,,",
+            ",Unidade: FARMACIA TESTE (9),,,",
+            ",,Material / Apresentação,,,,,,,,,Unidade,Quantidade,,Conferência,",
+            ",,DIPIRONA - 500MG (115.1),,,,,,,,,COMPR,1.234,,,,",
+            ",,CIANOCOBALAMINA+PIRIDOXINA+TIAMINA+DEXAMETASONA - 5MG+100MG,,,,,,,,,AMPOL,41,,,,",
+        ]
+    )
+    return SimpleUploadedFile(name, content.encode("utf-8"), content_type="text/csv")
+
+
 class ActiveImportApiTests(APITestCase):
     def setUp(self):
         self.staff = get_user_model().objects.create_user(
@@ -384,3 +399,107 @@ class ActiveImportApiTests(APITestCase):
         self.assertEqual(audit.importacao_id_original, importacao.pk)
         self.assertEqual(audit.excluida_por, self.staff)
         self.assertEqual(audit.contagens["saldos_excluidos"], 1)
+
+    def test_missing_code_creates_resolvable_pending_and_resolution_applies_stock(self):
+        self.authenticate()
+        upload = self.client.post(
+            self.stock_url,
+            {"arquivo": stock_upload_with_missing_code()},
+            format="multipart",
+        )
+
+        self.assertEqual(upload.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(upload.data["status"], Importacao.Status.CONCLUIDA_PARCIAL)
+        self.assertEqual(upload.data["quantidade_nao_associada"], 41)
+        self.assertEqual(len(upload.data["pendencias"]), 1)
+        pendencia = PendenciaImportacao.objects.get()
+        self.assertEqual(pendencia.quantidade, 41)
+
+        resolve = self.client.post(
+            reverse(
+                "importacao-pendencia-resolver",
+                args=[pendencia.importacao_id, pendencia.pk],
+            ),
+            {"codigo_gmus": "184.1"},
+            format="json",
+        )
+
+        self.assertEqual(resolve.status_code, status.HTTP_200_OK)
+        self.assertTrue(resolve.data["medicamento_criado"])
+        self.assertTrue(resolve.data["saldo_criado"])
+        self.assertEqual(
+            resolve.data["importacao"]["status"],
+            Importacao.Status.CONCLUIDA,
+        )
+        self.assertEqual(resolve.data["importacao"]["quantidade_nao_associada"], "0.000")
+        self.assertEqual(resolve.data["importacao"]["pendencias"], [])
+        saldo = SaldoEstoque.objects.get(medicamento__codigo_gmus="184.1")
+        self.assertEqual(saldo.quantidade, 41)
+        pendencia.refresh_from_db()
+        self.assertEqual(pendencia.status, PendenciaImportacao.Status.RESOLVIDA)
+        self.assertEqual(pendencia.resolvida_por, self.staff)
+
+    def test_resolution_rejects_invalid_generic_code(self):
+        self.authenticate()
+        self.client.post(
+            self.stock_url,
+            {"arquivo": stock_upload_with_missing_code()},
+            format="multipart",
+        )
+        pendencia = PendenciaImportacao.objects.get()
+
+        response = self.client.post(
+            reverse(
+                "importacao-pendencia-resolver",
+                args=[pendencia.importacao_id, pendencia.pk],
+            ),
+            {"codigo_gmus": "SEM-CODIGO"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(PendenciaImportacao.objects.filter(pk=pendencia.pk, status="pendente").exists())
+        self.assertFalse(Medicamento.objects.filter(codigo_gmus="SEM-CODIGO").exists())
+
+    def test_explicit_reimport_can_reprocess_the_same_file_to_create_pending(self):
+        self.authenticate()
+        first = self.client.post(
+            self.stock_url,
+            {"arquivo": stock_upload_with_missing_code()},
+            format="multipart",
+        )
+        importacao_id = first.data["importacao_id"]
+
+        second = self.client.post(
+            self.stock_url,
+            {"arquivo": stock_upload_with_missing_code(), "reimportar": True},
+            format="multipart",
+        )
+
+        self.assertEqual(second.status_code, status.HTTP_200_OK)
+        self.assertEqual(second.data["importacao_id"], importacao_id)
+        self.assertEqual(PendenciaImportacao.objects.count(), 1)
+
+    def test_unique_missing_code_match_is_internal_info_not_visible_warning(self):
+        self.authenticate()
+        Medicamento.objects.create(
+            codigo_gmus="184.1",
+            descricao="CIANOCOBALAMINA+PIRIDOXINA+TIAMINA+DEXAMETASONA - 5MG+100MG",
+            unidade="AMPOL",
+        )
+
+        response = self.client.post(
+            self.stock_url,
+            {"arquivo": stock_upload_with_missing_code()},
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["status"], Importacao.Status.CONCLUIDA)
+        self.assertEqual(response.data["warnings"], [])
+        self.assertEqual(response.data["erros"], [])
+        self.assertEqual(response.data["pendencias"], [])
+        self.assertEqual(
+            SaldoEstoque.objects.get(medicamento__codigo_gmus="184.1").quantidade,
+            41,
+        )

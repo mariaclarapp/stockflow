@@ -1,7 +1,14 @@
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from core.models import Competencia, Ups
+from estoques.models import SaldoEstoque
+from importacoes.models import Importacao
 
 from .models import Classificacao, Medicamento
 
@@ -354,6 +361,28 @@ class MedicationClassificationAssociationApiTests(APITestCase):
             self.association_url(self.manipulated_medicine),
             {"classificacao_id": self.manipulated.pk},
             format="json",
+        )
+        ups = Ups.objects.create(
+            codigo_gmus="UPS-CLASSIFICACAO-PUBLICA",
+            id_unidade_gmus="PUBLICA",
+            nome="UPS CLASSIFICACAO PUBLICA",
+        )
+        competencia = Competencia.objects.create(ano=2026, mes=8)
+        importacao = Importacao.objects.create(
+            nome_arquivo="estoque-classificacao-publica.csv",
+            tipo_relatorio="estoque",
+            data_importacao=timezone.now(),
+            status=Importacao.Status.CONCLUIDA,
+            usuario=self.staff,
+            competencia=competencia,
+            ups=ups,
+        )
+        SaldoEstoque.objects.create(
+            medicamento=self.manipulated_medicine,
+            ups=ups,
+            competencia=competencia,
+            importacao=importacao,
+            quantidade=Decimal("0"),
         )
         self.client.force_authenticate(user=None)
 

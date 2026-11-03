@@ -215,6 +215,35 @@ class AdministrativeMedicationStockApiTests(APITestCase):
         self.assertIn(self.competencia.pk, ids)
         self.assertNotIn(vazia.pk, ids)
 
+    def test_options_list_ups_with_partial_stock_import(self):
+        importacao = self.importacoes[self.ups_convencional_b.pk]
+        importacao.status = Importacao.Status.CONCLUIDA_PARCIAL
+        importacao.save(update_fields=["status"])
+
+        response = self.client.get(reverse("medicamento-opcoes"))
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        ids = [item["id"] for item in response.data["ups"]]
+        self.assertIn(self.ups_convencional_b.pk, ids)
+
+    def test_validation_status_filter_matches_displayed_indicator(self):
+        not_validated = self.client.get(self.url, {"validacao": "nao_validado"})
+        validated = self.client.get(self.url, {"validacao": "validado"})
+
+        self.assertEqual(not_validated.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            {item["id"] for item in not_validated.data},
+            {self.medicamento.pk, self.sem_estoque.pk},
+        )
+        self.assertEqual(validated.status_code, status.HTTP_200_OK)
+        self.assertEqual(validated.data, [])
+
+    def test_rejects_invalid_validation_status_filter(self):
+        response = self.client.get(self.url, {"validacao": "desconhecida"})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("validacao", response.data)
+
     def test_list_query_count_is_constant_for_multiple_medications(self):
         extras = Medicamento.objects.bulk_create(
             [

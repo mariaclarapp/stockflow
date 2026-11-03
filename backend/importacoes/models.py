@@ -16,6 +16,8 @@ class Importacao(models.Model):
     quantidade_nao_associada = models.DecimalField(
         max_digits=14, decimal_places=3, default=0
     )
+    erros_nao_corrigiveis = models.PositiveIntegerField(default=0)
+    alertas_relevantes = models.PositiveIntegerField(default=0)
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -45,6 +47,55 @@ class Importacao(models.Model):
 
     def __str__(self):
         return f"{self.nome_arquivo} - {self.competencia} - {self.ups}"
+
+
+class PendenciaImportacao(models.Model):
+    class Status(models.TextChoices):
+        PENDENTE = "pendente", "Pendente"
+        RESOLVIDA = "resolvida", "Resolvida"
+
+    importacao = models.ForeignKey(
+        Importacao,
+        on_delete=models.CASCADE,
+        related_name="pendencias",
+    )
+    linha = models.PositiveIntegerField()
+    tipo = models.CharField(max_length=80, default="medicamento_sem_codigo")
+    descricao = models.TextField()
+    unidade = models.CharField(max_length=80, blank=True)
+    quantidade = models.DecimalField(max_digits=14, decimal_places=3)
+    raw = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDENTE,
+    )
+    medicamento = models.ForeignKey(
+        "medicamentos.Medicamento",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="pendencias_importacao_resolvidas",
+    )
+    resolvida_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="pendencias_importacao_resolvidas",
+    )
+    resolvida_em = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["linha", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["importacao", "linha", "tipo"],
+                name="unique_pendencia_importacao_linha_tipo",
+            )
+        ]
+        verbose_name = "pendencia de importacao"
+        verbose_name_plural = "pendencias de importacao"
 
 
 class MovimentacaoEstoque(models.Model):

@@ -33,6 +33,15 @@ export function getImports() {
   return apiRequest("/api/importacoes/");
 }
 
+export async function resolveImportPending(importId, pendingId, codigoGmus) {
+  const csrfToken = await getCsrfToken();
+  return apiRequest(`/api/importacoes/${importId}/pendencias/${pendingId}/resolver/`, {
+    method: "POST",
+    headers: { "X-CSRFToken": csrfToken, "Content-Type": "application/json" },
+    body: JSON.stringify({ codigo_gmus: codigoGmus }),
+  });
+}
+
 async function uploadReport(reportType, file, { reimportar = false } = {}) {
   const csrfToken = await getCsrfToken();
   const formData = new FormData();

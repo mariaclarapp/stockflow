@@ -56,6 +56,33 @@ class PublicMedicineApiTests(APITestCase):
             username="farmaceutica_protecao_admin",
             password="senha-ficticia",
         )
+        ups = Ups.objects.create(
+            codigo_gmus="UPS-PUBLICA",
+            id_unidade_gmus="PUBLICA",
+            nome="UPS PUBLICA",
+        )
+        competencia = Competencia.objects.create(ano=2026, mes=8)
+        importacao = Importacao.objects.create(
+            nome_arquivo="estoque-publico.csv",
+            tipo_relatorio="estoque",
+            data_importacao=timezone.now(),
+            status=Importacao.Status.CONCLUIDA,
+            usuario=cls.admin_user,
+            competencia=competencia,
+            ups=ups,
+        )
+        SaldoEstoque.objects.bulk_create(
+            [
+                SaldoEstoque(
+                    medicamento=medicamento,
+                    ups=ups,
+                    competencia=competencia,
+                    importacao=importacao,
+                    quantidade=Decimal("0"),
+                )
+                for medicamento in (*cls.presentations, cls.other_medicine)
+            ]
+        )
         cls.public_url = reverse("public-medicamento-list")
         cls.admin_url = reverse("medicamento-list")
 
@@ -121,7 +148,7 @@ class PublicMedicineApiTests(APITestCase):
         )
         self.assertEqual(
             response.data[0]["disponibilidade"],
-            "Disponibilidade não informada",
+            "Indisponível",
         )
         forbidden_fields = {
             "id",
@@ -267,6 +294,7 @@ class PublicMedicineAvailabilityTests(APITestCase):
         medicine.classificacoes.add(manipulated)
         competence = self.create_competence(2026, 8)
         self.complete_competence(competence)
+        self.create_stock(medicine, competence, self.ups_a, "0")
 
         result = self.get_public_medicine(medicine)
 
@@ -353,12 +381,10 @@ class PublicMedicineAvailabilityTests(APITestCase):
         )
         self.create_stock(medicine, competence, self.ups_a, "100")
 
-        result = self.get_public_medicine(medicine)
+        response = self.client.get(self.url, {"search": medicine.codigo_gmus})
 
-        self.assertEqual(
-            result["disponibilidade"],
-            "Disponibilidade não informada",
-        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
 
     def test_alert_imports_can_complete_competence(self):
         medicine = self.create_medicine()
@@ -373,24 +399,23 @@ class PublicMedicineAvailabilityTests(APITestCase):
 
         self.assertEqual(result["disponibilidade"], "Disponível")
 
-    def test_medicine_absent_from_complete_competence_has_zero_stock(self):
+    def test_medicine_absent_from_complete_competence_is_not_listed(self):
         medicine = self.create_medicine()
         competence = self.create_competence(2026, 8)
         self.complete_competence(competence)
 
-        result = self.get_public_medicine(medicine)
+        response = self.client.get(self.url, {"search": medicine.codigo_gmus})
 
-        self.assertEqual(result["disponibilidade"], "Indisponível")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
 
-    def test_without_complete_competence_availability_is_not_informed(self):
+    def test_without_complete_competence_returns_empty_list(self):
         medicine = self.create_medicine()
 
-        result = self.get_public_medicine(medicine)
+        response = self.client.get(self.url, {"search": medicine.codigo_gmus})
 
-        self.assertEqual(
-            result["disponibilidade"],
-            "Disponibilidade não informada",
-        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, [])
 
     def test_nonconventional_ups_stock_is_not_included(self):
         medicine = self.create_medicine()

@@ -3,7 +3,6 @@ from django.db.models import Count, Q
 from estoques.models import SaldoEstoque
 from importacoes.models import Importacao
 from importacoes.report_types import REPORT_TYPE_MOVEMENT, REPORT_TYPE_STOCK
-from medicamentos.models import Medicamento
 
 from .models import Competencia, Ups
 
@@ -15,8 +14,6 @@ class CompetenciaService:
         Importacao.Status.CONCLUIDA,
         Importacao.Status.CONCLUIDA_COM_ALERTAS,
     )
-    STATUS_IMPORTACAO_DISPONIVEIS = STATUS_IMPORTACAO_VALIDOS
-
     @classmethod
     def importacoes_validas(cls, tipo_relatorio):
         """Return only imports that are safe to use in official calculations."""
@@ -94,10 +91,7 @@ class CompetenciaService:
     def identificar_competencia_disponivel(cls):
         return (
             cls.competencias_com_totais()
-            .filter(
-                importacoes__tipo_relatorio__in=cls.TIPOS_RELATORIO_ESTOQUE,
-                importacoes__status__in=cls.STATUS_IMPORTACAO_DISPONIVEIS,
-            )
+            .filter(importacoes__tipo_relatorio__in=cls.TIPOS_RELATORIO_ESTOQUE)
             .order_by("-ano", "-mes")
             .first()
         )
@@ -109,10 +103,7 @@ class DashboardResumoService:
         total_ups_participantes = Ups.objects.filter(
             participa_competencia=True
         ).count()
-        competencia = CompetenciaService.identificar_competencia_completa(
-            total_ups_participantes=total_ups_participantes
-        )
-        total_medicamentos = Medicamento.objects.count()
+        competencia = CompetenciaService.identificar_competencia_disponivel()
 
         if competencia is None:
             return {
@@ -123,7 +114,7 @@ class DashboardResumoService:
                 },
                 "importacoes": [],
                 "totais": {
-                    "medicamentos": total_medicamentos,
+                    "medicamentos": 0,
                     "estoques": 0,
                 },
             }
@@ -134,7 +125,7 @@ class DashboardResumoService:
                 tipo_relatorio__in=CompetenciaService.TIPOS_RELATORIO_ESTOQUE,
                 ups__participa_competencia=True,
             )
-            .select_related("ups")
+            .select_related("ups", "usuario")
             .annotate(
                 registros_estoque=Count("saldos_estoque")
             )
@@ -147,7 +138,10 @@ class DashboardResumoService:
                 "id": competencia.pk,
                 "ano": competencia.ano,
                 "mes": competencia.mes,
-                "completa": True,
+                "completa": (
+                    total_ups_participantes > 0
+                    and competencia.total_ups_importadas == total_ups_participantes
+                ),
             },
             "ups": {
                 "participantes": total_ups_participantes,
@@ -167,13 +161,21 @@ class DashboardResumoService:
                     "status": importacao.status,
                     "data_importacao": importacao.data_importacao,
                     "registros_estoque": importacao.registros_estoque,
+                    "usuario": (
+                        importacao.usuario.get_full_name()
+                        or importacao.usuario.get_username()
+                    ),
                 }
                 for importacao in importacoes
             ],
             "totais": {
-                "medicamentos": total_medicamentos,
+                "medicamentos": SaldoEstoque.objects.filter(
+                    competencia=competencia,
+                    importacao__status__in=status_validos,
+                ).values("medicamento_id").distinct().count(),
                 "estoques": SaldoEstoque.objects.filter(
-                    competencia=competencia
+                    competencia=competencia,
+                    importacao__status__in=status_validos,
                 ).count(),
             },
         }

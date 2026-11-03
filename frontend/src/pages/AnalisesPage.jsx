@@ -21,6 +21,7 @@ const emptyFilters = {
   upsId: "",
   search: "",
   category: "",
+  unit: "",
   comparisonEnabled: false,
   comparisonStart: "",
   comparisonEnd: "",
@@ -59,7 +60,7 @@ function exportRanking(data) {
 }
 
 function AnalisesPage() {
-  const [options, setOptions] = useState({ competencias: [], ups: [], subgrupos: [], classificacoes: [] });
+  const [options, setOptions] = useState({ competencias: [], ups: [], subgrupos: [], classificacoes: [], unidades: [] });
   const [filters, setFilters] = useState(emptyFilters);
   const [analysis, setAnalysis] = useState(null);
   const [selectedMedicineId, setSelectedMedicineId] = useState("");
@@ -117,6 +118,18 @@ function AnalisesPage() {
     loadAnalysis(filters);
   }
 
+  function clearFilters() {
+    const end = options.competencias[0];
+    const start = options.competencias[Math.min(5, options.competencias.length - 1)];
+    const nextFilters = {
+      ...emptyFilters,
+      competenceStart: start ? String(start.id) : "",
+      competenceEnd: end ? String(end.id) : "",
+    };
+    setFilters(nextFilters);
+    loadAnalysis(nextFilters);
+  }
+
   const comparison = analysis?.comparacao;
   const variation = comparison?.variacao_percentual;
   const medicines = useMemo(
@@ -151,8 +164,10 @@ function AnalisesPage() {
           <label className="field-label">Competência final<select value={filters.competenceEnd} onChange={(event) => updateFilter("competenceEnd", event.target.value)} disabled={isLoading}>{options.competencias.map((item) => <option key={item.id} value={item.id}>{formatCompetence(item)}</option>)}</select></label>
           <label className="field-label">UPS<select value={filters.upsId} onChange={(event) => updateFilter("upsId", event.target.value)}><option value="">Todas as UPS</option>{options.ups.map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></label>
           <label className="field-label">Categoria<select value={filters.category} onChange={(event) => updateFilter("category", event.target.value)}><option value="">Todas as categorias</option>{categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+          <label className="field-label">Unidade<select value={filters.unit} onChange={(event) => updateFilter("unit", event.target.value)}><option value="">Todas as unidades</option>{options.unidades.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
           <label className="field-label analytics-search">Medicamento<span><Search size={17} /><input value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Nome ou código G-MUS" /></span></label>
-          <button className="primary-button analytics-submit" type="submit" disabled={isAnalyzing || !filters.competenceStart || !filters.competenceEnd}>{isAnalyzing ? <LoaderCircle className="button-spinner" size={17} /> : <BarChart3 size={17} />}Analisar</button>
+          <button className="primary-button analytics-submit" type="submit" disabled={isAnalyzing || !filters.competenceStart || !filters.competenceEnd || (filters.comparisonEnabled && (!filters.comparisonStart || !filters.comparisonEnd))}>{isAnalyzing ? <LoaderCircle className="button-spinner" size={17} /> : <BarChart3 size={17} />}Analisar</button>
+          <button className="secondary-button analytics-clear" type="button" onClick={clearFilters} disabled={isAnalyzing}>Limpar filtros</button>
           <label className="analytics-comparison-toggle"><input type="checkbox" checked={filters.comparisonEnabled} onChange={(event) => updateFilter("comparisonEnabled", event.target.checked)} />Comparar com outro período</label>
           {filters.comparisonEnabled && <div className="analytics-comparison-fields"><label className="field-label">Comparação inicial<select value={filters.comparisonStart} onChange={(event) => updateFilter("comparisonStart", event.target.value)}><option value="">Selecione</option>{options.competencias.map((item) => <option key={item.id} value={item.id}>{formatCompetence(item)}</option>)}</select></label><label className="field-label">Comparação final<select value={filters.comparisonEnd} onChange={(event) => updateFilter("comparisonEnd", event.target.value)}><option value="">Selecione</option>{options.competencias.map((item) => <option key={item.id} value={item.id}>{formatCompetence(item)}</option>)}</select></label></div>}
         </form>
@@ -172,7 +187,7 @@ function AnalisesPage() {
 
         <section className="analytics-panel analytics-medicine-focus">
           <div className="analytics-panel__heading analytics-panel__heading--actions"><div><h2>Média por medicamento</h2><p>Selecione um medicamento para acompanhar o consumo dentro do período e dos filtros aplicados.</p></div><label className="field-label analytics-medicine-select">Medicamento<select value={selectedMedicine ? String(selectedMedicine.id) : ""} onChange={(event) => setSelectedMedicineId(event.target.value)} disabled={!medicines.length}>{medicines.map((item) => <option key={item.id} value={item.id}>{item.descricao} · {item.codigo_gmus}</option>)}</select></label></div>
-          {selectedMedicine ? <><div className="analytics-summary-grid analytics-medicine-summary"><SummaryCard label="Consumo no período" value={formatDecimal(selectedMedicine.consumo)} helper="Somente saídas" /><SummaryCard label="Média mensal" value={formatDecimal(selectedMedicine.media_mensal)} helper="Considera meses completos" /><SummaryCard label="Estoque atual" value={selectedMedicine.estoque_atual === null ? "Sem base" : formatDecimal(selectedMedicine.estoque_atual)} helper={formatCompetence(analysis.periodo.final)} /><SummaryCard label="Cobertura estimada" value={selectedMedicine.dias_cobertura === null ? "Sem base" : `${Math.round(Number(selectedMedicine.dias_cobertura))} dias`} helper={selectedMedicine.classe_abc ? `Classe ${selectedMedicine.classe_abc} · tendência ${selectedMedicine.tendencia}` : "Sem consumo"} /></div><div className="analytics-medicine-chart"><ConsumptionEvolutionChart data={selectedMedicine.evolucao || []} /></div></> : <p className="analytics-empty">Nenhum medicamento encontrado com os filtros atuais.</p>}
+          {selectedMedicine ? <><div className="analytics-summary-grid analytics-medicine-summary"><SummaryCard label="Consumo no período" value={formatDecimal(selectedMedicine.consumo)} helper="Somente saídas" /><SummaryCard label="Média mensal do período" value={formatDecimal(selectedMedicine.media_mensal)} helper="Inclui meses completos sem saída" /><SummaryCard label="Média nos meses com saída" value={formatDecimal(selectedMedicine.media_meses_com_consumo)} helper={`${selectedMedicine.meses_com_consumo} mês(es) com consumo`} /><SummaryCard label="Estoque atual" value={selectedMedicine.estoque_atual === null ? "Sem base" : formatDecimal(selectedMedicine.estoque_atual)} helper={formatCompetence(analysis.periodo.final)} /><SummaryCard label="Cobertura estimada" value={selectedMedicine.dias_cobertura === null ? "Sem base" : `${Math.round(Number(selectedMedicine.dias_cobertura))} dias`} helper={selectedMedicine.classe_abc ? `Classe ${selectedMedicine.classe_abc} · tendência ${selectedMedicine.tendencia}` : "Sem consumo"} /></div><div className="analytics-medicine-chart"><ConsumptionEvolutionChart data={selectedMedicine.evolucao || []} /></div></> : <p className="analytics-empty">Nenhum medicamento encontrado com os filtros atuais.</p>}
         </section>
 
         {comparison && <section className="analytics-panel analytics-comparison"><div><span>Período atual</span><strong>{formatDecimal(analysis.resumo.consumo_total)}</strong></div><div><span>Período comparado</span><strong>{formatDecimal(comparison.resumo.consumo_total)}</strong></div><div className={Number(variation) > 0 ? "comparison-change comparison-change--up" : "comparison-change comparison-change--down"}>{Number(variation) > 0 ? <TrendingUp size={22} /> : <TrendingDown size={22} />}<span>Variação<strong>{percentage(variation)}</strong></span></div></section>}
