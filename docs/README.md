@@ -24,6 +24,12 @@ Arquivos:
 
 - [`api.md`](./api/api.md)
 
+### Manual do usuário
+
+O guia de uso das telas administrativas e da consulta pública está em [`manual-usuario/manual.md`](./manual-usuario/manual.md).
+
+As capturas utilizadas pelo manual ficam em [`manual-usuario/imagens/`](./manual-usuario/imagens/).
+
 ### Banco de Dados
 
 A pasta [`banco-de-dados`](./banco-de-dados/) documenta a configuração e a modelagem implementada no banco de dados.
