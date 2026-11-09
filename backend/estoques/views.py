@@ -88,6 +88,19 @@ class ValidacaoMovimentacoesAPIView(APIView):
     permission_classes = [IsAdminUser]
 
     def _resolver_fontes(self, competencia_id, ups_id):
+        try:
+            competencia_id = int(competencia_id)
+            ups_id = int(ups_id)
+        except (TypeError, ValueError):
+            return None, Response(
+                {"erro": "Competencia e ups devem ser IDs numericos."},
+                status=400,
+            )
+        if competencia_id <= 0 or ups_id <= 0:
+            return None, Response(
+                {"erro": "Competencia e ups devem ser IDs positivos."},
+                status=400,
+            )
         competencia = get_object_or_404(Competencia, pk=competencia_id)
         ups = get_object_or_404(Ups, pk=ups_id)
 

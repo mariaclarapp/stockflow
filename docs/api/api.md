@@ -10,7 +10,10 @@ contrato ativo. A validacao usa somente estoque e movimentacoes.
 
 Antes de persistir, `POST /api/importacoes/previsualizar/` identifica o tipo, a
 competencia, a UPS, a quantidade de registros e os problemas globais do CSV sem gravar
-dados. A exclusao exige `{ "confirmar": true }` e gera uma auditoria imutavel.
+dados. Quando a combinacao competencia, UPS e tipo de relatorio ja existe, o preview
+tambem informa `importacao_existente`, `importacao_id` e `mesmo_arquivo`. A interface
+usa esses campos para solicitar confirmacao antes da reimportacao. A exclusao exige
+`{ "confirmar": true }` e gera uma auditoria imutavel.
 
 Este documento registra o estado atual implementado da API do StockFlow.
 

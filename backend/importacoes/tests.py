@@ -10,6 +10,7 @@ from .parsers import (
     UnknownReportTypeError,
     detect_report_type,
     parse_inventory_csv,
+    parse_movement_csv,
     parse_report_csv,
 )
 
@@ -235,6 +236,54 @@ class InventoryCsvParserTests(SimpleTestCase):
         )
         self.assertEqual(negative_issue["severity"], "error")
         self.assertEqual(negative_issue["line"], 3)
+
+    def test_movement_partial_month_is_rejected(self):
+        result = parse_movement_csv(
+            "\n".join(
+                [
+                    "Movimentação de Estoque - Sintético",
+                    "Data Inicial: 05/08/2026. Data Final: 31/08/2026. UPS: FARMACIA TESTE (9)",
+                    "Material,,,,,,,Saida,Devolucao,Compra,,,,,,Saldo Atual,,,,,,",
+                    ",MEDICAMENTO / 500MG (100.1),,,,,,0,0,1,,,,,,,,0,,,,",
+                ]
+            )
+        )
+
+        issue = next(
+            item
+            for item in result["inconsistencies"]
+            if item["type"] == "movement_period_invalid"
+        )
+        self.assertEqual(issue["severity"], "error")
+        self.assertIsNone(issue["line"])
+
+    def test_negative_quantity_on_continued_movement_line_is_rejected(self):
+        values = [""] * 23
+        values[1] = "MEDICAMENTO SEM CODIGO / 500MG"
+        values[7] = "-1"
+        values[8] = "0"
+        values[9] = "0"
+        continuation = [""] * 23
+        continuation[1] = "(100.1)"
+        result = parse_movement_csv(
+            "\n".join(
+                [
+                    "Movimentação de Estoque - Sintético",
+                    "Data Inicial: 01/08/2026. Data Final: 31/08/2026. UPS: FARMACIA TESTE (9)",
+                    "Material,Saldo Atual",
+                    ",".join(values),
+                    ",".join(continuation),
+                ]
+            )
+        )
+
+        self.assertEqual(result["records"], [])
+        issue = next(
+            item
+            for item in result["inconsistencies"]
+            if item["type"] == "invalid_quantity"
+        )
+        self.assertEqual(issue["severity"], "error")
 
     def test_parse_shifted_last_page_columns(self):
         csv_text = "\n".join(

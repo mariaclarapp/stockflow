@@ -1,3 +1,4 @@
+import calendar
 import csv
 import hashlib
 import re
@@ -295,6 +296,22 @@ def parse_movement_csv(source):
             ).strip()
             medicine = _parse_material(combined_material)
             if medicine:
+                if any(
+                    value is None or value < 0
+                    for value in pending_movement["fields"].values()
+                ):
+                    inconsistencies.append({
+                        "line": pending_movement["line"],
+                        "type": "invalid_quantity",
+                        "severity": "error",
+                        "message": "Movimentação com quantidade inválida.",
+                        "raw": {
+                            "material_linha_anterior": pending_movement["raw"],
+                            "continuacao_linha_atual": _raw_row(row),
+                        },
+                    })
+                    pending_movement = None
+                    continue
                 records.append(
                     _build_movement_record(
                         line_number=pending_movement["line"],
@@ -814,7 +831,7 @@ def _extract_movement_metadata(line_number, values, metadata):
             }
             metadata["ups"] = {
                 "nome": match.group("ups_nome").strip(),
-                "codigo_gmus": match.group("ups_id"),
+                "codigo_gmus": None,
                 "id_unidade_gmus": match.group("ups_id"),
             }
         if _normalize_text(value).startswith("ups:") and metadata["ups"] is None:
@@ -822,7 +839,7 @@ def _extract_movement_metadata(line_number, values, metadata):
             if ups_match:
                 metadata["ups"] = {
                     "nome": ups_match.group("nome").strip(),
-                    "codigo_gmus": ups_match.group("id"),
+                    "codigo_gmus": None,
                     "id_unidade_gmus": ups_match.group("id"),
                 }
     if "Material" in values and "Saldo Atual" in values:
@@ -909,12 +926,19 @@ def _validate_movement_metadata(metadata, inconsistencies):
         return
     start = date.fromisoformat(metadata["data_inicial"])
     end = date.fromisoformat(metadata["data_final"])
-    if start > end or start.month != end.month or start.year != end.year:
+    last_day = calendar.monthrange(start.year, start.month)[1]
+    if (
+        start > end
+        or start.month != end.month
+        or start.year != end.year
+        or start.day != 1
+        or end.day != last_day
+    ):
         inconsistencies.append({
             "line": None,
             "type": "movement_period_invalid",
             "severity": "error",
-            "message": "O relatório deve representar um único mês de movimentação.",
+            "message": "O relatório deve representar o mês completo de movimentação.",
         })
     _validate_ups_metadata(metadata, inconsistencies)
 

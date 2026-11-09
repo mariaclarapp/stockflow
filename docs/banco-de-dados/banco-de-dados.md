@@ -218,8 +218,9 @@ competencia, UPS e tipo de relatorio. Os registros de `Estoque` vinculados a ela
 substituidos e seus metadados de arquivo, hash, data, status e usuario sao atualizados.
 
 A substituicao utiliza `transaction.atomic()`. Uma falha reverte os estoques e
-metadados anteriores integralmente. Um arquivo com o mesmo SHA-256 ja processado e
-bloqueado e nao provoca nova substituicao. Medicamentos, lotes e classificacoes
+metadados anteriores integralmente. Um arquivo com o mesmo SHA-256 ja processado so
+pode ser reprocessado quando a reimportacao for confirmada explicitamente; sem
+confirmacao, o upload e bloqueado. Medicamentos, lotes e classificacoes
 compartilhados nao sao removidos pela reimportacao.
 
 ## Reimportacao de Consulta de Estoque
@@ -233,7 +234,8 @@ pode comparar os dois conjuntos por competencia, UPS e medicamento.
 
 `MovimentacaoEstoque` preserva, por medicamento, UPS e competência, o período do
 relatório, compras, devoluções, transferências, acertos, saídas e o saldo atual
-informado pelo G-MUS. A tabela não substitui `Estoque` ou `SaldoEstoque`. A validação
+informado pelo G-MUS. O período deve cobrir o mês civil completo; relatórios parciais
+são rejeitados. A tabela não substitui `Estoque` ou `SaldoEstoque`. A validação
 administrativa usa o estoque anterior, soma entradas, subtrai saídas e compara o saldo
 esperado com o saldo final importado.
 

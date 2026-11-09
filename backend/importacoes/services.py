@@ -19,7 +19,11 @@ from .models import (
     MovimentacaoEstoque,
     PendenciaImportacao,
 )
-from .report_types import REPORT_TYPE_INVENTORY, REPORT_TYPE_STOCK
+from .report_types import (
+    REPORT_TYPE_INVENTORY,
+    REPORT_TYPE_MOVEMENT,
+    REPORT_TYPE_STOCK,
+)
 
 
 class InventoryPersistenceError(ValueError):
@@ -40,6 +44,37 @@ class SameInventoryFileError(InventoryImportConflictError):
 
 class ReimportationTargetNotFoundError(InventoryImportConflictError):
     pass
+
+
+def find_existing_import(parsed_data):
+    """Find the import matching a parsed report without changing the database."""
+    metadata = parsed_data.get("metadata") or {}
+    competence_data = metadata.get("competencia") or {}
+    ups_data = metadata.get("ups") or {}
+    report_type = parsed_data.get("tipo_relatorio")
+    if not report_type or not competence_data or not ups_data.get("id_unidade_gmus"):
+        return None
+
+    competencia = Competencia.objects.filter(
+        ano=competence_data.get("ano"),
+        mes=competence_data.get("mes"),
+    ).first()
+    if competencia is None:
+        return None
+
+    ups_queryset = Ups.objects.filter(id_unidade_gmus=ups_data["id_unidade_gmus"])
+    if ups_data.get("codigo_gmus"):
+        ups = ups_queryset.filter(codigo_gmus=ups_data["codigo_gmus"]).first()
+    else:
+        matches = list(ups_queryset.order_by("id")[:2])
+        ups = matches[0] if len(matches) == 1 else None
+    if ups is None:
+        return None
+    return Importacao.objects.filter(
+        competencia=competencia,
+        ups=ups,
+        tipo_relatorio=report_type,
+    ).first()
 
 
 def delete_importacao(*, importacao_id, deleted_by):
@@ -197,7 +232,11 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo, reimportar=Fals
             raise DuplicateInventoryImportError(
                 "Ja existe uma importacao para esta competencia, UPS e tipo de relatorio."
             )
-        if importacao is not None and importacao.hash_arquivo == file_hash:
+        if (
+            importacao is not None
+            and importacao.hash_arquivo == file_hash
+            and not reimportar
+        ):
             raise SameInventoryFileError(
                 "Este mesmo arquivo ja foi processado para esta competencia e UPS."
             )
@@ -239,6 +278,11 @@ def persist_inventory_import(*, parsed_data, user, nome_arquivo, reimportar=Fals
             if item.get("severity", "error") == "error"
             and item.get("line") is not None
         }
+        _raise_on_duplicate_records(
+            parsed_data.get("records", []),
+            invalid_lines=invalid_lines,
+            report_type=report_type,
+        )
         service_errors = []
         created_medicines = set()
         reused_medicines = set()
@@ -500,6 +544,11 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
             for item in parser_errors
             if item.get("severity", "error") == "error" and item.get("line") is not None
         }
+        _raise_on_duplicate_records(
+            parsed_data.get("records", []),
+            invalid_lines=invalid_lines,
+            report_type=report_type,
+        )
         service_errors = []
         created_medicines = set()
         reused_medicines = set()
@@ -664,14 +713,18 @@ def persist_movement_import(*, parsed_data, user, nome_arquivo, reimportar=False
         competencia, competencia_criada = Competencia.objects.get_or_create(
             ano=competencia_data["ano"], mes=competencia_data["mes"]
         )
-        ups, ups_criada = _get_or_create_ups(ups_data)
+        ups, ups_criada = _resolve_stock_ups(ups_data)
         importacao = Importacao.objects.select_for_update().filter(
             competencia=competencia, ups=ups, tipo_relatorio=report_type
         ).first()
         reimportacao = importacao is not None
         if importacao is not None and not reimportar:
             raise DuplicateInventoryImportError("Ja existe uma importacao para esta competencia, UPS e tipo de relatorio.")
-        if importacao is not None and importacao.hash_arquivo == file_hash:
+        if (
+            importacao is not None
+            and importacao.hash_arquivo == file_hash
+            and not reimportar
+        ):
             raise SameInventoryFileError("Este mesmo arquivo ja foi processado para esta competencia e UPS.")
         if importacao is None and reimportar:
             raise ReimportationTargetNotFoundError("Nao existe importacao para substituir com a competencia e UPS do arquivo.")
@@ -690,6 +743,11 @@ def persist_movement_import(*, parsed_data, user, nome_arquivo, reimportar=False
             item.get("line") for item in parser_errors
             if item.get("severity", "error") == "error" and item.get("line") is not None
         }
+        _raise_on_duplicate_records(
+            parsed_data.get("records", []),
+            invalid_lines=invalid_lines,
+            report_type=report_type,
+        )
         created_medicines = set()
         reused_medicines = set()
         count = 0
@@ -719,7 +777,14 @@ def persist_movement_import(*, parsed_data, user, nome_arquivo, reimportar=False
         importacao.nome_arquivo = nome_arquivo
         importacao.hash_arquivo = file_hash
         importacao.data_importacao = timezone.now()
-        importacao.status = Importacao.Status.CONCLUIDA_PARCIAL if invalid_lines else Importacao.Status.CONCLUIDA
+        if invalid_lines:
+            importacao.status = Importacao.Status.CONCLUIDA_PARCIAL
+        elif any(
+            item.get("severity") == "warning" for item in parser_errors
+        ):
+            importacao.status = Importacao.Status.CONCLUIDA_COM_ALERTAS
+        else:
+            importacao.status = Importacao.Status.CONCLUIDA
         importacao.usuario = user
         importacao.save(update_fields=["nome_arquivo", "hash_arquivo", "data_importacao", "status", "usuario"])
         return {
@@ -748,7 +813,10 @@ def _validate_import_context(parsed_data, user, nome_arquivo):
     if (
         not ups.get("id_unidade_gmus")
         or not ups.get("nome")
-        or (report_type != REPORT_TYPE_STOCK and not ups.get("codigo_gmus"))
+        or (
+            report_type not in (REPORT_TYPE_STOCK, REPORT_TYPE_MOVEMENT)
+            and not ups.get("codigo_gmus")
+        )
     ):
         raise InventoryPersistenceError("UPS ausente nos metadados.")
     if not report_type:
@@ -786,18 +854,40 @@ def _find_existing_medicine_matches(*, descricao, unidade):
 
 
 def _get_or_create_ups(ups_data):
-    ups = (
-        Ups.objects.filter(id_unidade_gmus=ups_data["id_unidade_gmus"])
-        .order_by("id")
-        .first()
-    )
-    if ups is not None:
-        return ups, False
     return Ups.objects.get_or_create(
         codigo_gmus=ups_data["codigo_gmus"],
         id_unidade_gmus=ups_data["id_unidade_gmus"],
         defaults={"nome": ups_data["nome"]},
     )
+
+
+def _raise_on_duplicate_records(records, *, invalid_lines, report_type):
+    seen = {}
+    duplicates = []
+    for record in records:
+        if record.get("line") in invalid_lines:
+            continue
+        medicine = record.get("medicamento") or {}
+        code = medicine.get("codigo_gmus")
+        if not code:
+            continue
+        if report_type == REPORT_TYPE_STOCK:
+            key = (code,)
+        else:
+            lot = record.get("lote") or {}
+            key = (code, lot.get("codigo_lote"), lot.get("validade"))
+        if key in seen:
+            duplicates.append((seen[key], record.get("line")))
+        else:
+            seen[key] = record.get("line")
+    if duplicates:
+        lines = ", ".join(
+            f"{first}/{second}" for first, second in duplicates[:5]
+        )
+        raise InventoryPersistenceError(
+            "O arquivo possui registros duplicados para a mesma chave "
+            f"de estoque (linhas {lines}). Corrija o relatório antes de importar."
+        )
 
 
 def _resolve_stock_ups(ups_data):

@@ -177,7 +177,7 @@ class InventoryUploadApiTests(APITestCase):
         self.assertFalse(Estoque.objects.filter(pk__in=original_stock_ids).exists())
         self.assertEqual(importacao.estoques.get().quantidade, 25)
 
-    def test_reimport_with_same_hash_returns_conflict_without_replacement(self):
+    def test_reimport_with_same_hash_is_allowed_after_confirmation(self):
         self.authenticate()
         self.post_csv()
         importacao = Importacao.objects.get()
@@ -185,12 +185,10 @@ class InventoryUploadApiTests(APITestCase):
 
         response = self.post_csv(reimportar=True)
 
-        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
-        self.assertIn("mesmo arquivo", response.data["erro"])
-        self.assertEqual(
-            list(importacao.estoques.values_list("pk", flat=True)),
-            original_stock_ids,
-        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["reimportacao"])
+        self.assertFalse(Estoque.objects.filter(pk__in=original_stock_ids).exists())
+        self.assertEqual(importacao.estoques.count(), 1)
 
     def test_unknown_report_during_reimport_preserves_old_inventory(self):
         self.authenticate()
@@ -382,6 +380,28 @@ class ActiveImportApiTests(APITestCase):
         self.assertEqual(response.data["registros_identificados"], 1)
         self.assertTrue(response.data["pode_importar"])
         self.assertFalse(Importacao.objects.exists())
+
+    def test_preview_identifies_existing_import_without_persisting(self):
+        self.authenticate()
+        upload = self.client.post(
+            self.stock_url,
+            {"arquivo": stock_upload()},
+            format="multipart",
+        )
+        self.assertEqual(upload.status_code, status.HTTP_201_CREATED)
+        importacao = Importacao.objects.get()
+
+        response = self.client.post(
+            self.preview_url,
+            {"arquivo": stock_upload()},
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response.data["importacao_existente"])
+        self.assertEqual(response.data["importacao_id"], importacao.pk)
+        self.assertTrue(response.data["mesmo_arquivo"])
+        self.assertEqual(Importacao.objects.count(), 1)
 
     def test_stock_upload_resolves_ups_when_report_omits_gmus_code(self):
         self.authenticate()

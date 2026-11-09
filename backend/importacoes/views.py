@@ -25,6 +25,7 @@ from .services import (
     persist_movement_import,
     persist_stock_import,
     delete_importacao,
+    find_existing_import,
     resolver_pendencia_importacao,
 )
 
@@ -138,6 +139,7 @@ class ImportPreviewAPIView(APIView):
         issues = parsed_data.get("inconsistencies", [])
         errors = [item for item in issues if item.get("severity", "error") == "error"]
         warnings = [item for item in issues if item.get("severity") == "warning"]
+        existing_import = find_existing_import(parsed_data)
         return Response(
             {
                 "tipo_relatorio": parsed_data.get("tipo_relatorio"),
@@ -150,6 +152,12 @@ class ImportPreviewAPIView(APIView):
                 "warnings": [_serialize_issue(item) for item in warnings],
                 "pode_importar": not any(item.get("line") is None for item in errors)
                 and bool(parsed_data.get("records")),
+                "importacao_existente": existing_import is not None,
+                "importacao_id": existing_import.pk if existing_import else None,
+                "mesmo_arquivo": bool(
+                    existing_import
+                    and existing_import.hash_arquivo == parsed_data.get("hash_arquivo")
+                ),
             }
         )
 

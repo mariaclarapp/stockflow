@@ -15,8 +15,8 @@ from .models import Importacao
 from .parsers import parse_inventory_csv
 from .services import (
     DuplicateInventoryImportError,
+    InventoryPersistenceError,
     ReimportationTargetNotFoundError,
-    SameInventoryFileError,
     persist_inventory_import,
 )
 
@@ -462,6 +462,20 @@ class InventoryPersistenceServiceTests(TestCase):
         self.assertEqual(Importacao.objects.count(), 1)
         self.assertEqual(Estoque.objects.count(), 1)
 
+    def test_rejects_duplicate_stock_rows_without_partial_persistence(self):
+        parsed_data = self.parsed_data(
+            records=[
+                self.record(line=10, code="100.1", lot_code="L001"),
+                self.record(line=11, code="100.1", lot_code="L001"),
+            ]
+        )
+
+        with self.assertRaisesRegex(InventoryPersistenceError, "duplicados"):
+            self.persist(parsed_data)
+
+        self.assertEqual(Importacao.objects.count(), 0)
+        self.assertEqual(Estoque.objects.count(), 0)
+
     def test_explicit_reimport_reuses_import_and_replaces_stocks_and_metadata(self):
         original_data = self.parsed_data(
             records=[
@@ -541,19 +555,17 @@ class InventoryPersistenceServiceTests(TestCase):
             protected_stock_ids,
         )
 
-    def test_same_hash_does_not_replace_existing_inventory(self):
+    def test_explicit_same_hash_reimport_replaces_existing_inventory(self):
         importacao = self.persist()["importacao"]
         original_stock_ids = list(importacao.estoques.values_list("pk", flat=True))
 
-        with self.assertRaisesRegex(SameInventoryFileError, "mesmo arquivo"):
-            self.persist(reimportar=True)
+        summary = self.persist(reimportar=True)
 
         importacao.refresh_from_db()
+        self.assertTrue(summary["reimportacao"])
         self.assertEqual(importacao.hash_arquivo, self.file_hash)
-        self.assertEqual(
-            list(importacao.estoques.values_list("pk", flat=True)),
-            original_stock_ids,
-        )
+        self.assertFalse(Estoque.objects.filter(pk__in=original_stock_ids).exists())
+        self.assertEqual(importacao.estoques.count(), 1)
 
     def test_reimport_requires_target_for_detected_competence_and_ups(self):
         with self.assertRaisesRegex(

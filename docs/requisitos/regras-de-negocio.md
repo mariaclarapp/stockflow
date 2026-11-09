@@ -65,7 +65,8 @@ detalhado permanecem apenas para preservar compatibilidade com dados legados e n
 participam das telas, da conclusão da competência ou dos cálculos atuais.
 
 O relatório `Movimentação de Estoque - Sintético` representa as movimentações de um
-único mês e UPS. Suas entradas e saídas são armazenadas por medicamento, sem substituir
+único mês completo e UPS. Relatórios que cubram somente parte do mês são rejeitados.
+Suas entradas e saídas são armazenadas por medicamento, sem substituir
 o saldo observado. A validação mensal calcula `estoque anterior + entradas - saídas` e
 compara o resultado com o saldo final importado. Quando um medicamento existe nos dois
 estoques e não possui linha no relatório sintético, suas entradas e saídas são zero.
@@ -103,6 +104,10 @@ substituição. Lotes que deixarem de ser referenciados não são excluídos aut
 Um arquivo com o mesmo SHA-256 poderá ser reprocessado somente após confirmação explícita
 de reimportação. Isso permite aplicar correções de conciliação sem editar o arquivo de
 origem; uploads duplicados sem confirmação continuam bloqueados.
+
+A validação mensal exige a competência imediatamente anterior como estoque de origem.
+Não é permitido saltar competências e usar silenciosamente um estoque mais antigo como
+base de fechamento.
 
 ## RN05 — Preservação da origem
 

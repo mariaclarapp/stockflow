@@ -175,6 +175,15 @@ function ImportacoesPage() {
     }
   }
 
+  function handleUploadSubmit(event) {
+    event.preventDefault();
+    if (preview?.importacao_existente) {
+      setIsConfirmationOpen(true);
+      return;
+    }
+    processUpload();
+  }
+
   async function handleDeleteImport() {
     if (!deleteTarget) return;
     const importacao = deleteTarget;
@@ -238,7 +247,7 @@ function ImportacoesPage() {
 
       <section className="upload-card" aria-labelledby="upload-title">
         <div className="upload-card__heading"><div><h2 id="upload-title">Enviar {reportLabel}</h2><p>O conteúdo será validado e processado pelo StockFlow.</p></div></div>
-        <form onSubmit={(event) => { event.preventDefault(); processUpload(); }}>
+        <form onSubmit={handleUploadSubmit}>
           <FilterSelect
             id="report-type"
             className="report-type-select"
@@ -295,11 +304,11 @@ function ImportacoesPage() {
           </details>
           <InventoryFilePicker file={file} disabled={isSubmitting || isPreviewing} onChange={inspectFile} onRemove={removeFile} reportLabel={reportLabel} />
           {isPreviewing && <div className="import-preview import-preview--loading"><LoaderCircle className="button-spinner" size={18} /><span>Analisando o arquivo antes da importação...</span></div>}
-          {preview && !isPreviewing && <section className={`import-preview${preview.pode_importar ? "" : " import-preview--warning"}`} aria-label="Pré-visualização da importação"><div><small>Relatório identificado</small><strong>{preview.tipo_relatorio === "estoque" ? "Consulta de Estoque" : "Movimentações de Estoque"}</strong></div><div><small>Competência</small><strong>{preview.competencia ? `${String(preview.competencia.mes).padStart(2, "0")}/${preview.competencia.ano}` : "Não identificada"}</strong></div><div><small>UPS</small><strong>{preview.ups?.nome || "Não identificada"}</strong></div><div><small>Registros reconhecidos</small><strong>{preview.registros_identificados}</strong></div><p>{preview.pode_importar ? "Arquivo reconhecido e pronto para processamento." : "O arquivo possui um erro global e não pode ser importado."}</p></section>}
+          {preview && !isPreviewing && <section className={`import-preview${preview.pode_importar ? "" : " import-preview--warning"}`} aria-label="Pré-visualização da importação"><div><small>Relatório identificado</small><strong>{preview.tipo_relatorio === "estoque" ? "Consulta de Estoque" : "Movimentações de Estoque"}</strong></div><div><small>Competência</small><strong>{preview.competencia ? `${String(preview.competencia.mes).padStart(2, "0")}/${preview.competencia.ano}` : "Não identificada"}</strong></div><div><small>UPS</small><strong>{preview.ups?.nome || "Não identificada"}</strong></div><div><small>Registros reconhecidos</small><strong>{preview.registros_identificados}</strong></div><p>{preview.importacao_existente ? (preview.mesmo_arquivo ? "Este mesmo arquivo já foi importado. Confirme para reprocessá-lo." : "Já existe uma importação para esta competência e UPS. Confirme para substituí-la.") : preview.pode_importar ? "Arquivo reconhecido e pronto para processamento." : "O arquivo possui um erro global e não pode ser importado."}</p></section>}
           {error && <div className="request-feedback request-feedback--error import-error" role="alert"><AlertCircle size={18} aria-hidden="true" /><div><p>{error}</p>{canReimport && <button className="secondary-button import-error__action" type="button" onClick={() => setIsConfirmationOpen(true)}><RefreshCw size={15} aria-hidden="true" />Reimportar e substituir</button>}</div></div>}
           <div className="upload-card__submission">
             <div className="upload-card__notice"><Info size={17} aria-hidden="true" /><p>Se a competência e a UPS já tiverem sido importadas, a substituição será confirmada antes do processamento.</p></div>
-            <div className="upload-card__actions"><button className="primary-button upload-button" type="submit" disabled={!file || isSubmitting || isPreviewing || !preview?.pode_importar || error}>{isSubmitting ? <><LoaderCircle className="button-spinner" size={18} />Processando...</> : <><FileUp size={18} />Enviar {reportLabel}</>}</button></div>
+            <div className="upload-card__actions"><button className="primary-button upload-button" type="submit" disabled={!file || isSubmitting || isPreviewing || !preview?.pode_importar || error}>{isSubmitting ? <><LoaderCircle className="button-spinner" size={18} />Processando...</> : preview?.importacao_existente ? <><RefreshCw size={18} />Confirmar reimportação</> : <><FileUp size={18} />Enviar {reportLabel}</>}</button></div>
           </div>
         </form>
       </section>

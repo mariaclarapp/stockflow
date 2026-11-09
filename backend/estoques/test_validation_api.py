@@ -133,6 +133,32 @@ class MovementValidationApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
         self.assertIn("estoque final concluido", response.data["erro"])
 
+    def test_blocks_validation_when_immediate_previous_competence_is_missing(self):
+        junho = Competencia.objects.create(ano=2026, mes=6)
+        self.importacao(junho, REPORT_TYPE_STOCK)
+        self.importacao(self.agosto, REPORT_TYPE_STOCK)
+        self.importacao(self.agosto, REPORT_TYPE_MOVEMENT)
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(
+            self.url,
+            {"competencia": self.agosto.pk, "ups": self.ups.pk},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn("estoque anterior", response.data["erro"])
+
+    def test_rejects_non_numeric_source_ids(self):
+        self.client.force_authenticate(self.staff)
+
+        response = self.client.get(
+            self.url,
+            {"competencia": "abc", "ups": "xyz"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("IDs numericos", response.data["erro"])
+
     def test_manual_correction_only_validates_when_balance_closes(self):
         self.criar_cenario("95")
         self.client.force_authenticate(self.staff)

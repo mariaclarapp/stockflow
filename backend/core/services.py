@@ -39,14 +39,15 @@ class CompetenciaService:
 
     @classmethod
     def importacao_anterior_valida(cls, *, competencia, ups, tipo_relatorio):
+        if competencia.mes == 1:
+            ano_anterior, mes_anterior = competencia.ano - 1, 12
+        else:
+            ano_anterior, mes_anterior = competencia.ano, competencia.mes - 1
         return (
             cls.importacoes_validas(tipo_relatorio)
             .filter(
-                Q(competencia__ano__lt=competencia.ano)
-                | Q(
-                    competencia__ano=competencia.ano,
-                    competencia__mes__lt=competencia.mes,
-                ),
+                competencia__ano=ano_anterior,
+                competencia__mes=mes_anterior,
                 ups=ups,
             )
             .select_related("competencia", "ups")

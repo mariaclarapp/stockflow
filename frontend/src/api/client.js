@@ -39,12 +39,21 @@ export async function apiRequest(path, options = {}) {
   const hasJson = response.headers
     .get("content-type")
     ?.includes("application/json");
-  const data = hasJson ? await response.json() : null;
+  if (response.status === 204) {
+    return null;
+  }
+  if (!hasJson) {
+    throw new ApiError(
+      "O servidor retornou uma resposta inválida.",
+      response.status,
+    );
+  }
+  const data = await response.json();
 
   if (!response.ok) {
     if (
       notifyAuthFailure &&
-      (response.status === 401 || response.status === 403)
+      response.status === 401
     ) {
       window.dispatchEvent(new CustomEvent(AUTH_INVALID_EVENT));
     }
