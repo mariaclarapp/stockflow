@@ -9,6 +9,7 @@ import ValidacaoPage from "./pages/ValidacaoPage";
 import DashboardPage from "./pages/DashboardPage";
 import ImportacoesPage from "./pages/ImportacoesPage";
 import FuncionariosPage from "./pages/FuncionariosPage";
+import AccountPasswordPage from "./pages/AccountPasswordPage";
 import LoginPage from "./pages/LoginPage";
 import MedicamentoDetalhePage from "./pages/MedicamentoDetalhePage";
 import MedicamentosCompararPage from "./pages/MedicamentosCompararPage";
@@ -31,6 +32,7 @@ function App() {
           <Route path="medicamentos" element={<MedicamentosPage />} />
           <Route path="medicamentos/comparar" element={<MedicamentosCompararPage />} />
           <Route path="medicamentos/:id" element={<MedicamentoDetalhePage />} />
+          <Route path="minha-conta/senha" element={<AccountPasswordPage />} />
           <Route element={<SuperuserRoute />}>
             <Route path="funcionarios" element={<FuncionariosPage />} />
           </Route>

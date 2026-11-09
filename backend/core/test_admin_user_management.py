@@ -211,3 +211,42 @@ class DjangoAdminUserManagementTests(TestCase):
         importacao.refresh_from_db()
         self.assertFalse(self.staff.is_active)
         self.assertEqual(importacao.usuario_id, self.staff.pk)
+
+    def test_superuser_can_toggle_staff_status_through_api(self):
+        client = APIClient()
+        client.force_authenticate(self.superuser)
+
+        response = client.patch(
+            reverse("funcionario-detail", args=[self.staff.pk]),
+            {"is_active": False},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(response.data["is_active"])
+        self.staff.refresh_from_db()
+        self.assertFalse(self.staff.is_active)
+
+    def test_api_delete_without_history_is_allowed(self):
+        disposable_user = get_user_model().objects.create_user(
+            username="usuario_api_descartavel",
+            password=self.password,
+            is_staff=True,
+        )
+        client = APIClient()
+        client.force_authenticate(self.superuser)
+
+        response = client.delete(reverse("funcionario-detail", args=[disposable_user.pk]))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(get_user_model().objects.filter(pk=disposable_user.pk).exists())
+
+    def test_api_delete_with_history_requires_deactivation(self):
+        self.create_import_for(self.staff)
+        client = APIClient()
+        client.force_authenticate(self.superuser)
+
+        response = client.delete(reverse("funcionario-detail", args=[self.staff.pk]))
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertIn("desativado", response.data["detail"])

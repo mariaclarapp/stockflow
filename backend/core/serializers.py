@@ -42,11 +42,15 @@ class DashboardImportacaoUpsSerializer(serializers.Serializer):
 
 
 class DashboardImportacaoSerializer(serializers.Serializer):
+    importacao_id = serializers.IntegerField()
     ups = DashboardImportacaoUpsSerializer()
     status = serializers.CharField()
     data_importacao = serializers.DateTimeField()
     registros_estoque = serializers.IntegerField()
     usuario = serializers.CharField()
+    alertas_relevantes = serializers.IntegerField()
+    erros_nao_corrigiveis = serializers.IntegerField()
+    pendencias_abertas = serializers.IntegerField()
 
 
 class DashboardTotaisSerializer(serializers.Serializer):

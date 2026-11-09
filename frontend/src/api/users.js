@@ -21,3 +21,23 @@ export async function createStaffUser({ name, username, password, passwordConfir
     }),
   });
 }
+
+export async function updateStaffStatus(id, isActive) {
+  const csrfToken = await getCsrfToken();
+  return apiRequest(`/api/usuarios/funcionarios/${id}/`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "X-CSRFToken": csrfToken,
+    },
+    body: JSON.stringify({ is_active: isActive }),
+  });
+}
+
+export async function deleteStaffUser(id) {
+  const csrfToken = await getCsrfToken();
+  return apiRequest(`/api/usuarios/funcionarios/${id}/`, {
+    method: "DELETE",
+    headers: { "X-CSRFToken": csrfToken },
+  });
+}

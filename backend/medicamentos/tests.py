@@ -8,7 +8,7 @@ from core.models import Competencia, Ups
 from estoques.models import SaldoEstoque
 from importacoes.models import Importacao
 
-from .models import Medicamento
+from .models import Classificacao, Medicamento
 
 
 class AdminMedicineSearchApiTests(APITestCase):
@@ -41,6 +41,8 @@ class AdminMedicineSearchApiTests(APITestCase):
             descricao="AMOXICILINA / 500MG",
             unidade="CAPS",
         )
+        cls.tag = Classificacao.objects.create(nome="TAG PESQUISA")
+        cls.presentations[0].classificacoes.add(cls.tag)
         ups = Ups.objects.create(
             codigo_gmus="UPS-PESQUISA",
             id_unidade_gmus="1",
@@ -151,4 +153,29 @@ class AdminMedicineSearchApiTests(APITestCase):
         self.assertEqual(
             {item["codigo_gmus"] for item in response.data},
             {"115.1", "115.2", "115.3", "200.1"},
+        )
+
+    def test_filters_by_tag(self):
+        self.authenticate()
+
+        response = self.client.get(self.url, {"tag": self.tag.pk})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["codigo_gmus"] for item in response.data],
+            ["115.1"],
+        )
+
+    def test_combines_tag_with_search(self):
+        self.authenticate()
+
+        response = self.client.get(
+            self.url,
+            {"tag": self.tag.pk, "search": "dipirona"},
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            [item["codigo_gmus"] for item in response.data],
+            ["115.1"],
         )

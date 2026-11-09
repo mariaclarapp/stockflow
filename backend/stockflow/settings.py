@@ -24,8 +24,10 @@ def env_list(name, default=None):
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
-if not SECRET_KEY:
+if not SECRET_KEY or not SECRET_KEY.strip():
     raise RuntimeError("DJANGO_SECRET_KEY não configurada.")
+if SECRET_KEY.strip().lower() == "change-me":
+    raise RuntimeError("DJANGO_SECRET_KEY usa o valor de exemplo. Gere uma chave exclusiva.")
 DEBUG = env_bool("DEBUG", default=False)
 ALLOWED_HOSTS = env_list("ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
 

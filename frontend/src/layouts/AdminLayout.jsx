@@ -3,6 +3,7 @@ import {
   BarChart3,
   Boxes,
   CalendarDays,
+  KeyRound,
   FileUp,
   LayoutDashboard,
   LogOut,
@@ -16,6 +17,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/auth-context";
 import { Brand } from "../components/Brand";
+import PasswordChangeCard from "../components/PasswordChangeCard";
 
 const navItems = [
   { label: "Visão geral", icon: LayoutDashboard, to: "/admin", end: true },
@@ -31,6 +33,8 @@ function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isPasswordCardOpen, setIsPasswordCardOpen] = useState(false);
   const [logoutError, setLogoutError] = useState("");
 
   async function handleLogout() {
@@ -92,7 +96,13 @@ function AdminLayout() {
         </nav>
 
         <div className="sidebar__footer">
-          <div className="user-summary">
+          <button
+            type="button"
+            className={`user-summary user-summary-button${isAccountMenuOpen ? " user-summary-button--open" : ""}`}
+            onClick={() => setIsAccountMenuOpen((open) => !open)}
+            aria-expanded={isAccountMenuOpen}
+            aria-haspopup="menu"
+          >
             <span className="user-avatar" aria-hidden="true">
               {user.username.slice(0, 1).toUpperCase()}
             </span>
@@ -100,7 +110,10 @@ function AdminLayout() {
               <strong>{user.username}</strong>
               <small>Usuário administrativo</small>
             </span>
-          </div>
+          </button>
+          {isAccountMenuOpen && <div className="user-account-menu" role="menu">
+            <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); setIsPasswordCardOpen(true); }}><KeyRound size={16} />Redefinir senha</button>
+          </div>}
           <button
             type="button"
             className="icon-button"
@@ -129,6 +142,11 @@ function AdminLayout() {
         </header>
         <Outlet />
       </div>
+      {isPasswordCardOpen && <div className="account-password-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsPasswordCardOpen(false); }}>
+        <div className="account-password-dialog" role="dialog" aria-modal="true" aria-labelledby="password-title">
+          <PasswordChangeCard onClose={() => setIsPasswordCardOpen(false)} />
+        </div>
+      </div>}
     </div>
   );
 }

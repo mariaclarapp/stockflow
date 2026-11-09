@@ -12,6 +12,15 @@ pip install -r requirements.txt
 ```
 
 3. Crie um arquivo `.env` a partir de `.env.example` e preencha as variaveis locais.
+   Com o ambiente virtual ativo, gere uma chave exclusiva para cada ambiente:
+
+   ```bash
+   python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+   ```
+
+   Defina o valor gerado em `DJANGO_SECRET_KEY` no `.env` local ou no gerenciador de
+   segredos da implantação. Mantenha a chave fora do Git.
+
 4. Execute as verificacoes do Django:
 
 ```bash

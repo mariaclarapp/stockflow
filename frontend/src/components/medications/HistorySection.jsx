@@ -27,7 +27,7 @@ function HistorySection({ history, unit }) {
         <div>
           <span className="eyebrow">Evolução mensal</span>
           <h2 id="history-title">Histórico de estoque</h2>
-          <p>Competências com registros anteriores ou incompletos.</p>
+          <p>Competências com registros anteriores ou incompletos. O consolidado considera apenas as UPS convencionais.</p>
         </div>
       </div>
 

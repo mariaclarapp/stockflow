@@ -24,32 +24,20 @@ function subgroupText(subgroup) {
   return subgroup.nome || String(subgroup.codigo_gmus || "Não informado");
 }
 
-function CategoryBadge({ children, filterValue, icon: Icon, onSelect, style, type }) {
+function CategoryBadge({ children, icon: Icon, style, type }) {
   const className = `medication-category-badge medication-category-badge--${type}`;
-  if (!filterValue || !onSelect) {
-    return (
-      <span className={className} style={style}>
-        <Icon size={12} aria-hidden="true" />
-        {children}
-      </span>
-    );
-  }
   return (
-    <button
-      type="button"
-      className={`${className} medication-category-badge--interactive`}
+    <span
+      className={className}
       style={style}
-      onClick={() => onSelect(filterValue)}
-      aria-label={`Filtrar por ${children}`}
-      title={`Filtrar por ${children}`}
     >
       <Icon size={12} aria-hidden="true" />
       {children}
-    </button>
+    </span>
   );
 }
 
-export function MedicationCategoryBadges({ medication, onCategorySelect }) {
+export function MedicationCategoryBadges({ medication }) {
   const classifications = medication.classificacoes || [];
   const manipulated = classifications.filter(
     (item) => item.nome?.toUpperCase() === "MANIPULADO",
@@ -63,9 +51,7 @@ export function MedicationCategoryBadges({ medication, onCategorySelect }) {
     <span className="medication-category-badges">
       {hasOfficialCategory ? (
         <CategoryBadge
-          filterValue={`subgrupo:${medication.subgrupo_gmus.id}`}
           icon={Layers3}
-          onSelect={onCategorySelect}
           type="subgroup"
         >
           {subgroupText(medication.subgrupo_gmus)}
@@ -74,9 +60,7 @@ export function MedicationCategoryBadges({ medication, onCategorySelect }) {
         manualCategories.map((classification) => (
           <CategoryBadge
             key={classification.id}
-            filterValue={classification.ativo ? `classificacao:${classification.id}` : ""}
             icon={Tag}
-            onSelect={onCategorySelect}
             style={classificationStyle(classification.cor)}
             type="manual"
           >
@@ -85,9 +69,7 @@ export function MedicationCategoryBadges({ medication, onCategorySelect }) {
         ))
       ) : (
         <CategoryBadge
-          filterValue="sem_categoria"
           icon={CircleSlash2}
-          onSelect={onCategorySelect}
           type="unclassified"
         >
           Não classificado
@@ -97,9 +79,7 @@ export function MedicationCategoryBadges({ medication, onCategorySelect }) {
       {manipulated.map((classification) => (
         <CategoryBadge
           key={classification.id}
-          filterValue={classification.ativo ? `classificacao:${classification.id}` : ""}
           icon={Tag}
-          onSelect={onCategorySelect}
           style={classificationStyle(classification.cor)}
           type="manipulated"
         >
@@ -110,11 +90,11 @@ export function MedicationCategoryBadges({ medication, onCategorySelect }) {
   );
 }
 
-function MedicationDetails({ medication, onCategorySelect }) {
+function MedicationDetails({ medication }) {
   const principles = medication.principios_ativos || [];
   return (
     <div className="medication-details">
-      <MedicationCategoryBadges medication={medication} onCategorySelect={onCategorySelect} />
+      <MedicationCategoryBadges medication={medication} />
       {principles.length > 0 && (
         <span className="medication-principles">
           {principles.map((principle) => principle.nome).join(", ")}
@@ -165,9 +145,6 @@ function StockByUps({ items }) {
           <MapPin size={11} aria-hidden="true" />
           <span className="medication-ups-stock__identity" title={item.ups_nome}>
             <b>{item.ups_nome}</b>
-            {item.id_unidade_gmus && (
-              <small>Unidade G-MUS {item.id_unidade_gmus}</small>
-            )}
           </span>
           <strong>{stockQuantityText(item.quantidade)}</strong>
         </span>
@@ -180,7 +157,6 @@ function MedicationList({
   medications,
   selectedUpsId,
   selectedUpsName,
-  onCategorySelect,
 }) {
   if (!medications.length) {
     return (
@@ -212,10 +188,23 @@ function MedicationList({
           <tbody>
             {medications.map((medication) => (
               <tr key={medication.id}>
-                <td><span className="gmus-code">{medication.codigo_gmus}</span></td>
                 <td>
-                  <strong className="medication-name">{medication.descricao}</strong>
-                  <MedicationDetails medication={medication} onCategorySelect={onCategorySelect} />
+                  <Link
+                    className="medication-code-link"
+                    to={`/admin/medicamentos/${medication.id}`}
+                    aria-label={`Abrir medicamento ${medication.codigo_gmus}`}
+                  >
+                    <span className="gmus-code">{medication.codigo_gmus}</span>
+                  </Link>
+                </td>
+                <td>
+                  <Link
+                    className="medication-name-link"
+                    to={`/admin/medicamentos/${medication.id}`}
+                  >
+                    <strong className="medication-name">{medication.descricao}</strong>
+                  </Link>
+                  <MedicationDetails medication={medication} />
                 </td>
                 <td>{medication.unidade || "Não informada"}</td>
                 <td className="medication-stock-quantity">
@@ -258,7 +247,7 @@ function MedicationList({
               <span className="medication-unit">{medication.unidade || "Sem unidade"}</span>
             </header>
             <h3>{medication.descricao}</h3>
-            <MedicationDetails medication={medication} onCategorySelect={onCategorySelect} />
+            <MedicationDetails medication={medication} />
             <dl>
               <div>
                 <dt>{selectedUpsId ? "Estoque na UPS" : "Estoque total"}</dt>

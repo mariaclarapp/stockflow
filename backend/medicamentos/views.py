@@ -87,6 +87,10 @@ class MedicamentoFilter(django_filters.FilterSet):
         field_name="classificacoes__id",
         distinct=True,
     )
+    tag = django_filters.NumberFilter(
+        field_name="classificacoes__id",
+        distinct=True,
+    )
 
     class Meta:
         model = Medicamento
@@ -122,11 +126,12 @@ class MedicamentoFilter(django_filters.FilterSet):
         if dados.get("sem_categoria") and (
             dados.get("subgrupo") is not None
             or dados.get("classificacao") is not None
+            or dados.get("tag") is not None
         ):
             raise ValidationError(
                 {
                     "sem_categoria": (
-                        "Não combine sem_categoria com subgrupo ou classificacao."
+                        "Não combine sem_categoria com subgrupo, classificacao ou tag."
                     )
                 }
             )

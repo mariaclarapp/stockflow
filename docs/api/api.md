@@ -218,6 +218,11 @@ Os uploads administrativos exigem sessão de usuário `is_staff` e proteção CS
 
 - `POST /api/importacoes/estoque/` — saldo total da Consulta de Estoque;
 - `POST /api/importacoes/movimentacoes/` — movimentações sintéticas mensais;
+
+A Consulta de Estoque aceita as duas formas de identificação exportadas pelo G-MUS:
+com `UPS: nome / codigo_gmus (id_unidade_gmus)` ou somente `UPS: nome
+(id_unidade_gmus)`. Quando o código não estiver presente, o backend somente associa o
+arquivo se o identificador da unidade corresponder a uma única UPS já cadastrada.
 - `POST /api/importacoes/previsualizar/` — valida metadados e estrutura sem persistir;
 - `POST /api/importacoes/{id}/pendencias/{pendencia_id}/resolver/` — associa uma linha sem código ao código G-MUS correto;
 - `DELETE /api/importacoes/{id}/` — com confirmação explícita, exclui os registros derivados e cria auditoria.
@@ -380,6 +385,7 @@ resposta apenas os dados necessarios para a Visao Geral:
   },
   "importacoes": [
     {
+      "importacao_id": 42,
       "ups": {
         "id": 2,
         "codigo_gmus": "2780046",
@@ -389,7 +395,10 @@ resposta apenas os dados necessarios para a Visao Geral:
       "usuario": "Maria da Silva",
       "status": "concluida",
       "data_importacao": "2026-08-17T10:00:00-03:00",
-      "registros_estoque": 100
+      "registros_estoque": 100,
+      "alertas_relevantes": 0,
+      "erros_nao_corrigiveis": 0,
+      "pendencias_abertas": 0
     }
   ],
   "totais": {
@@ -549,6 +558,7 @@ Medicamentos:
   manual comum. A tag `MANIPULADO` não descaracteriza essa condição;
 - `subgrupo`: ID de `SubgrupoGmus`.
 - `classificacao`: ID de `Classificacao`, incluindo a tag `MANIPULADO`;
+- `tag`: ID de `Classificacao` usado como tag; pode ser combinado com `classificacao`;
 - `competencia`: ID da competencia usada para calcular o saldo;
 - `ups`: ID da UPS; quando omitido, soma todas as UPS participantes;
 - `unidade`: unidade de apresentacao do medicamento;
@@ -580,7 +590,7 @@ GET /api/estoques/?competencia=8
 GET /api/estoques/?ups=1&competencia=8&subgrupo=10
 ```
 
-`sem_categoria=true` é incompatível com `subgrupo` e `classificacao`; essas combinações
+`sem_categoria=true` é incompatível com `subgrupo`, `classificacao` e `tag`; essas combinações
 retornam HTTP `400` em vez de aplicar precedência silenciosa.
 
 ### Historico administrativo de medicamento

@@ -19,6 +19,7 @@ export async function getMedications({
   search = "",
   subgroupId = "",
   classificationId = "",
+  tagId = "",
   uncategorized = false,
   ids = [],
   competenceId = "",
@@ -32,6 +33,7 @@ export async function getMedications({
   if (search) query.set("search", search);
   if (subgroupId) query.set("subgrupo", subgroupId);
   if (classificationId) query.set("classificacao", classificationId);
+  if (tagId) query.set("tag", tagId);
   if (uncategorized) query.set("sem_categoria", "true");
   if (ids.length) query.set("ids", ids.join(","));
   if (competenceId) query.set("competencia", competenceId);

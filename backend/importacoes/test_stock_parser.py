@@ -47,6 +47,24 @@ class StockReportParserTests(TestCase):
             any(item["type"] == "competencia_intervalo" for item in parsed["inconsistencies"])
         )
 
+    def test_parses_stock_report_without_ups_code(self):
+        source = "\n".join(
+            [
+                "Consulta de Estoque,,,,",
+                "Filtros: Competência Inicial: 202601 Competência Final: 202601 UPS: FARMACIA TESTE (9) Estoque Zerado: Ambos,,,,",
+                "Unidade: FARMACIA TESTE (9),,,,",
+                "Material / Apresentação,Unidade,Quantidade",
+                "DIPIRONA - 500MG (115.1),COMPR,10",
+            ]
+        ).encode("utf-8")
+
+        parsed = parse_report_csv(source)
+
+        self.assertEqual(parsed["tipo_relatorio"], REPORT_TYPE_STOCK)
+        self.assertEqual(parsed["metadata"]["ups"]["id_unidade_gmus"], "9")
+        self.assertIsNone(parsed["metadata"]["ups"]["codigo_gmus"])
+        self.assertEqual(len(parsed["records"]), 1)
+
     def test_parses_synthetic_movement_report(self):
         source = "\n".join(
             [

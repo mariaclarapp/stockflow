@@ -2,7 +2,6 @@ import {
   AlertCircle,
   BarChart3,
   Check,
-  FileText,
   Layers3,
   LoaderCircle,
   Pill,
@@ -40,6 +39,7 @@ function DashboardPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [requestVersion, setRequestVersion] = useState(0);
+  const [selectedAlert, setSelectedAlert] = useState(null);
 
   const loadSummary = useCallback(() => {
     setIsLoading(true);
@@ -94,12 +94,6 @@ function DashboardPage() {
         value: summary ? `${importedUps}/${participatingUps}` : "--",
         detail: "Unidades participantes",
         icon: Check,
-      },
-      {
-        label: "Relatórios de estoque",
-        value: summary?.importacoes.length ?? "--",
-        detail: competence ? "Válidos ou com pendência" : "Sem competência importada",
-        icon: FileText,
       },
     ],
     [competence, importedUps, participatingUps, summary],
@@ -213,7 +207,18 @@ function DashboardPage() {
                       </span>
                     </td>
                     <td>
-                      <ImportStatusBadge status={item.status} />
+                      {item.pendencias_abertas > 0 ? (
+                        <button
+                          className="dashboard-status-link"
+                          type="button"
+                          onClick={() => setSelectedAlert(item)}
+                          aria-label={`Ver alerta da importação da ${item.ups.nome}`}
+                        >
+                          <ImportStatusBadge status={item.status} />
+                        </button>
+                      ) : (
+                        <ImportStatusBadge status="concluida" />
+                      )}
                     </td>
                     <td>{item.registros_estoque}</td>
                     <td>{formatDateTime(item.data_importacao)}</td>
@@ -234,6 +239,42 @@ function DashboardPage() {
           </table>
         </div>
       </section>
+
+      {selectedAlert && (
+        <div className="confirmation-overlay" role="presentation" onClick={() => setSelectedAlert(null)}>
+          <section
+            className="confirmation-dialog dashboard-alert-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dashboard-alert-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="confirmation-dialog__icon confirmation-dialog__icon--warning" aria-hidden="true">
+              <AlertCircle size={22} />
+            </span>
+            <div className="confirmation-dialog__content">
+              <h2 id="dashboard-alert-title">Atenção na importação</h2>
+              <p>
+                A importação de <strong>{selectedAlert.ups.nome}</strong> precisa de revisão:
+                {selectedAlert.alertas_relevantes > 0 && ` ${selectedAlert.alertas_relevantes} alerta(s) não bloqueante(s)`}
+                {selectedAlert.alertas_relevantes > 0 && selectedAlert.erros_nao_corrigiveis > 0 ? " e" : ""}
+                {selectedAlert.erros_nao_corrigiveis > 0 && ` ${selectedAlert.erros_nao_corrigiveis} linha(s) rejeitada(s)`}.
+              </p>
+              <p>
+                Consulte o histórico para ver as pendências corrigíveis. Para alertas ou linhas rejeitadas, corrija o relatório no G-MUS e reimporte-o.
+              </p>
+            </div>
+            <div className="confirmation-dialog__actions">
+              <button className="secondary-button" type="button" onClick={() => setSelectedAlert(null)}>
+                Fechar
+              </button>
+              <Link className="primary-button" to={`/admin/importacoes?importacao=${selectedAlert.importacao_id || ""}`} onClick={() => setSelectedAlert(null)}>
+                Ver importação
+              </Link>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

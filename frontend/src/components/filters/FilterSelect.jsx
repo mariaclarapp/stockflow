@@ -85,7 +85,7 @@ function FilterSelect({
       <button
         ref={triggerRef}
         type="button"
-        className={`filter-select__trigger${isOpen ? " filter-select__trigger--open" : ""}`}
+        className={`filter-select__trigger${isOpen ? " filter-select__trigger--open" : ""}${selectedOption ? " filter-select__trigger--selected" : ""}`}
         aria-labelledby={labelId}
         aria-haspopup="listbox"
         aria-expanded={isOpen}

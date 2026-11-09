@@ -6,8 +6,8 @@ function competenceLabel(item) {
 
 export function ConsumptionEvolutionChart({ data }) {
   const width = 760;
-  const height = 250;
-  const padding = { top: 22, right: 18, bottom: 42, left: 58 };
+  const height = 290;
+  const padding = { top: 24, right: 36, bottom: 50, left: 58 };
   const values = data.map((item) => Number(item.consumo || 0));
   const maximum = Math.max(...values, 1);
   const plotWidth = width - padding.left - padding.right;

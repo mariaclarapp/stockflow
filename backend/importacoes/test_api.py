@@ -343,6 +343,20 @@ def stock_upload_with_missing_code(name="estoque-sem-codigo.csv"):
     return SimpleUploadedFile(name, content.encode("utf-8"), content_type="text/csv")
 
 
+def stock_upload_without_ups_code(name="estoque-sem-codigo-ups.csv"):
+    content = "\n".join(
+        [
+            "RIBEIRAO CLARO - PR,,,,",
+            "Consulta de Estoque,,,,",
+            "Filtros: Competência Inicial: 202608 Competência Final: 202608 UPS: FARMACIA TESTE (9) Estoque Zerado: Ambos Produtos Inativos: Não,,,,",
+            ",Unidade: FARMACIA TESTE (9),,,",
+            ",,Material / Apresentação,,,,,,,,,Unidade,Quantidade,,Conferência,",
+            ",,DIPIRONA - 500MG (115.1),,,,,,,,,COMPR,1.234,,,,",
+        ]
+    )
+    return SimpleUploadedFile(name, content.encode("utf-8"), content_type="text/csv")
+
+
 class ActiveImportApiTests(APITestCase):
     def setUp(self):
         self.staff = get_user_model().objects.create_user(
@@ -368,6 +382,24 @@ class ActiveImportApiTests(APITestCase):
         self.assertEqual(response.data["registros_identificados"], 1)
         self.assertTrue(response.data["pode_importar"])
         self.assertFalse(Importacao.objects.exists())
+
+    def test_stock_upload_resolves_ups_when_report_omits_gmus_code(self):
+        self.authenticate()
+        ups = Ups.objects.create(
+            codigo_gmus="1234567",
+            id_unidade_gmus="9",
+            nome="FARMACIA TESTE",
+        )
+
+        response = self.client.post(
+            self.stock_url,
+            {"arquivo": stock_upload_without_ups_code()},
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Importacao.objects.get().ups, ups)
+        self.assertEqual(response.data["registros_processados"], 1)
 
     def test_import_and_audited_delete_require_confirmation(self):
         self.authenticate()

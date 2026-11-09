@@ -81,6 +81,12 @@ compartilhado por várias UPS; o nome não será utilizado como chave. O identif
 informado entre parênteses no filtro deverá coincidir com o valor repetido no cabeçalho
 `Unidade`. Divergências entre esses valores impedirão a importação.
 
+Algumas versões da `Consulta de Estoque` exportam o filtro da UPS sem repetir o código
+do estabelecimento, informando somente `UPS: nome (id_unidade_gmus)`. Nessa variação,
+o StockFlow aceita a ausência do código apenas quando o `id_unidade_gmus` corresponde a
+uma única UPS já cadastrada; se houver zero ou mais de uma correspondência, a importação
+será bloqueada. O nome é validado como divergência, não utilizado como chave.
+
 ## RN04 — Reimportação
 
 O sistema permite a reimportação explícita de estoque ou movimentações para a mesma combinação de

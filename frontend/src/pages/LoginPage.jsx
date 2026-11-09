@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 
 import { ApiError } from "../api/client";
 import { useAuth } from "../auth/auth-context";
@@ -12,6 +13,7 @@ function LoginPage() {
   const [credentials, setCredentials] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   if (!isLoading && user) {
     return <Navigate to="/admin" replace />;
@@ -71,17 +73,28 @@ function LoginPage() {
           />
 
           <label htmlFor="password">Senha</label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            value={credentials.password}
-            onChange={updateField}
-            placeholder="Digite sua senha"
-            autoComplete="current-password"
-            required
-            disabled={isSubmitting}
-          />
+          <span className="login-password-input">
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={credentials.password}
+              onChange={updateField}
+              placeholder="Digite sua senha"
+              autoComplete="current-password"
+              required
+              disabled={isSubmitting}
+            />
+            <button
+              type="button"
+              className="login-password-toggle"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              disabled={isSubmitting}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </span>
 
           {(error || sessionError) && (
             <p className="form-error" role="alert">
@@ -90,7 +103,7 @@ function LoginPage() {
           )}
 
           <button className="primary-button" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Entrando..." : "Entrar"}
+            {isSubmitting ? <span>Entrando...</span> : <><LogIn size={17} /><span>Entrar</span></>}
           </button>
         </form>
 

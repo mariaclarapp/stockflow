@@ -1,4 +1,5 @@
 from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.db.models import ProtectedError
 from django.middleware.csrf import get_token
 from rest_framework import status
 from rest_framework.authentication import SessionAuthentication
@@ -11,6 +12,7 @@ from .auth_serializers import (
     FuncionarioCreateSerializer,
     FuncionarioSerializer,
     LoginSerializer,
+    PasswordChangeSerializer,
 )
 
 
@@ -76,6 +78,21 @@ class CurrentUserAPIView(APIView):
         return Response(AuthenticatedUserSerializer(request.user).data)
 
 
+class PasswordChangeAPIView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = PasswordChangeSerializer(
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        request.user.set_password(serializer.validated_data["password"])
+        request.user.save(update_fields=["password"])
+        login(request, request.user)
+        return Response({"detail": "Senha alterada com sucesso."})
+
+
 class FuncionarioListCreateAPIView(APIView):
     permission_classes = [IsSuperUser]
 
@@ -105,3 +122,42 @@ class FuncionarioListCreateAPIView(APIView):
             FuncionarioSerializer(funcionario).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class FuncionarioDetailAPIView(APIView):
+    permission_classes = [IsSuperUser]
+
+    def get_object(self, pk):
+        return get_user_model().objects.get(
+            pk=pk,
+            is_staff=True,
+            is_superuser=False,
+        )
+
+    def patch(self, request, pk):
+        try:
+            funcionario = self.get_object(pk)
+        except get_user_model().DoesNotExist:
+            return Response({"detail": "Funcionário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        if not isinstance(request.data.get("is_active"), bool):
+            return Response(
+                {"detail": "Informe is_active como booleano."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        funcionario.is_active = request.data["is_active"]
+        funcionario.save(update_fields=["is_active"])
+        return Response(FuncionarioSerializer(funcionario).data)
+
+    def delete(self, request, pk):
+        try:
+            funcionario = self.get_object(pk)
+        except get_user_model().DoesNotExist:
+            return Response({"detail": "Funcionário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            funcionario.delete()
+        except ProtectedError:
+            return Response(
+                {"detail": "Este funcionário possui histórico e deve ser desativado."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)

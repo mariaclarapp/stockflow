@@ -5,8 +5,10 @@ from core.auth_views import (
     CsrfCookieAPIView,
     CurrentUserAPIView,
     FuncionarioListCreateAPIView,
+    FuncionarioDetailAPIView,
     LoginAPIView,
     LogoutAPIView,
+    PasswordChangeAPIView,
 )
 from core.views import (
     CompetenciaViewSet,
@@ -56,10 +58,16 @@ urlpatterns = [
     path("auth/login/", LoginAPIView.as_view(), name="auth-login"),
     path("auth/logout/", LogoutAPIView.as_view(), name="auth-logout"),
     path("auth/me/", CurrentUserAPIView.as_view(), name="auth-me"),
+    path("auth/password/", PasswordChangeAPIView.as_view(), name="auth-password"),
     path(
         "usuarios/funcionarios/",
         FuncionarioListCreateAPIView.as_view(),
         name="funcionario-list-create",
+    ),
+    path(
+        "usuarios/funcionarios/<int:pk>/",
+        FuncionarioDetailAPIView.as_view(),
+        name="funcionario-detail",
     ),
     path(
         "dashboard/resumo/",

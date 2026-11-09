@@ -20,6 +20,7 @@ import MedicationList from "../components/medications/MedicationList";
 function medicationFilters({
   appliedSearch,
   categoryValue,
+  tagValue,
   competenceId,
   upsId,
   unit,
@@ -32,6 +33,7 @@ function medicationFilters({
     search: appliedSearch,
     subgroupId: categoryType === "subgrupo" ? categoryId : "",
     classificationId: categoryType === "classificacao" ? categoryId : "",
+    tagId: tagValue,
     uncategorized: categoryValue === "sem_categoria",
     competenceId,
     upsId,
@@ -66,8 +68,8 @@ function MedicamentosPage() {
   const [upsOptions, setUpsOptions] = useState([]);
   const [units, setUnits] = useState([]);
   const [searchInput, setSearchInput] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
   const [categoryValue, setCategoryValue] = useState("");
+  const [tagValue, setTagValue] = useState("");
   const [competenceId, setCompetenceId] = useState("");
   const [defaultCompetenceId, setDefaultCompetenceId] = useState("");
   const [upsId, setUpsId] = useState("");
@@ -75,6 +77,17 @@ function MedicamentosPage() {
   const [stockStatus, setStockStatus] = useState("");
   const [validationStatus, setValidationStatus] = useState("");
   const [ordering, setOrdering] = useState("descricao");
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: "",
+    categoryValue: "",
+    tagValue: "",
+    competenceId: "",
+    upsId: "",
+    unit: "",
+    stockStatus: "",
+    validationStatus: "",
+    ordering: "descricao",
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [error, setError] = useState("");
@@ -109,6 +122,7 @@ function MedicamentosPage() {
         setUnits(options.unidades);
         setDefaultCompetenceId(initialCompetenceId);
         setCompetenceId(initialCompetenceId);
+        setAppliedFilters((current) => ({ ...current, competenceId: initialCompetenceId }));
       }
       if (
         subgroupResult.status === "rejected"
@@ -135,14 +149,15 @@ function MedicamentosPage() {
       try {
         const data = await getMedications(
           medicationFilters({
-            appliedSearch,
-            categoryValue,
-            competenceId,
-            upsId,
-            unit,
-            stockStatus,
-            validationStatus,
-            ordering,
+            appliedSearch: appliedFilters.search,
+            categoryValue: appliedFilters.categoryValue,
+            tagValue: appliedFilters.tagValue,
+            competenceId: appliedFilters.competenceId,
+            upsId: appliedFilters.upsId,
+            unit: appliedFilters.unit,
+            stockStatus: appliedFilters.stockStatus,
+            validationStatus: appliedFilters.validationStatus,
+            ordering: appliedFilters.ordering,
           }),
         );
         if (isCurrent) setMedications(data);
@@ -160,28 +175,48 @@ function MedicamentosPage() {
     return () => {
       isCurrent = false;
     };
-  }, [appliedSearch, categoryValue, competenceId, upsId, unit, stockStatus, validationStatus, ordering]);
+  }, [appliedFilters]);
 
   function handleSearch(event) {
     event.preventDefault();
-    setAppliedSearch(searchInput.trim());
+    setAppliedFilters({
+      search: searchInput.trim(),
+      categoryValue,
+      tagValue,
+      competenceId,
+      upsId,
+      unit,
+      stockStatus,
+      validationStatus,
+      ordering,
+    });
   }
 
   function clearSearch() {
     setSearchInput("");
-    setAppliedSearch("");
   }
 
   function clearFilters() {
     setSearchInput("");
-    setAppliedSearch("");
     setCategoryValue("");
+    setTagValue("");
     setCompetenceId(defaultCompetenceId);
     setUpsId("");
     setUnit("");
     setStockStatus("");
     setValidationStatus("");
     setOrdering("descricao");
+    setAppliedFilters({
+      search: "",
+      categoryValue: "",
+      tagValue: "",
+      competenceId: defaultCompetenceId,
+      upsId: "",
+      unit: "",
+      stockStatus: "",
+      validationStatus: "",
+      ordering: "descricao",
+    });
   }
 
   function changeCategory(value) {
@@ -189,10 +224,10 @@ function MedicamentosPage() {
   }
 
   const selectedCompetence = competencies.find(
-    (item) => String(item.id) === String(competenceId),
+    (item) => String(item.id) === String(appliedFilters.competenceId),
   );
   const selectedUps = upsOptions.find(
-    (item) => String(item.id) === String(upsId),
+    (item) => String(item.id) === String(appliedFilters.upsId),
   );
   const competenceLabel = selectedCompetence
     ? `${String(selectedCompetence.mes).padStart(2, "0")}/${selectedCompetence.ano}`
@@ -216,6 +251,7 @@ function MedicamentosPage() {
         <MedicationFilters
           searchInput={searchInput}
           categoryValue={categoryValue}
+          tagValue={tagValue}
           competenceId={competenceId}
           defaultCompetenceId={defaultCompetenceId}
           upsId={upsId}
@@ -233,6 +269,7 @@ function MedicamentosPage() {
           onSearchInputChange={setSearchInput}
           onSearch={handleSearch}
           onCategoryChange={changeCategory}
+          onTagChange={setTagValue}
           onCompetenceChange={setCompetenceId}
           onUpsChange={setUpsId}
           onUnitChange={setUnit}
@@ -281,7 +318,7 @@ function MedicamentosPage() {
               </p>
             )}
           </div>
-          {(appliedSearch || categoryValue || upsId || unit || stockStatus || validationStatus || ordering !== "descricao") && !isLoading && (
+          {(appliedFilters.search || appliedFilters.categoryValue || appliedFilters.tagValue || appliedFilters.upsId || appliedFilters.unit || appliedFilters.stockStatus || appliedFilters.validationStatus || appliedFilters.ordering !== "descricao") && !isLoading && (
             <span>Filtros aplicados</span>
           )}
         </div>
@@ -332,7 +369,7 @@ function MedicamentosPage() {
           ) : (
             <MedicationList
               medications={medications}
-              selectedUpsId={upsId}
+              selectedUpsId={appliedFilters.upsId}
               selectedUpsName={selectedUps?.nome || ""}
               onCategorySelect={changeCategory}
             />

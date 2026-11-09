@@ -1,7 +1,7 @@
 from django.db.models import Count, Q
 
 from estoques.models import SaldoEstoque
-from importacoes.models import Importacao
+from importacoes.models import Importacao, PendenciaImportacao
 from importacoes.report_types import REPORT_TYPE_MOVEMENT, REPORT_TYPE_STOCK
 
 from .models import Competencia, Ups
@@ -127,7 +127,12 @@ class DashboardResumoService:
             )
             .select_related("ups", "usuario")
             .annotate(
-                registros_estoque=Count("saldos_estoque")
+                registros_estoque=Count("saldos_estoque", distinct=True),
+                pendencias_abertas=Count(
+                    "pendencias",
+                    filter=Q(status=PendenciaImportacao.Status.PENDENTE),
+                    distinct=True,
+                ),
             )
             .order_by("ups__nome", "ups_id")
         )
@@ -152,6 +157,7 @@ class DashboardResumoService:
             },
             "importacoes": [
                 {
+                    "importacao_id": importacao.pk,
                     "ups": {
                         "id": importacao.ups_id,
                         "codigo_gmus": importacao.ups.codigo_gmus,
@@ -165,6 +171,9 @@ class DashboardResumoService:
                         importacao.usuario.get_full_name()
                         or importacao.usuario.get_username()
                     ),
+                    "alertas_relevantes": importacao.alertas_relevantes,
+                    "erros_nao_corrigiveis": importacao.erros_nao_corrigiveis,
+                    "pendencias_abertas": importacao.pendencias_abertas,
                 }
                 for importacao in importacoes
             ],

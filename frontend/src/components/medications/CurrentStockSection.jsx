@@ -1,6 +1,6 @@
 import { Boxes, CalendarCheck2, CircleCheck, MapPin, PackageOpen } from "lucide-react";
 
-import { formatCompetence, formatDate, formatDecimal } from "../../utils/formatters";
+import { formatCompetence, formatDecimal } from "../../utils/formatters";
 
 function Quantity({ value, unit }) {
   return (
@@ -50,7 +50,7 @@ function CurrentStockSection({ stock, totalQuantity, unit }) {
       <div className="current-stock-total">
         <span aria-hidden="true"><Boxes size={23} /></span>
         <div>
-          <small>Quantidade total em estoque</small>
+          <small>Estoque total administrativo</small>
           <strong><Quantity value={totalQuantity} unit={unit} /></strong>
         </div>
       </div>
@@ -71,7 +71,7 @@ function CurrentStockSection({ stock, totalQuantity, unit }) {
                 <div>
                   <h3>{item.ups.nome}</h3>
                   <p>
-                    Unidade G-MUS {item.ups.id_unidade_gmus} · Código {item.ups.codigo_gmus}
+                    Unidade G-MUS {item.ups.id_unidade_gmus}
                   </p>
                 </div>
                 <span className={`consolidation-badge${item.ups.compoe_estoque_convencional ? "" : " consolidation-badge--excluded"}`}>
@@ -86,30 +86,6 @@ function CurrentStockSection({ stock, totalQuantity, unit }) {
                 <strong><Quantity value={item.quantidade_total} unit={unit} /></strong>
               </div>
 
-              <div className="stock-record-table-wrapper">
-                <table className="stock-record-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Lote</th>
-                      <th scope="col">Validade</th>
-                      <th scope="col">Quantidade</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {item.registros.map((record) => (
-                      <tr key={record.estoque_id}>
-                        <td>{record.lote?.codigo_lote || "Sem lote informado"}</td>
-                        <td>
-                          {record.lote?.data_validade
-                            ? formatDate(record.lote.data_validade)
-                            : "Não informada"}
-                        </td>
-                        <td><Quantity value={record.quantidade} unit={unit} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </article>
           ))}
         </div>

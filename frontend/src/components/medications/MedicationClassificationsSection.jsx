@@ -99,6 +99,11 @@ function MedicationClassificationsSection({ medication, onMedicationChange }) {
           a.nome.localeCompare(b.nome, "pt-BR"),
         ),
       );
+      // Reconcile with the API so newly created or edited classifications are
+      // immediately available in the association selector.
+      getClassifications()
+        .then((latest) => setClassifications(latest))
+        .catch(() => {});
       if (associatedIds.has(saved.id)) {
         onMedicationChange({
           ...medication,

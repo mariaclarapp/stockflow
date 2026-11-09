@@ -74,3 +74,28 @@ class FuncionarioCreateSerializer(serializers.Serializer):
         usuario.set_password(validated_data["password"])
         usuario.save()
         return usuario
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    password_confirmation = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+    )
+
+    def validate(self, attrs):
+        user = self.context["request"].user
+        if not user.check_password(attrs["current_password"]):
+            raise serializers.ValidationError(
+                {"current_password": "A senha atual está incorreta."}
+            )
+        if attrs["password"] != attrs["password_confirmation"]:
+            raise serializers.ValidationError(
+                {"password_confirmation": "As senhas informadas não coincidem."}
+            )
+        try:
+            validate_password(attrs["password"], user=user)
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({"password": list(error.messages)}) from error
+        return attrs

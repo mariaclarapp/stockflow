@@ -199,6 +199,41 @@ class SessionAuthenticationApiTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertIn(SESSION_KEY, self.client.session)
 
+    def test_authenticated_staff_can_change_own_password(self):
+        self.login()
+        csrf_token = self.client.cookies["csrftoken"].value
+        new_password = "NovaSenhaSegura9!"
+
+        response = self.client.post(
+            reverse("auth-password"),
+            {
+                "current_password": self.password,
+                "password": new_password,
+                "password_confirmation": new_password,
+            },
+            format="json",
+            HTTP_X_CSRFTOKEN=csrf_token,
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password(new_password))
+
+    def test_password_change_requires_csrf_token(self):
+        self.login()
+
+        response = self.client.post(
+            reverse("auth-password"),
+            {
+                "current_password": self.password,
+                "password": "NovaSenhaSegura9!",
+                "password_confirmation": "NovaSenhaSegura9!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
     def test_public_medicine_endpoint_remains_anonymous(self):
         response = self.client.get(reverse("public-medicamento-list"))
 

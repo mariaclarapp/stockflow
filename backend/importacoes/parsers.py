@@ -30,7 +30,8 @@ FILTERS_RE = re.compile(
 STOCK_FILTERS_RE = re.compile(
     r"Competência Inicial:\s*(?P<competencia_inicial>\d{6})\s*"
     r"Competência Final:\s*(?P<competencia_final>\d{6})\s*"
-    r"UPS:\s*(?P<ups_nome>.+?)\s*/\s*(?P<ups_codigo>\d+)\s*"
+    r"UPS:\s*(?P<ups_nome>.+?)\s*"
+    r"(?:/\s*(?P<ups_codigo>\d+)\s*)?"
     r"\((?P<ups_id>\d+)\)",
     re.IGNORECASE,
 )
@@ -618,7 +619,7 @@ def _extract_metadata(line_number, values, non_empty, metadata):
         }
         metadata["ups"] = {
             "nome": filters_match.group("ups_nome").strip(),
-            "codigo_gmus": filters_match.group("ups_codigo"),
+            "codigo_gmus": filters_match.group("ups_codigo") or None,
             "id_unidade_gmus": filters_match.group("ups_id"),
         }
 

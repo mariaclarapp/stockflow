@@ -41,6 +41,10 @@ function formatDateTime(value) {
   }).format(date);
 }
 
+function displayImportStatus(status) {
+  return status === "concluida_com_alertas" ? "concluida" : status;
+}
+
 function CompetenciasPage() {
   const [tracking, setTracking] = useState(null);
   const [error, setError] = useState("");
@@ -267,7 +271,7 @@ function CompetenciasPage() {
                                 </td>
                                 <td>
                                   {ups.importada ? (
-                                    <ImportStatusBadge status={ups.status} />
+                                    <ImportStatusBadge status={displayImportStatus(ups.status)} />
                                   ) : (
                                     <span className="status-badge status-badge--pending">
                                       <CircleDashed size={15} /> Importação pendente

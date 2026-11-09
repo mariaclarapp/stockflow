@@ -1,4 +1,4 @@
-import { LoaderCircle, Pencil, Plus, Save, Tags, Trash2, X } from "lucide-react";
+import { LoaderCircle, Pencil, Plus, Save, Search, Tags, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const EMPTY_FORM = {
@@ -19,6 +19,7 @@ function ClassificationManagementModal({
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     function handleEscape(event) {
@@ -66,6 +67,12 @@ function ClassificationManagementModal({
   }
 
   const isCanonical = editing?.nome?.toUpperCase() === "MANIPULADO";
+  const normalizedSearch = search.trim().toLocaleLowerCase("pt-BR");
+  const visibleClassifications = classifications.filter((classification) => (
+    !normalizedSearch
+    || classification.nome?.toLocaleLowerCase("pt-BR").includes(normalizedSearch)
+    || classification.descricao?.toLocaleLowerCase("pt-BR").includes(normalizedSearch)
+  ));
 
   return (
     <div className="classification-modal-overlay">
@@ -101,8 +108,18 @@ function ClassificationManagementModal({
                 Nova
               </button>
             </div>
+            <label className="classification-catalog__search">
+              <Search size={15} aria-hidden="true" />
+              <span className="visually-hidden">Buscar classificação</span>
+              <input
+                type="search"
+                value={search}
+                placeholder="Buscar classificação"
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
             <div className="classification-catalog__list">
-              {classifications.map((classification) => (
+              {visibleClassifications.map((classification) => (
                 <button
                   type="button"
                   className={`classification-catalog__item${editing?.id === classification.id ? " classification-catalog__item--active" : ""}`}
@@ -122,6 +139,9 @@ function ClassificationManagementModal({
                   <Pencil size={15} aria-hidden="true" />
                 </button>
               ))}
+              {!visibleClassifications.length && (
+                <p className="classification-catalog__empty">Nenhuma classificação encontrada.</p>
+              )}
             </div>
           </div>
 

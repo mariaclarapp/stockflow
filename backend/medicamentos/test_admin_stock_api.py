@@ -245,7 +245,7 @@ class AdministrativeMedicationStockApiTests(APITestCase):
         self.assertIn("validacao", response.data)
 
     def test_list_query_count_is_constant_for_multiple_medications(self):
-        extras = Medicamento.objects.bulk_create(
+        Medicamento.objects.bulk_create(
             [
                 Medicamento(
                     codigo_gmus=f"SALDO-EXTRA-{indice}",
@@ -253,6 +253,10 @@ class AdministrativeMedicationStockApiTests(APITestCase):
                 )
                 for indice in range(10)
             ]
+        )
+        extras = list(
+            Medicamento.objects.filter(codigo_gmus__startswith="SALDO-EXTRA-")
+            .order_by("codigo_gmus")
         )
         SaldoEstoque.objects.bulk_create(
             [

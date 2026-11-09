@@ -1,5 +1,5 @@
-import { AlertCircle, FileText, FileUp, Info, LoaderCircle, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertCircle, AlertTriangle, CalendarDays, FileText, FileUp, Info, LoaderCircle, RefreshCw, Trash2, Warehouse } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 import { ApiError } from "../api/client";
 import { deleteImport, getImports, previewImport, uploadMovement, uploadStock } from "../api/inventory";
@@ -8,6 +8,7 @@ import ImportSummary from "../components/imports/ImportSummary";
 import InventoryFilePicker from "../components/imports/InventoryFilePicker";
 import PendingImportResolutions from "../components/imports/PendingImportResolutions";
 import ReimportConfirmationModal from "../components/imports/ReimportConfirmationModal";
+import { useSearchParams } from "react-router-dom";
 
 function validateFile(file) {
   if (!file) return "Selecione um arquivo CSV para continuar.";
@@ -26,7 +27,18 @@ function requestErrorMessage(error) {
   return "Ocorreu um erro inesperado ao processar a importação.";
 }
 
+function formatImportDate(value) {
+  if (!value) return "Data não informada";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
 function ImportacoesPage() {
+  const [searchParams] = useSearchParams();
   const [file, setFile] = useState(null);
   const [reportType, setReportType] = useState("estoque");
   const [error, setError] = useState("");
@@ -36,12 +48,51 @@ function ImportacoesPage() {
   const [canReimport, setCanReimport] = useState(false);
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [imports, setImports] = useState([]);
   const [isLoadingImports, setIsLoadingImports] = useState(true);
   const [preview, setPreview] = useState(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [competenceFilter, setCompetenceFilter] = useState("");
+  const [upsFilter, setUpsFilter] = useState("");
+  const [reportTypeFilter, setReportTypeFilter] = useState("");
 
   const reportLabel = reportType === "estoque" ? "Consulta de Estoque" : "movimentações";
+
+  const competenceOptions = useMemo(() => (
+    [...new Map(
+      imports
+        .filter((item) => item.competencia)
+        .map((item) => {
+          const { ano, mes } = item.competencia;
+          return [`${ano}-${mes}`, { value: `${ano}-${mes}`, label: `${String(mes).padStart(2, "0")}/${ano}`, ano, mes }];
+        }),
+    ).values()]
+      .sort((first, second) => second.ano - first.ano || second.mes - first.mes)
+  ), [imports]);
+
+  const upsOptions = useMemo(() => (
+    [...new Map(
+      imports
+        .filter((item) => item.ups)
+        .map((item) => [String(item.ups.id), { value: String(item.ups.id), label: item.ups.nome }]),
+    ).values()]
+      .sort((first, second) => first.label.localeCompare(second.label, "pt-BR"))
+  ), [imports]);
+
+  const reportTypeOptions = [
+    { value: "estoque", label: "Consulta de Estoque" },
+    { value: "movimentacao", label: "Movimentações" },
+  ];
+
+  const visibleImports = useMemo(() => imports.filter((item) => {
+    const competence = item.competencia;
+    const matchesCompetence = !competenceFilter
+      || `${competence?.ano}-${competence?.mes}` === competenceFilter;
+    const matchesUps = !upsFilter || String(item.ups?.id) === upsFilter;
+    const matchesReportType = !reportTypeFilter || item.tipo_relatorio === reportTypeFilter;
+    return matchesCompetence && matchesUps && matchesReportType;
+  }), [competenceFilter, imports, reportTypeFilter, upsFilter]);
 
   useEffect(() => {
     getImports()
@@ -49,6 +100,15 @@ function ImportacoesPage() {
       .catch((requestError) => setError(requestErrorMessage(requestError)))
       .finally(() => setIsLoadingImports(false));
   }, []);
+
+  useEffect(() => {
+    const importacaoId = searchParams.get("importacao");
+    if (!importacaoId || isLoadingImports) return;
+    document.getElementById(`importacao-${importacaoId}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, [isLoadingImports, searchParams]);
 
   function removeFile() {
     setFile(null);
@@ -115,8 +175,9 @@ function ImportacoesPage() {
     }
   }
 
-  async function handleDeleteImport(importacao) {
-    if (!window.confirm(`Excluir a importação ${importacao.nome_arquivo || "selecionada"}?`)) return;
+  async function handleDeleteImport() {
+    if (!deleteTarget) return;
+    const importacao = deleteTarget;
     setIsDeleting(true);
     setError("");
     try {
@@ -127,6 +188,7 @@ function ImportacoesPage() {
       setError(requestErrorMessage(requestError));
     } finally {
       setIsDeleting(false);
+      setDeleteTarget(null);
     }
   }
 
@@ -212,6 +274,7 @@ function ImportacoesPage() {
                     <li>Selecione somente a UPS que será importada.</li>
                     <li>Informe a competência desejada e gere a <strong>Consulta de Estoque</strong>.</li>
                     <li>Exporte em CSV e mantenha um arquivo separado para cada UPS e competência.</li>
+                    <li>Para a análise mensal, importe também as movimentações da mesma UPS e competência. A ordem dos dois uploads não é obrigatória.</li>
                   </ol>
                 </>
               ) : (
@@ -221,11 +284,12 @@ function ImportacoesPage() {
                     <li>Selecione a mesma UPS usada nos relatórios de estoque.</li>
                     <li>Use o primeiro e o último dia da competência como período.</li>
                     <li>Escolha o formato <strong>Sintético</strong> e exporte em CSV.</li>
+                    <li>Para a análise mensal, importe também a Consulta de Estoque da mesma UPS e competência. A ordem dos dois uploads não é obrigatória.</li>
                   </ol>
                 </>
               )}
               <p className="import-download-guide__example">
-                <strong>Para validar agosto:</strong> importe o estoque de julho, as movimentações de agosto e o estoque de agosto.
+                <strong>Para validar agosto:</strong> disponibilize o estoque de julho, as movimentações de agosto e o estoque de agosto. A ordem de envio não é obrigatória, mas os relatórios devem corresponder à UPS e às competências indicadas.
               </p>
             </div>
           </details>
@@ -241,13 +305,75 @@ function ImportacoesPage() {
       </section>
 
       <section className="import-history" aria-labelledby="import-history-title">
-        <div className="import-history__heading"><div><span className="eyebrow">Histórico</span><h2 id="import-history-title">Importações realizadas</h2></div></div>
-        {isLoadingImports ? <p className="import-history__empty">Carregando importações...</p> : imports.length === 0 ? <p className="import-history__empty">Nenhuma importação registrada.</p> : <div className="import-history__list">{imports.map((item) => <article className="import-history__item" key={item.id}><div className="import-history__summary"><div><strong>{item.nome_arquivo}</strong><span>{item.tipo_relatorio} · {String(item.competencia?.mes).padStart(2, "0")}/{item.competencia?.ano} · {item.ups?.nome}</span><small>Importado por <b>{item.usuario || "usuário não informado"}</b></small></div><button className="secondary-button secondary-button--danger" type="button" onClick={() => handleDeleteImport(item)} disabled={isDeleting}>Excluir</button></div><PendingImportResolutions importId={item.id} pendencias={item.pendencias} onResolved={handleImportUpdated} compact /></article>)}</div>}
+        <div className="import-history__heading">
+          <div><span className="eyebrow">Histórico</span><h2 id="import-history-title">Importações realizadas</h2></div>
+          <div className="import-history__filters" aria-label="Filtros do histórico de importações">
+            <FilterSelect
+              id="import-history-competence"
+              label="Mês"
+              value={competenceFilter}
+              options={competenceOptions}
+              placeholder="Todos os meses"
+              icon={CalendarDays}
+              onChange={setCompetenceFilter}
+            />
+            <FilterSelect
+              id="import-history-ups"
+              label="UPS"
+              value={upsFilter}
+              options={upsOptions}
+              placeholder="Todas as UPS"
+              icon={Warehouse}
+              onChange={setUpsFilter}
+            />
+            <FilterSelect
+              id="import-history-report-type"
+              label="Tipo"
+              value={reportTypeFilter}
+              options={reportTypeOptions}
+              placeholder="Todos os tipos"
+              icon={FileText}
+              onChange={setReportTypeFilter}
+            />
+          </div>
+        </div>
+        {isLoadingImports ? <p className="import-history__empty">Carregando importações...</p> : imports.length === 0 ? <p className="import-history__empty">Nenhuma importação registrada.</p> : visibleImports.length === 0 ? <p className="import-history__empty">Nenhuma importação corresponde aos filtros selecionados.</p> : <div className="import-history__list">{visibleImports.map((item) => <article className="import-history__item" id={`importacao-${item.id}`} key={item.id}><div className="import-history__summary"><div><strong>{item.nome_arquivo}</strong><span>{item.tipo_relatorio} · {String(item.competencia?.mes).padStart(2, "0")}/{item.competencia?.ano} · {item.ups?.nome}</span><small>Importado em <b>{formatImportDate(item.data_importacao)}</b> por <b>{item.usuario || "usuário não informado"}</b></small>{item.pendencias?.length > 0 && <small className="import-history__alert">{item.pendencias.length} pendência(s) aguardando correção. Consulte os itens abaixo ou reimporte após corrigir o CSV.</small>}</div><button className="secondary-button secondary-button--danger" type="button" onClick={() => setDeleteTarget(item)} disabled={isDeleting}><Trash2 size={15} aria-hidden="true" />Excluir</button></div><PendingImportResolutions importId={item.id} pendencias={item.pendencias} onResolved={handleImportUpdated} compact /></article>)}</div>}
       </section>
 
       <div className="result-announcer" aria-live="polite" aria-atomic="true">{isSubmitting && "Importação em processamento."}{result && `Importação finalizada com status ${result.status}.`}</div>
-      {result && <ImportSummary result={result} fileName={resultFileName} onDelete={() => handleDeleteImport({ id: result.importacao_id, nome_arquivo: resultFileName })} onImportUpdated={handleImportUpdated} isDeleting={isDeleting} />}
+      {result && <ImportSummary result={result} fileName={resultFileName} onDelete={() => setDeleteTarget({ id: result.importacao_id, nome_arquivo: resultFileName })} onImportUpdated={handleImportUpdated} isDeleting={isDeleting} />}
       {isConfirmationOpen && <ReimportConfirmationModal isSubmitting={isSubmitting} onCancel={() => setIsConfirmationOpen(false)} onConfirm={() => { setIsConfirmationOpen(false); processUpload({ reimportar: true }); }} />}
+      {deleteTarget && (
+        <div className="confirmation-overlay">
+          <section
+            className="confirmation-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-import-title"
+            aria-describedby="delete-import-description"
+          >
+            <span className="confirmation-dialog__icon confirmation-dialog__icon--danger" aria-hidden="true">
+              <AlertTriangle size={22} />
+            </span>
+            <div className="confirmation-dialog__content">
+              <h2 id="delete-import-title">Excluir importação</h2>
+              <p id="delete-import-description">
+                Esta ação removerá os registros derivados desta importação. Deseja continuar?
+              </p>
+              <strong className="confirmation-dialog__filename">{deleteTarget.nome_arquivo || "Importação selecionada"}</strong>
+            </div>
+            <div className="confirmation-dialog__actions">
+              <button className="secondary-button" type="button" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+                Cancelar
+              </button>
+              <button className="secondary-button secondary-button--danger" type="button" onClick={handleDeleteImport} disabled={isDeleting} autoFocus>
+                <Trash2 size={16} aria-hidden="true" />
+                {isDeleting ? "Excluindo..." : "Excluir importação"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }
