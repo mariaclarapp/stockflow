@@ -1641,9 +1641,21 @@ th {
 .import-result__actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #e4eeec;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.import-result__actions .secondary-button--danger {
+  gap: 8px;
+  color: var(--danger);
+  border-color: #e6bcbc;
+  background: var(--surface);
+}
+
+.import-result__actions .secondary-button--danger:hover:not(:disabled) {
+  color: #ffffff;
+  border-color: var(--danger);
+  background: var(--danger);
 }
 
 .import-preview {
@@ -3322,7 +3334,8 @@ th {
 
 .import-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 12px;
   padding: 22px 24px;
 }
@@ -3337,6 +3350,10 @@ th {
   border-radius: 7px;
   color: var(--primary-800);
   background: #fbfdfc;
+}
+
+.import-stats article > svg {
+  flex-shrink: 0;
 }
 
 .import-stats span,
@@ -3356,12 +3373,17 @@ th {
   color: var(--muted);
   font-size: 0.65rem;
   line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .issues-grid {
   display: grid;
   gap: 14px;
   padding: 0 24px 24px;
+}
+
+.issues-grid:empty {
+  display: none;
 }
 
 .import-pending {
@@ -6084,6 +6106,7 @@ th {
   }
 
   .import-stats {
+    grid-auto-flow: row;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -6355,6 +6378,10 @@ th {
   .import-stats {
     grid-template-columns: 1fr;
     padding: 18px 16px;
+  }
+
+  .import-result__actions {
+    padding: 12px 16px;
   }
 
   .issues-grid {

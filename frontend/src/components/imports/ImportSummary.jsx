@@ -4,6 +4,7 @@ import {
   FileCheck2,
   Pill,
   RotateCcw,
+  Trash2,
   Warehouse,
 } from "lucide-react";
 
@@ -110,6 +111,7 @@ function ImportSummary({ result, fileName, onDelete, onImportUpdated, isDeleting
 
       <div className="import-result__actions">
         <button className="secondary-button secondary-button--danger" type="button" onClick={onDelete} disabled={isDeleting}>
+          <Trash2 size={16} aria-hidden="true" />
           {isDeleting ? "Excluindo..." : "Excluir esta importação"}
         </button>
       </div>
