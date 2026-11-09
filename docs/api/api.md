@@ -238,6 +238,10 @@ Todos recebem `multipart/form-data` no campo `arquivo`. O campo opcional
 Uma reimportação explicitamente confirmada também pode reprocessar o mesmo arquivo, o
 que permite aplicar novas regras de conciliação sem editar o CSV original.
 
+A resolução de uma pendência guarda a associação confirmada entre descrição, unidade
+e medicamento. As importações de estoque reaproveitam a associação quando ela
+identifica um único medicamento.
+
 Uma linha de estoque com descrição, unidade e quantidade, mas sem código identificável,
 fica registrada como pendência corrigível quando não existe correspondência única no
 cadastro. A resolução recebe `codigo_gmus`, reutiliza o medicamento desse código ou cria

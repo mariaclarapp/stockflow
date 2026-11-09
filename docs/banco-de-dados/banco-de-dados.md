@@ -225,6 +225,11 @@ compartilhados nao sao removidos pela reimportacao.
 
 ## Reimportacao de Consulta de Estoque
 
+`AssociacaoMaterial` vincula uma chave calculada a partir da descrição e unidade do
+CSV ao medicamento confirmado. A combinação de chave e medicamento é única. A
+associação é independente da importação, e os vínculos confirmados anteriormente
+que ainda estão registrados são recuperados pela migração.
+
 A `Consulta de Estoque` utiliza a mesma regra de duplicidade e reimportacao, mas
 substitui somente os registros de `SaldoEstoque` vinculados à importacao. Seus saldos
 nao entram na consolidacao do inventario detalhado. A API administrativa de conferencia

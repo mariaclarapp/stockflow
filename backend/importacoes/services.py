@@ -1,4 +1,5 @@
 from datetime import date
+from hashlib import sha256
 import re
 import unicodedata
 
@@ -14,6 +15,7 @@ from medicamentos.domain import (
 from medicamentos.models import Classificacao, Medicamento, SubgrupoGmus
 
 from .models import (
+    AssociacaoMaterial,
     Importacao,
     ImportacaoExclusao,
     MovimentacaoEstoque,
@@ -142,16 +144,7 @@ def resolver_pendencia_importacao(
             "O medicamento informado possui uma unidade diferente da linha pendente."
         )
 
-    saldo, saldo_criado = SaldoEstoque.objects.select_for_update().get_or_create(
-        medicamento=medicamento,
-        ups=importacao.ups,
-        competencia=importacao.competencia,
-        importacao=importacao,
-        defaults={"quantidade": pendencia.quantidade},
-    )
-    if not saldo_criado:
-        saldo.quantidade += pendencia.quantidade
-        saldo.save(update_fields=["quantidade"])
+    saldo, saldo_criado = _add_stock_balance(importacao, medicamento, pendencia.quantidade)
 
     pendencia.status = PendenciaImportacao.Status.RESOLVIDA
     pendencia.medicamento = medicamento
@@ -159,6 +152,10 @@ def resolver_pendencia_importacao(
     pendencia.resolvida_em = timezone.now()
     pendencia.save(
         update_fields=["status", "medicamento", "resolvida_por", "resolvida_em"]
+    )
+    AssociacaoMaterial.objects.get_or_create(
+        chave=_material_association_key(pendencia.descricao, pendencia.unidade),
+        medicamento=medicamento,
     )
 
     pendencias_abertas = importacao.pendencias.filter(
@@ -486,7 +483,7 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
             if issue.get("type") != "invalid_material" or not issue.get("fallback"):
                 continue
             fallback = issue["fallback"]
-            matches = _find_existing_medicine_matches(
+            matches = _find_stock_material_matches(
                 descricao=fallback["descricao"], unidade=fallback["unidade"]
             )
             if len(matches) != 1:
@@ -550,6 +547,7 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
         reused_medicines = set()
         reported_divergences = set()
         saldo_count = 0
+        processed_count = 0
         ignored_count = len(
             invalid_lines
             - {record.get("line") for record in records}
@@ -607,14 +605,9 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
                 created_medicines.add(medicine.pk)
             elif medicine.pk not in created_medicines:
                 reused_medicines.add(medicine.pk)
-            SaldoEstoque.objects.create(
-                medicamento=medicine,
-                ups=ups,
-                competencia=competencia,
-                importacao=importacao,
-                quantidade=record["quantidade"],
-            )
-            saldo_count += 1
+            _, saldo_criado = _add_stock_balance(importacao, medicine, record["quantidade"])
+            saldo_count += int(saldo_criado)
+            processed_count += 1
 
         if reimportacao and saldo_count == 0:
             raise InventoryPersistenceError(
@@ -683,7 +676,7 @@ def persist_stock_import(*, parsed_data, user, nome_arquivo, reimportar=False):
             "competencia_criada": competencia_criada,
             "ups_criada": ups_criada,
             "registros_recebidos": len(records),
-            "registros_processados": saldo_count,
+            "registros_processados": processed_count,
             "registros_ignorados": ignored_count,
             "medicamentos_criados": len(created_medicines),
             "medicamentos_reutilizados": len(reused_medicines),
@@ -824,6 +817,39 @@ def _validate_import_context(parsed_data, user, nome_arquivo):
         int(file_hash, 16)
     except ValueError as error:
         raise InventoryPersistenceError("Hash SHA-256 do arquivo invalido.") from error
+
+
+def _add_stock_balance(importacao, medicamento, quantidade):
+    saldo, criado = SaldoEstoque.objects.select_for_update().get_or_create(
+        medicamento=medicamento,
+        ups_id=importacao.ups_id,
+        competencia_id=importacao.competencia_id,
+        importacao=importacao,
+        defaults={"quantidade": quantidade},
+    )
+    if not criado:
+        saldo.quantidade += quantidade
+        saldo.save(update_fields=["quantidade"])
+    return saldo, criado
+
+
+def _material_association_key(descricao, unidade):
+    fields = [
+        unicodedata.normalize("NFC", " ".join(value.split()).casefold())
+        for value in (descricao, unidade)
+    ]
+    return sha256("\0".join(fields).encode("utf-8")).hexdigest()
+
+
+def _find_stock_material_matches(*, descricao, unidade):
+    confirmed = list(
+        AssociacaoMaterial.objects.filter(
+            chave=_material_association_key(descricao, unidade)
+        ).select_related("medicamento")[:2]
+    )
+    if confirmed:
+        return [association.medicamento for association in confirmed]
+    return _find_existing_medicine_matches(descricao=descricao, unidade=unidade)
 
 
 def _find_existing_medicine_matches(*, descricao, unidade):

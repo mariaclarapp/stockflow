@@ -98,6 +98,23 @@ class PendenciaImportacao(models.Model):
         verbose_name_plural = "pendencias de importacao"
 
 
+class AssociacaoMaterial(models.Model):
+    chave = models.CharField(max_length=64)
+    medicamento = models.ForeignKey(
+        "medicamentos.Medicamento",
+        on_delete=models.CASCADE,
+        related_name="associacoes_material_importado",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["chave", "medicamento"],
+                name="unique_associacao_material_medicamento",
+            )
+        ]
+
+
 class MovimentacaoEstoque(models.Model):
     importacao = models.ForeignKey(
         Importacao,

@@ -343,6 +343,10 @@ que um usuário administrativo informe um código G-MUS numérico válido. A res
 deverá registrar medicamento, usuário e data, incorporar a quantidade ao saldo original
 e manter os dados brutos para auditoria. Não serão criados códigos vazios ou genéricos.
 
+A confirmação também fica disponível para novas importações e reimportações com a
+mesma descrição e unidade, mesmo que o relatório original seja excluído. Se houver
+mais de um código confirmado para a mesma combinação, a linha permanece pendente.
+
 Se descrição e unidade encontrarem uma única correspondência segura no cadastro, a
 associação será automática e registrada como informação interna. A linha deverá ser
 processada normalmente, sem ser exibida como alerta e sem tornar a importação
