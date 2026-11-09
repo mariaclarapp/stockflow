@@ -403,6 +403,32 @@ class ActiveImportApiTests(APITestCase):
         self.assertTrue(response.data["mesmo_arquivo"])
         self.assertEqual(Importacao.objects.count(), 1)
 
+    def test_preview_requires_a_unique_ups_when_report_omits_gmus_code(self):
+        self.authenticate()
+
+        def preview_without_code():
+            return self.client.post(
+                self.preview_url,
+                {"arquivo": stock_upload_without_ups_code()},
+                format="multipart",
+            )
+
+        missing = preview_without_code()
+        self.assertEqual(missing.status_code, status.HTTP_200_OK)
+        self.assertFalse(missing.data["pode_importar"])
+        self.assertEqual(missing.data["erros"][0]["type"], "unresolved_ups")
+        self.assertIn("ID 9 ainda não está cadastrada", missing.data["erros"][0]["message"])
+        self.assertFalse(Ups.objects.exists())
+
+        Ups.objects.create(codigo_gmus="1234567", id_unidade_gmus="9", nome="FARMACIA TESTE")
+        self.assertTrue(preview_without_code().data["pode_importar"])
+
+        Ups.objects.create(codigo_gmus="7654321", id_unidade_gmus="9", nome="OUTRA UPS")
+        ambiguous = preview_without_code()
+        self.assertFalse(ambiguous.data["pode_importar"])
+        self.assertIn("mais de uma UPS", ambiguous.data["erros"][0]["message"])
+        self.assertFalse(Importacao.objects.exists())
+
     def test_stock_upload_resolves_ups_when_report_omits_gmus_code(self):
         self.authenticate()
         ups = Ups.objects.create(

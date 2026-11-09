@@ -55,23 +55,19 @@ def find_existing_import(parsed_data):
     if not report_type or not competence_data or not ups_data.get("id_unidade_gmus"):
         return None
 
-    competencia = Competencia.objects.filter(
-        ano=competence_data.get("ano"),
-        mes=competence_data.get("mes"),
-    ).first()
-    if competencia is None:
-        return None
-
-    ups_queryset = Ups.objects.filter(id_unidade_gmus=ups_data["id_unidade_gmus"])
+    unit_id = ups_data["id_unidade_gmus"]
     if ups_data.get("codigo_gmus"):
-        ups = ups_queryset.filter(codigo_gmus=ups_data["codigo_gmus"]).first()
+        ups = Ups.objects.filter(
+            id_unidade_gmus=unit_id,
+            codigo_gmus=ups_data["codigo_gmus"],
+        ).first()
     else:
-        matches = list(ups_queryset.order_by("id")[:2])
-        ups = matches[0] if len(matches) == 1 else None
+        ups = _get_ups_without_code(unit_id)
     if ups is None:
         return None
     return Importacao.objects.filter(
-        competencia=competencia,
+        competencia__ano=competence_data.get("ano"),
+        competencia__mes=competence_data.get("mes"),
         ups=ups,
         tipo_relatorio=report_type,
     ).first()
@@ -891,7 +887,7 @@ def _raise_on_duplicate_records(records, *, invalid_lines, report_type):
 
 
 def _resolve_stock_ups(ups_data):
-    """Resolve Consulta de Estoque UPS metadata, including exports without code."""
+    """Resolve the UPS for stock and movement reports."""
     unit_id = ups_data.get("id_unidade_gmus")
     codigo_gmus = ups_data.get("codigo_gmus")
     if codigo_gmus:
@@ -901,15 +897,24 @@ def _resolve_stock_ups(ups_data):
             defaults={"nome": ups_data["nome"]},
         )
 
+    return _get_ups_without_code(unit_id), False
+
+
+def _get_ups_without_code(unit_id):
     matches = list(
         Ups.objects.filter(id_unidade_gmus=unit_id).order_by("id")[:2]
     )
-    if len(matches) != 1:
+    if not matches:
         raise InventoryPersistenceError(
-            "Nao foi possivel identificar a UPS: o relatorio nao informa o codigo G-MUS "
-            "e o id_unidade_gmus nao corresponde a uma unica UPS cadastrada."
+            f"A UPS com ID {unit_id} ainda não está cadastrada. Importe primeiro uma "
+            "Consulta de Estoque da mesma UPS que traga o código G-MUS e o ID."
         )
-    return matches[0], False
+    if len(matches) > 1:
+        raise InventoryPersistenceError(
+            f"Há mais de uma UPS cadastrada com o ID {unit_id}. Confira o cadastro "
+            "da unidade para identificar a UPS correta antes de importar este relatório."
+        )
+    return matches[0]
 
 
 def _normalize_match_text(value):

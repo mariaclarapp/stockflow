@@ -226,6 +226,9 @@ A Consulta de Estoque aceita as duas formas de identificação exportadas pelo G
 com `UPS: nome / codigo_gmus (id_unidade_gmus)` ou somente `UPS: nome
 (id_unidade_gmus)`. Quando o código não estiver presente, o backend somente associa o
 arquivo se o identificador da unidade corresponder a uma única UPS já cadastrada.
+O relatório de movimentação sintética pode trazer somente o ID. A prévia bloqueia o
+envio sem código quando o ID está ausente do cadastro ou é compartilhado por mais de
+uma UPS. Uma Consulta de Estoque com código e ID pode cadastrar a unidade.
 - `POST /api/importacoes/previsualizar/` — valida metadados e estrutura sem persistir;
 - `POST /api/importacoes/{id}/pendencias/{pendencia_id}/resolver/` — associa uma linha sem código ao código G-MUS correto;
 - `DELETE /api/importacoes/{id}/` — com confirmação explícita, exclui os registros derivados e cria auditoria.

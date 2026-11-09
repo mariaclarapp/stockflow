@@ -136,6 +136,8 @@ function ImportacoesPage() {
             ? "O arquivo selecionado não é uma Consulta de Estoque."
             : "O arquivo selecionado não é uma Movimentação de Estoque sintética.",
         );
+      } else if (!data.pode_importar) {
+        setError(data.erros?.find((issue) => issue.line == null)?.message || "");
       }
       setPreview(data);
     } catch (requestError) {
@@ -298,7 +300,7 @@ function ImportacoesPage() {
                 </>
               )}
               <p className="import-download-guide__example">
-                <strong>Para validar agosto:</strong> disponibilize o estoque de julho, as movimentações de agosto e o estoque de agosto. A ordem de envio não é obrigatória, mas os relatórios devem corresponder à UPS e às competências indicadas.
+                <strong>Para validar agosto:</strong> disponibilize o estoque de julho, as movimentações de agosto e o estoque de agosto para a mesma UPS. Se a UPS ainda não estiver cadastrada, envie primeiro uma Consulta de Estoque com o código G-MUS e o ID da unidade.
               </p>
             </div>
           </details>

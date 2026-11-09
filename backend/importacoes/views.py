@@ -139,7 +139,19 @@ class ImportPreviewAPIView(APIView):
         issues = parsed_data.get("inconsistencies", [])
         errors = [item for item in issues if item.get("severity", "error") == "error"]
         warnings = [item for item in issues if item.get("severity") == "warning"]
-        existing_import = find_existing_import(parsed_data)
+        existing_import = None
+        if not any(item.get("line") is None for item in errors):
+            try:
+                existing_import = find_existing_import(parsed_data)
+            except InventoryPersistenceError as error:
+                errors.append(
+                    {
+                        "line": None,
+                        "type": "unresolved_ups",
+                        "severity": "error",
+                        "message": str(error),
+                    }
+                )
         return Response(
             {
                 "tipo_relatorio": parsed_data.get("tipo_relatorio"),
