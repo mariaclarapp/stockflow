@@ -3,106 +3,182 @@
 top to bottom direction
 
 skinparam classAttributeIconSize 0
-skinparam packageStyle rectangle
-skinparam linetype ortho
-skinparam nodesep 30
-skinparam ranksep 40
+skinparam shadowing false
+skinparam linetype polyline
+skinparam nodesep 60
+skinparam ranksep 45
+skinparam padding 6
 
-package "Medicamentos" {
-  class SubgrupoGmus {
-    - id : int
-    - codigoGmus : int [0..1]
-    - nome : String
-  }
 
-  class Medicamento {
-    - id : int
-    - codigoGmus : String
-    - descricao : String
-    - unidade : String
-  }
+/' PRIMEIRA LINHA: MEDICAMENTOS '/
 
-  class PrincipioAtivo {
-    - id : int
-    - nome : String
-  }
+together {
 
-  class Classificacao {
-    - id : int
-    - nome : String
-    - cor : String
-    - descricao : String
-    - ativo : boolean
-  }
+    class SubgrupoGmus {
+        - id : int
+        - codigoGmus : int
+        - nome : String
+    }
+
+    class Medicamento {
+        - id : int
+        - codigoGmus : String
+        - descricao : String
+        - unidade : String
+    }
+
+    class Classificacao {
+        - id : int
+        - nome : String
+        - cor : String
+        - descricao : String
+        - ativo : boolean
+    }
+
+    class MedicamentoService {
+        + consultarMedicamentos()
+        + filtrarMedicamentos()
+        + gerenciarClassificacoes()
+    }
 }
 
-package "Estoques" {
-  class Lote {
-    - id : int
-    - codigoLote : String
-    - dataValidade : Date [0..1]
-  }
 
-  class Estoque {
-    - id : int
-    - quantidade : Decimal
-  }
+/' SEGUNDA LINHA: IMPORTAÇÕES '/
+
+together {
+
+    class Usuario {
+        - id : int
+        - username : String
+        - email : String
+        - ativo : boolean
+    }
+
+    class Ups {
+        - id : int
+        - codigoGmus : String
+        - idUnidadeGmus : String
+        - nome : String
+        - participaCompetencia : boolean
+        - compoeEstoqueConvencional : boolean
+    }
+
+    class Competencia {
+        - id : int
+        - mes : int
+        - ano : int
+    }
+
+    class Importacao {
+        - id : int
+        - nomeArquivo : String
+        - tipoRelatorio : String
+        - dataImportacao : DateTime
+        - status : String
+    }
+
+    class ImportacaoService {
+        + identificarRelatorio()
+        + importarEstoque()
+        + importarMovimentacoes()
+        + reimportar()
+        + excluirImportacao()
+    }
 }
 
-package "Core" {
-  class Ups {
-    - id : int
-    - codigoGmus : String
-    - idUnidadeGmus : String
-    - nome : String
-    - participaCompetencia : boolean
-    - compoeEstoqueConvencional : boolean
-  }
 
-  class Competencia {
-    - id : int
-    - mes : int
-    - ano : int
-  }
+/' TERCEIRA LINHA: ESTOQUE E ANÁLISE '/
+
+together {
+
+    class SaldoEstoque {
+        - id : int
+        - quantidade : Decimal
+    }
+
+    class MovimentacaoEstoque {
+        - id : int
+        - dataInicial : Date
+        - dataFinal : Date
+        - saida : Decimal
+        - compra : Decimal
+        - transferenciaEntrada : Decimal
+        - transferenciaSaida : Decimal
+        - acertoEntrada : Decimal
+        - acertoSaida : Decimal
+        - saldoAtual : Decimal
+    }
+
+    class EstoqueService {
+        + consolidarEstoque()
+        + consultarHistorico()
+        + validarMovimentacoes()
+        + consultarDisponibilidade()
+    }
+
+    class AnaliseConsumoService {
+        + calcularMediaSaidas()
+        + compararPeriodos()
+        + gerarEvolucao()
+        + gerarRanking()
+        + calcularCurvaABC()
+        + calcularTendencia()
+    }
 }
 
-package "Importacoes" {
-  enum StatusImportacao {
-    concluida
-    concluida_com_alertas
-    concluida_parcial
-  }
 
-  class Importacao {
-    - id : int
-    - nomeArquivo : String
-    - hashArquivo : String
-    - tipoRelatorio : String
-    - dataImportacao : DateTime
-    - status : StatusImportacao
-  }
-}
+/' RELACIONAMENTOS '/
 
-package "Django (framework)" {
-  class "User (AUTH_USER_MODEL)" as DjangoUser <<framework>> {
-    - id : int
-  }
-}
+SubgrupoGmus "0..1" -- "0..*" Medicamento
+Medicamento "0..*" -- "0..*" Classificacao
 
-SubgrupoGmus "0..1" -right- "0..*" Medicamento
-Medicamento "0..*" -right- "0..*" PrincipioAtivo
-Medicamento "0..*" -down- "0..*" Classificacao
+Usuario "1" -- "0..*" Importacao
+Ups "1" -- "0..*" Importacao
+Competencia "1" -- "0..*" Importacao
 
-Medicamento "1" -down- "0..*" Lote
-Medicamento "1" -down- "0..*" Estoque
-Ups "1" -left- "0..*" Estoque
-Competencia "1" -left- "0..*" Estoque
-Lote "0..1" -right- "0..*" Estoque
-Importacao "1" -up- "0..*" Estoque
+Importacao "1" *-- "0..*" SaldoEstoque
+Importacao "1" *-- "0..*" MovimentacaoEstoque
 
-DjangoUser "1" -left- "0..*" Importacao : usuario
-Ups "1" -down- "0..*" Importacao
-Competencia "1" -down- "0..*" Importacao
-Importacao ..> StatusImportacao
+Medicamento "1" -- "0..*" SaldoEstoque
+Medicamento "1" -- "0..*" MovimentacaoEstoque
+
+Ups "1" -- "0..*" SaldoEstoque
+Ups "1" -- "0..*" MovimentacaoEstoque
+
+Competencia "1" -- "0..*" SaldoEstoque
+Competencia "1" -- "0..*" MovimentacaoEstoque
+
+
+/' DEPENDÊNCIAS DOS SERVIÇOS '/
+
+MedicamentoService ..left.> Medicamento
+ImportacaoService ..left.> Importacao
+
+EstoqueService ..left.> SaldoEstoque
+EstoqueService ..left.> MovimentacaoEstoque
+
+AnaliseConsumoService ..left.> MovimentacaoEstoque
+
+
+/' ORDEM HORIZONTAL DE CADA LINHA '/
+
+SubgrupoGmus -[hidden]right- Medicamento
+Medicamento -[hidden]right- Classificacao
+Classificacao -[hidden]right- MedicamentoService
+
+Usuario -[hidden]right- Ups
+Ups -[hidden]right- Competencia
+Competencia -[hidden]right- Importacao
+Importacao -[hidden]right- ImportacaoService
+
+SaldoEstoque -[hidden]right- MovimentacaoEstoque
+MovimentacaoEstoque -[hidden]right- EstoqueService
+EstoqueService -[hidden]right- AnaliseConsumoService
+
+
+/' ORDEM VERTICAL DAS LINHAS '/
+
+Medicamento -[hidden]down- Competencia
+Competencia -[hidden]down- MovimentacaoEstoque
 
 @enduml
